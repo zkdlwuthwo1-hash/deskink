@@ -3,7 +3,7 @@ import XCTest
 final class DeskInkViewportUITests: XCTestCase {
     func testControlsStayOutsideTheDrawingViewportInLandscape() {
         continueAfterFailure = false
-        XCUIDevice.shared.orientation = .landscapeLeft
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["-didSeeOnboarding", "YES", "-allowUSB", "NO"]
         app.launchEnvironment["EM_UI_PREVIEW"] = "deskink"
@@ -11,8 +11,16 @@ final class DeskInkViewportUITests: XCTestCase {
         defer { app.terminate() }
         let viewport = app.descendants(matching: .any).matching(identifier: "deskink.viewport").firstMatch
         XCTAssertTrue(viewport.waitForExistence(timeout: 10))
+        // Rotate the running scene, rather than relying on SpringBoard's
+        // orientation being applied to a newly launched simulator window.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        expectation(for: NSPredicate { _, _ in app.frame.width > app.frame.height }, evaluatedWith: nil)
+        waitForExpectations(timeout: 10)
         let eraser = app.buttons["지우개"]
         XCTAssertTrue(eraser.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.frame.contains(viewport.frame), "The whole viewport must fit inside the rotated window")
+        XCTAssertTrue(app.buttons["deskink.fit"].isHittable)
+        XCTAssertTrue(app.buttons["전체 지우기, 실행 취소로 복원 가능"].isHittable)
         XCTAssertLessThanOrEqual(viewport.frame.maxY, eraser.frame.minY,
                                  "The bottom tool dock must not cover any of the video or ink")
         XCTAssertLessThanOrEqual(app.buttons["deskink.fit"].frame.maxY, viewport.frame.minY,
