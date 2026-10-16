@@ -142,9 +142,20 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     }
     func finish(sendEnd: Bool = true) {
         guard let id = activeID else { return }
+        let wasErasing = activeTool == .eraser
         let command: DeskInkCommand? = activeTool == .laser ? nil : activeTool == .eraser ? .eraseEnd(id: id) : .end(id: id)
         activeTouch = nil; activeID = nil; activeTool = nil
         if let command { submit([command], transmit: sendEnd) }
+        if wasErasing {
+            if sendEnd {
+                tools?.eraserGestureDidEnd()
+                submit([pointerCommand(document.pointer?.point)])
+            } else {
+                // A connection binding can finish an interrupted gesture inside
+                // updateUIView; defer the observable tool selection in that case.
+                DispatchQueue.main.async { [weak tools] in tools?.eraserGestureDidEnd() }
+            }
+        }
         updateControls()
     }
     func perform(_ command: DeskInkCommand) {

@@ -47,11 +47,15 @@ final class DeskInkTools {
     }
     func select(_ tool: DeskInkTool) {
         canvas?.finish()
+        if tool == .eraser, self.tool != .eraser { previousTool = self.tool }
         self.tool = tool
     }
     func toggleEraser() {
         if tool == .eraser { select(previousTool) }
-        else { previousTool = tool; select(.eraser) }
+        else { select(.eraser) }
+    }
+    func eraserGestureDidEnd() {
+        if tool == .eraser { tool = previousTool }
     }
     func perform(_ command: DeskInkCommand) { canvas?.perform(command) }
 }
