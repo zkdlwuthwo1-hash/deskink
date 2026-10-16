@@ -38,6 +38,7 @@ final class DeskInkTools {
     var canUndo = false
     var canRedo = false
     @ObservationIgnored weak var canvas: InkCanvasView?
+    @ObservationIgnored weak var viewport: DeskInkViewportView?
     @ObservationIgnored private var previousTool: DeskInkTool = .pen
 
     var brush: DeskInkBrush {
@@ -58,6 +59,7 @@ final class DeskInkTools {
         if tool == .eraser { tool = previousTool }
     }
     func perform(_ command: DeskInkCommand) { canvas?.perform(command) }
+    func resetZoom() { viewport?.resetZoom() }
 }
 
 struct DeskInkToolbar: View {

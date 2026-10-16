@@ -12,6 +12,10 @@ struct MetalView: UIViewRepresentable {
     @EnvironmentObject var connectionManager: ConnectionManager
 
     func makeUIView(context: Context) -> MTKView {
+        Self.makeRenderingView(frameSlot: connectionManager.frameSlot, coordinator: context.coordinator)
+    }
+
+    static func makeRenderingView(frameSlot: FrameSlot, coordinator: Coordinator) -> MTKView {
         let view = MTKView()
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Metal is not supported on this device")
@@ -27,10 +31,10 @@ struct MetalView: UIViewRepresentable {
         view.clearColor = MTLClearColor(red: 0.024, green: 0.027, blue: 0.031, alpha: 1)
 
         let renderer = MetalRenderer(device: device, view: view)
-        context.coordinator.renderer = renderer
-        context.coordinator.frameSlot = connectionManager.frameSlot
-        context.coordinator.attach(view: view)
-        view.delegate = context.coordinator
+        coordinator.renderer = renderer
+        coordinator.frameSlot = frameSlot
+        coordinator.attach(view: view)
+        view.delegate = coordinator
 
         return view
     }

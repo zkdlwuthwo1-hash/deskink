@@ -1,23 +1,9 @@
-import SwiftUI
 import UIKit
-
-struct DeskInkCanvas: UIViewRepresentable {
-    let videoSize: CGSize
-    let enabled: Bool
-    let connectionKey: String
-    let tools: DeskInkTools
-    let send: ([DeskInkCommand]) -> Void
-
-    func makeUIView(context: Context) -> InkCanvasView { InkCanvasView() }
-    func updateUIView(_ view: InkCanvasView, context: Context) {
-        view.send = send; view.tools = tools; tools.canvas = view
-        view.configure(videoSize: videoSize, enabled: enabled, connectionKey: connectionKey)
-    }
-}
 
 /// UIKit owns the hot input path; SwiftUI observes tool choices and history only.
 final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     var send: ([DeskInkCommand]) -> Void = { _ in }
+    var onPencilActive: (Bool) -> Void = { _ in }
     weak var tools: DeskInkTools?
     let document = DeskInkDocument()
     private var videoSize = CGSize.zero
@@ -102,11 +88,26 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard enabled, activeTouch == nil, let tools,
-              let touch = touches.first(where: { $0.type == .pencil }) ?? (tools.fingerDrawing ? touches.first(where: { $0.type == .direct }) : nil),
-              imageRect.contains(touch.preciseLocation(in: self)), let point = reading(touch) else { return }
+              let touch = touches.first(where: { $0.type == .pencil }) ?? (tools.fingerDrawing ? touches.first(where: { $0.type == .direct }) : nil) else { return }
+        if touch.type == .direct, (event?.allTouches?.filter { $0.type == .direct && $0.phase != .ended }.count ?? 0) > 1 { return }
+        if touch.type == .pencil { onPencilActive(true) }
+        let pressure = touch.maximumPossibleForce > 0 ? touch.force/touch.maximumPossibleForce : 0.5
+        guard beginStroke(at: touch.preciseLocation(in: self), pressure: pressure) else {
+            if touch.type == .pencil { onPencilActive(false) }
+            return
+        }
+        activeTouch = touch; lastTimestamp = touch.timestamp
+    }
+
+    /// UIKit has already converted the Pencil location through the scroll view's
+    /// zoom transform. This is also the input seam used by viewport tests.
+    @discardableResult
+    func beginStroke(at location: CGPoint, pressure: CGFloat) -> Bool {
+        guard enabled, activeID == nil, let tools, imageRect.contains(location),
+              let point = reading(location: location, pressure: pressure) else { return false }
         if !document.visible { submit([.setVisible(true)]); updateControls() }
         let id = UInt64.random(in: 1...UInt64.max)
-        activeTouch = touch; activeID = id; activeTool = tools.tool; lastTimestamp = touch.timestamp
+        activeID = id; activeTool = tools.tool
         var commands: [DeskInkCommand] = []
         switch tools.tool {
         case .eraser: commands.append(.eraseBegin(id: id, point: point, radius: max(12,tools.width*3)))
@@ -115,6 +116,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         case .pen, .highlighter: commands.append(.begin(id: id, brush: tools.brush, point: point))
         }
         commands.append(pointerCommand(point)); submit(commands)
+        return true
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = activeTouch, touches.contains(touch), let id = activeID else { return }
@@ -156,6 +158,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
                 DispatchQueue.main.async { [weak tools] in tools?.eraserGestureDidEnd() }
             }
         }
+        onPencilActive(false)
         updateControls()
     }
     func perform(_ command: DeskInkCommand) {
