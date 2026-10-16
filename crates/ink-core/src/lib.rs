@@ -24,9 +24,48 @@ pub struct Stroke {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
-    Begin { id: u64, brush: Brush, point: Point },
-    Append { id: u64, point: Point },
-    End { id: u64 },
+    Begin {
+        id: u64,
+        brush: Brush,
+        point: Point,
+    },
+    Append {
+        id: u64,
+        point: Point,
+    },
+    End {
+        id: u64,
+    },
+    EraseBegin {
+        id: u64,
+        point: Point,
+        radius: f32,
+    },
+    EraseTo {
+        id: u64,
+        point: Point,
+    },
+    EraseEnd {
+        id: u64,
+    },
+    Undo,
+    Redo,
+    Clear,
+    SetVisible {
+        visible: bool,
+    },
+    TransientBegin {
+        id: u64,
+        brush: Brush,
+        point: Point,
+        lifetime_ms: u32,
+    },
+    Pointer {
+        point: Option<Point>,
+        color: [u8; 4],
+        radius: f32,
+        laser: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,6 +77,40 @@ pub enum InkError {
 #[derive(Default)]
 pub struct Board {
     strokes: Vec<Stroke>,
+    eraser: Option<EraseGesture>,
+    undo: Vec<Edit>,
+    redo: Vec<Edit>,
+    hidden: bool,
+    temporary: Vec<TransientStroke>,
+    now_ms: u64,
+    pointer: Option<Pointer>,
+}
+
+pub struct Pointer {
+    pub point: Point,
+    pub color: [u8; 4],
+    pub radius: f32,
+    pub laser: bool,
+    expires_at: u64,
+}
+
+struct TransientStroke {
+    stroke: Stroke,
+    lifetime_ms: u32,
+    expires_at: u64,
+}
+
+#[derive(Default)]
+struct Edit {
+    remove: Vec<u64>,
+    insert: Vec<(usize, Stroke)>,
+}
+
+struct EraseGesture {
+    id: u64,
+    last: Point,
+    radius: f32,
+    removed: Vec<(usize, Stroke)>,
 }
 
 impl Board {
@@ -48,7 +121,9 @@ impl Board {
     pub fn apply(&mut self, command: Command) -> Result<(), InkError> {
         match command {
             Command::Begin { id, brush, point } => {
-                if self.strokes.iter().any(|stroke| stroke.id == id) {
+                if self.strokes.iter().any(|stroke| stroke.id == id)
+                    || self.temporary.iter().any(|t| t.stroke.id == id)
+                {
                     return Err(InkError::InvalidStroke);
                 }
                 self.strokes.push(Stroke {
@@ -57,11 +132,13 @@ impl Board {
                     points: vec![point],
                     finished: false,
                 });
+                self.redo.clear();
             }
             Command::Append { id, point } => {
                 let stroke = self
                     .strokes
                     .iter_mut()
+                    .chain(self.temporary.iter_mut().map(|t| &mut t.stroke))
                     .find(|stroke| stroke.id == id)
                     .ok_or(InkError::InvalidStroke)?;
                 if stroke.finished {
@@ -70,12 +147,128 @@ impl Board {
                 stroke.points.push(point);
             }
             Command::End { id } => {
+                if let Some(temporary) = self.temporary.iter_mut().find(|t| t.stroke.id == id) {
+                    if temporary.stroke.finished {
+                        return Err(InkError::InvalidStroke);
+                    }
+                    temporary.stroke.finished = true;
+                    temporary.expires_at =
+                        self.now_ms.saturating_add(u64::from(temporary.lifetime_ms));
+                    return Ok(());
+                }
                 let stroke = self
                     .strokes
                     .iter_mut()
                     .find(|stroke| stroke.id == id)
                     .ok_or(InkError::InvalidStroke)?;
+                if stroke.finished {
+                    return Err(InkError::InvalidStroke);
+                }
                 stroke.finished = true;
+                self.remember(Edit {
+                    remove: vec![id],
+                    insert: vec![],
+                });
+            }
+            Command::EraseBegin { id, point, radius } => {
+                if self.eraser.is_some() {
+                    return Err(InkError::InvalidStroke);
+                }
+                let removed = self.erase_between(point, point, radius);
+                self.eraser = Some(EraseGesture {
+                    id,
+                    last: point,
+                    radius,
+                    removed,
+                });
+            }
+            Command::EraseTo { id, point } => {
+                let eraser = self
+                    .eraser
+                    .as_ref()
+                    .filter(|e| e.id == id)
+                    .ok_or(InkError::InvalidStroke)?;
+                let (last, radius) = (eraser.last, eraser.radius);
+                let removed = self.erase_between(last, point, radius);
+                let eraser = self.eraser.as_mut().unwrap();
+                eraser.last = point;
+                eraser.removed.extend(removed);
+            }
+            Command::EraseEnd { id } => {
+                if self.eraser.as_ref().map(|e| e.id) != Some(id) {
+                    return Err(InkError::InvalidStroke);
+                }
+                self.finish_erase();
+            }
+            Command::Undo | Command::Redo => {
+                if self.eraser.is_some() || self.strokes.iter().any(|s| !s.finished) {
+                    return Err(InkError::InvalidStroke);
+                }
+                let is_undo = matches!(command, Command::Undo);
+                let edit = if is_undo {
+                    self.undo.pop()
+                } else {
+                    self.redo.pop()
+                };
+                if let Some(edit) = edit {
+                    let inverse = self.apply_edit(edit);
+                    if is_undo {
+                        self.redo.push(inverse);
+                    } else {
+                        self.undo.push(inverse);
+                    }
+                }
+            }
+            Command::Clear => {
+                if self.eraser.is_some() || self.strokes.iter().any(|s| !s.finished) {
+                    return Err(InkError::InvalidStroke);
+                }
+                if !self.strokes.is_empty() {
+                    let removed = self.strokes.drain(..).enumerate().collect();
+                    self.remember(Edit {
+                        remove: vec![],
+                        insert: removed,
+                    });
+                }
+                self.temporary.clear();
+                self.pointer = None;
+            }
+            Command::SetVisible { visible } => self.hidden = !visible,
+            Command::TransientBegin {
+                id,
+                brush,
+                point,
+                lifetime_ms,
+            } => {
+                if self.strokes.iter().any(|s| s.id == id)
+                    || self.temporary.iter().any(|t| t.stroke.id == id)
+                {
+                    return Err(InkError::InvalidStroke);
+                }
+                self.temporary.push(TransientStroke {
+                    stroke: Stroke {
+                        id,
+                        brush,
+                        points: vec![point],
+                        finished: false,
+                    },
+                    lifetime_ms,
+                    expires_at: self.now_ms.saturating_add(u64::from(lifetime_ms)),
+                });
+            }
+            Command::Pointer {
+                point,
+                color,
+                radius,
+                laser,
+            } => {
+                self.pointer = point.map(|point| Pointer {
+                    point,
+                    color,
+                    radius,
+                    laser,
+                    expires_at: self.now_ms.saturating_add(750),
+                });
             }
         }
         Ok(())
@@ -84,6 +277,124 @@ impl Board {
     pub fn strokes(&self) -> &[Stroke] {
         &self.strokes
     }
+
+    pub fn is_visible(&self) -> bool {
+        !self.hidden
+    }
+
+    pub fn render_strokes(&self) -> impl Iterator<Item = &Stroke> {
+        self.strokes
+            .iter()
+            .chain(self.temporary.iter().map(|t| &t.stroke))
+            .filter(|_| !self.hidden)
+    }
+
+    pub fn has_temporary_content(&self) -> bool {
+        !self.temporary.is_empty() || self.pointer.is_some()
+    }
+
+    pub fn pointer(&self) -> Option<&Pointer> {
+        self.pointer.as_ref()
+    }
+
+    fn advance_time(&mut self, now_ms: u64) -> bool {
+        self.now_ms = self.now_ms.max(now_ms);
+        let before = self.temporary.len();
+        self.temporary
+            .retain(|t| !t.stroke.finished || t.expires_at > self.now_ms);
+        let pointer_expired = self
+            .pointer
+            .as_ref()
+            .is_some_and(|p| p.expires_at <= self.now_ms);
+        if pointer_expired {
+            self.pointer = None;
+        }
+        before != self.temporary.len() || pointer_expired
+    }
+
+    fn erase_between(&mut self, from: Point, to: Point, radius: f32) -> Vec<(usize, Stroke)> {
+        let mut removed = Vec::new();
+        let mut index = 0;
+        while index < self.strokes.len() {
+            let stroke = &self.strokes[index];
+            let limit = (radius + stroke.brush.width / 2.0).powi(2);
+            let hit = if stroke.points.len() == 1 {
+                point_segment_distance_squared(stroke.points[0], from, to) <= limit
+            } else {
+                stroke
+                    .points
+                    .windows(2)
+                    .any(|p| segment_distance_squared(from, to, p[0], p[1]) <= limit)
+            };
+            if hit {
+                removed.push((index, self.strokes.remove(index)));
+            } else {
+                index += 1;
+            }
+        }
+        removed
+    }
+
+    fn remember(&mut self, edit: Edit) {
+        self.redo.clear();
+        self.undo.push(edit);
+        if self.undo.len() > 100 {
+            self.undo.remove(0);
+        }
+    }
+
+    fn finish_erase(&mut self) {
+        if let Some(eraser) = self.eraser.take() {
+            if !eraser.removed.is_empty() {
+                self.remember(Edit {
+                    remove: vec![],
+                    insert: eraser.removed.into_iter().rev().collect(),
+                });
+            }
+        }
+    }
+
+    fn apply_edit(&mut self, edit: Edit) -> Edit {
+        let mut inverse = Edit::default();
+        for id in edit.remove {
+            if let Some(index) = self.strokes.iter().position(|s| s.id == id) {
+                inverse.insert.push((index, self.strokes.remove(index)));
+            }
+        }
+        inverse.insert.reverse();
+        for (index, stroke) in edit.insert {
+            inverse.remove.push(stroke.id);
+            self.strokes.insert(index.min(self.strokes.len()), stroke);
+        }
+        inverse
+    }
+}
+
+fn point_segment_distance_squared(p: Point, a: Point, b: Point) -> f32 {
+    let (dx, dy) = (b.x - a.x, b.y - a.y);
+    let length = dx * dx + dy * dy;
+    let t = if length > 0.0 {
+        (((p.x - a.x) * dx + (p.y - a.y) * dy) / length).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    (p.x - (a.x + t * dx)).powi(2) + (p.y - (a.y + t * dy)).powi(2)
+}
+
+fn segment_distance_squared(a: Point, b: Point, c: Point, d: Point) -> f32 {
+    let (rx, ry, sx, sy) = (b.x - a.x, b.y - a.y, d.x - c.x, d.y - c.y);
+    let cross = rx * sy - ry * sx;
+    if cross.abs() > f32::EPSILON {
+        let t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / cross;
+        let u = ((c.x - a.x) * ry - (c.y - a.y) * rx) / cross;
+        if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
+            return 0.0;
+        }
+    }
+    point_segment_distance_squared(a, c, d)
+        .min(point_segment_distance_squared(b, c, d))
+        .min(point_segment_distance_squared(c, a, b))
+        .min(point_segment_distance_squared(d, a, b))
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -111,6 +422,9 @@ impl InkSession {
         for stroke in &mut self.board.strokes {
             stroke.finished = true;
         }
+        self.board.finish_erase();
+        self.board.temporary.clear();
+        self.board.pointer = None;
     }
     pub fn new(session: u32, epoch: u32, width: u32, height: u32) -> Self {
         Self {
@@ -138,13 +452,35 @@ impl InkSession {
         if self.accepted.checked_add(1) != Some(envelope.seq) {
             return Err(InkError::InvalidMessage);
         }
-        if let Command::Begin { brush, .. } = &envelope.command {
+        if let Command::Begin { brush, .. } | Command::TransientBegin { brush, .. } =
+            &envelope.command
+        {
             if !brush.width.is_finite() || !(0.5..=64.0).contains(&brush.width) {
                 return Err(InkError::InvalidMessage);
             }
         }
+        if let Command::TransientBegin { lifetime_ms, .. } = &envelope.command {
+            if !(100..=10_000).contains(lifetime_ms) {
+                return Err(InkError::InvalidMessage);
+            }
+        }
+        if let Command::EraseBegin { radius, .. } = &envelope.command {
+            if !radius.is_finite() || !(1.0..=128.0).contains(radius) {
+                return Err(InkError::InvalidMessage);
+            }
+        }
+        if let Command::Pointer { radius, .. } = &envelope.command {
+            if !radius.is_finite() || !(1.0..=128.0).contains(radius) {
+                return Err(InkError::InvalidMessage);
+            }
+        }
         let point = match &envelope.command {
-            Command::Begin { point, .. } | Command::Append { point, .. } => Some(point),
+            Command::Begin { point, .. }
+            | Command::Append { point, .. }
+            | Command::TransientBegin { point, .. }
+            | Command::EraseBegin { point, .. }
+            | Command::EraseTo { point, .. } => Some(point),
+            Command::Pointer { point, .. } => point.as_ref(),
             _ => None,
         };
         if point.is_some_and(|p| {
@@ -166,5 +502,8 @@ impl InkSession {
     }
     pub fn accepted_sequence(&self) -> u64 {
         self.accepted
+    }
+    pub fn advance_time(&mut self, now_ms: u64) -> bool {
+        self.board.advance_time(now_ms)
     }
 }

@@ -3,6 +3,22 @@ import SwiftUI
 @testable import EternalMonitor
 
 final class DeskInkToolsTests: XCTestCase {
+    func testToolWireContractMatchesWindowsAndPreservesHistory() throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "deskink-tools", withExtension: "json", subdirectory: "testdata"))
+        let data = try Data(contentsOf: url)
+        let commands = try JSONDecoder().decode([DeskInkCommand].self, from: data)
+        let original = try JSONSerialization.jsonObject(with: data) as! NSArray
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(commands)) as! NSArray
+        XCTAssertEqual(encoded, original)
+        let document = DeskInkDocument()
+        for command in commands { XCTAssertTrue(document.apply(command)) }
+        XCTAssertEqual(document.strokes.map(\.id), [1])
+        XCTAssertEqual(document.strokes.first?.brush.color, [255, 210, 35, 80])
+        XCTAssertEqual(document.renderStrokes.count, 1)
+        XCTAssertTrue(document.visible)
+        XCTAssertNil(document.pointer)
+    }
+
     func testEraserSweepAndUndoRestoreTheSameLinesInOrder() {
         let document = DeskInkDocument()
         for (id, y) in [(UInt64(1), CGFloat(100)), (UInt64(2), CGFloat(200)), (UInt64(3), CGFloat(400))] {

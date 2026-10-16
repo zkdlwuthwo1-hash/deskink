@@ -78,7 +78,7 @@ impl ConfigSource for SharedConfigSource<'_> {
 
     fn host_caps(&self) -> u16 {
         if self.shared.annotation.is_some() {
-            return crate::annotation::HOST_CAP | eternal_wire::v2::control::HOSTCAP_USB;
+            return crate::annotation::HOST_CAP | crate::annotation::TOOLS_CAP | eternal_wire::v2::control::HOSTCAP_USB;
         }
         let usb = if PIPELINE_STATS.lock().usb_service_reachable {
             eternal_wire::v2::control::HOSTCAP_USB

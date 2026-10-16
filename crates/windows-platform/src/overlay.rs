@@ -55,7 +55,7 @@ impl Overlay {
     pub fn present(&self, board: &Board) -> Result<()> {
         let mut pixels = tiny_skia::Pixmap::new(self.width, self.height)
             .ok_or_else(windows::core::Error::from_win32)?;
-        for stroke in board.strokes() {
+        for stroke in board.render_strokes() {
             let [r, g, b, a] = stroke.brush.color;
             let mut paint = tiny_skia::Paint::default();
             paint.set_color_rgba8(r, g, b, a);
@@ -94,6 +94,42 @@ impl Overlay {
                         );
                     }
                 }
+            }
+        }
+        if let Some(pointer) = board.pointer() {
+            let [r, g, b, _] = pointer.color;
+            let (x, y, radius) = (pointer.point.x, pointer.point.y, pointer.radius);
+            let mut path = tiny_skia::PathBuilder::new();
+            if pointer.laser {
+                path.push_circle(x, y, radius);
+            } else {
+                // Nib tip stays at the actual input position.
+                path.move_to(x, y);
+                path.line_to(x + 7.0, y - 20.0);
+                path.line_to(x + 15.0, y - 12.0);
+                path.close();
+            }
+            if let Some(path) = path.finish() {
+                let mut paint = tiny_skia::Paint::default();
+                paint.set_color_rgba8(r, g, b, 235);
+                pixels.fill_path(
+                    &path,
+                    &paint,
+                    tiny_skia::FillRule::Winding,
+                    tiny_skia::Transform::identity(),
+                    None,
+                );
+                paint.set_color_rgba8(255, 255, 255, 245);
+                pixels.stroke_path(
+                    &path,
+                    &paint,
+                    &tiny_skia::Stroke {
+                        width: 2.0,
+                        ..Default::default()
+                    },
+                    tiny_skia::Transform::identity(),
+                    None,
+                );
             }
         }
         // DIBs use BGRA; tiny-skia's buffer is already premultiplied RGBA.

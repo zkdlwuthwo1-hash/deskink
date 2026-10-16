@@ -60,14 +60,13 @@ jobs:
         if: always()
         shell: bash
         run: |
-          simulator_id="${DESKINK_TEST_DESTINATION##*id=}"
-          app_data="$(xcrun simctl get_app_container "$simulator_id" com.deskink.personal data 2>/dev/null || true)"
-          if [[ -n "$app_data" ]]; then
-            shopt -s nullglob
-            for preview in "$app_data"/tmp/deskink-toolbar-*.png; do
-              cp "$preview" artifacts/local/ipad-cloud/
-            done
-          fi
+          # XCTest may run in a cloned simulator, so its attachments are the
+          # reliable source rather than the selected simulator's app container.
+          shopt -s nullglob
+          for result in DerivedData/Logs/Test/*.xcresult; do
+            xcrun xcresulttool export attachments --path "$result" \
+              --output-path "artifacts/local/ipad-cloud/previews/$(basename "$result" .xcresult)"
+          done
       - name: Save IPA and build evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

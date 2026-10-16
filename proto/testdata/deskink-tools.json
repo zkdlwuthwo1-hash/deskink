@@ -1,0 +1,19 @@
+[
+  {"type":"begin","id":1,"brush":{"color":[255,210,35,80],"width":20},"point":{"x":100,"y":100,"pressure":0.5}},
+  {"type":"append","id":1,"point":{"x":300,"y":100,"pressure":0.5}},
+  {"type":"end","id":1},
+  {"type":"erase_begin","id":2,"point":{"x":200,"y":50,"pressure":0.5},"radius":12},
+  {"type":"erase_to","id":2,"point":{"x":200,"y":150,"pressure":0.5}},
+  {"type":"erase_end","id":2},
+  {"type":"undo"},
+  {"type":"redo"},
+  {"type":"undo"},
+  {"type":"set_visible","visible":false},
+  {"type":"set_visible","visible":true},
+  {"type":"transient_begin","id":3,"brush":{"color":[255,80,40,255],"width":4},"point":{"x":20,"y":30,"pressure":0.5},"lifetime_ms":2000},
+  {"type":"end","id":3},
+  {"type":"pointer","point":{"x":50,"y":60,"pressure":0},"color":[255,80,40,255],"radius":7,"laser":true},
+  {"type":"pointer","point":null,"color":[255,80,40,255],"radius":7,"laser":true},
+  {"type":"clear"},
+  {"type":"undo"}
+]

@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let controller = shared.clone();
     let result = eframe::run_native(
-        "DeskInk — USB first-stroke build",
+        "DeskInk",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default().with_inner_size([520.0, 330.0]),
             ..Default::default()
@@ -109,6 +109,13 @@ struct DeskInk {
 
 impl eframe::App for DeskInk {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let has_temporary = {
+            let mut ink = self.annotation.ink.lock();
+            if ink.advance_time(eternal_host::clock::host_now_us() / 1000) {
+                self.annotation.revision.fetch_add(1, Ordering::Release);
+            }
+            ink.board().has_temporary_content()
+        };
         // eframe calls logic even while the controller is minimized/occluded.
         let revision = self.annotation.revision.load(Ordering::Acquire);
         if revision != self.shown_revision {
@@ -117,7 +124,11 @@ impl eframe::App for DeskInk {
             }
             self.shown_revision = revision;
         }
-        ctx.request_repaint_after(Duration::from_secs(1));
+        ctx.request_repaint_after(if has_temporary {
+            Duration::from_millis(50)
+        } else {
+            Duration::from_secs(1)
+        });
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
@@ -126,7 +137,7 @@ impl eframe::App for DeskInk {
         ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(25, 31, 42));
         ui.spacing_mut().item_spacing.y = 9.0;
         ui.heading("DeskInk");
-        ui.label("USB first-stroke development build");
+        ui.label("Write on your Windows screen from iPad");
         ui.add_space(12.0);
         ui.label(format!(
             "Monitor: {} ({} x {})",
@@ -151,7 +162,8 @@ impl eframe::App for DeskInk {
         ui.label(format!("Stream: {}", stats.codec_name));
         drop(stats);
         ui.add_space(12.0);
-        ui.label("Screen capture and a basic pen are wired. Tool modes, saved boards and private zoom are subsequent tasks.");
+        ui.label("Choose your pen, eraser, laser and colors on iPad.");
+        ui.label("Closing this app clears the current ink.");
         if let Some(error) = &self.error {
             ui.colored_label(egui::Color32::LIGHT_RED, error);
         }
@@ -229,5 +241,48 @@ mod tests {
             237 | (19 << 8) | (53 << 16),
             "A minimized controller must still display newly accepted ink"
         );
+        let mut sequence = 1;
+        for (command, red_visible) in [
+            (serde_json::json!({"type":"end","id":7}), true),
+            (
+                serde_json::json!({"type":"erase_begin","id":8,"radius":12,"point":{"x":32,"y":32,"pressure":0.5}}),
+                false,
+            ),
+            (serde_json::json!({"type":"erase_end","id":8}), false),
+            (serde_json::json!({"type":"undo"}), true),
+            (
+                serde_json::json!({"type":"set_visible","visible":false}),
+                false,
+            ),
+            (
+                serde_json::json!({"type":"set_visible","visible":true}),
+                true,
+            ),
+        ] {
+            sequence += 1;
+            let message = serde_json::json!({"version":1,"session":42,"epoch":3,"seq":sequence,"command":command});
+            assert!(annotation.receive(
+                peer,
+                Some(peer),
+                Some(42),
+                3,
+                &serde_json::to_vec(&message).unwrap()
+            ));
+            app.logic(
+                &egui::Context::default(),
+                &mut eframe::Frame::_new_kittest(),
+            );
+            let pixel = unsafe {
+                let dc = GetDC(None);
+                let value = GetPixel(dc, 32, 32).0;
+                ReleaseDC(None, dc);
+                value & 0x00ff_ffff
+            };
+            assert_eq!(
+                pixel == (237 | (19 << 8) | (53 << 16)),
+                red_visible,
+                "command {message} must update actual overlay pixels"
+            );
+        }
     }
 }

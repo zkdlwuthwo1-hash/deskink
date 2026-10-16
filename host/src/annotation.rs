@@ -7,6 +7,7 @@ use parking_lot::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const HOST_CAP: u16 = 0x1000;
+pub const TOOLS_CAP: u16 = 0x2000;
 pub const INPUT_MAGIC: &[u8; 4] = b"DI01";
 
 pub struct AnnotationState {
@@ -49,6 +50,7 @@ impl AnnotationState {
         };
         let mut binding = self.binding.lock();
         let mut ink = self.ink.lock();
+        ink.advance_time(crate::clock::host_now_us() / 1000);
         if *binding != (session, epoch) {
             ink.reconnect(session, epoch);
             *binding = (session, epoch);
