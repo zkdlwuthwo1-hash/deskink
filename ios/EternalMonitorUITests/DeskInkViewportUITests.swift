@@ -1,6 +1,25 @@
 import XCTest
 
 final class DeskInkViewportUITests: XCTestCase {
+    func testControlsStayOutsideTheDrawingViewportInLandscape() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let app = XCUIApplication()
+        app.launchArguments = ["-didSeeOnboarding", "YES", "-allowUSB", "NO"]
+        app.launchEnvironment["EM_UI_PREVIEW"] = "deskink"
+        app.launch()
+        defer { app.terminate() }
+        let viewport = app.descendants(matching: .any).matching(identifier: "deskink.viewport").firstMatch
+        XCTAssertTrue(viewport.waitForExistence(timeout: 10))
+        let eraser = app.buttons["지우개"]
+        XCTAssertTrue(eraser.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(viewport.frame.maxY, eraser.frame.minY,
+                                 "The bottom tool dock must not cover any of the video or ink")
+        XCTAssertLessThanOrEqual(app.buttons["deskink.fit"].frame.maxY, viewport.frame.minY,
+                                 "The top controls must also leave the desktop unobstructed")
+        capture("deskink-landscape-dock", app: app)
+    }
+
     func testTwoFingerZoomPanAndFitKeepToolbarFixedWithoutDrawing() throws {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
