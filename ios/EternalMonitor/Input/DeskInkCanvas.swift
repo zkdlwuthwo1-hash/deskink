@@ -1,58 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Wire commands are value types. Coalesced samples cross to the connection's
-/// serial queue as a batch; UIKit drawing never waits for video or a PC reply.
-struct DeskInkPoint: Encodable {
-    let x: CGFloat
-    let y: CGFloat
-    let pressure: CGFloat
-}
-
-struct DeskInkBrush: Encodable {
-    var color: [UInt8] = [255, 80, 40, 255]
-    var width: CGFloat = 4
-
-    var uiColor: UIColor {
-        UIColor(red: CGFloat(color[0]) / 255, green: CGFloat(color[1]) / 255,
-                blue: CGFloat(color[2]) / 255, alpha: CGFloat(color[3]) / 255)
-    }
-}
-
-enum DeskInkCommand: Encodable {
-    case begin(id: UInt64, brush: DeskInkBrush, point: DeskInkPoint)
-    case append(id: UInt64, point: DeskInkPoint)
-    case end(id: UInt64)
-
-    private enum CodingKeys: String, CodingKey { case type, id, brush, point }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case let .begin(id, brush, point):
-            try container.encode("begin", forKey: .type)
-            try container.encode(id, forKey: .id)
-            try container.encode(brush, forKey: .brush)
-            try container.encode(point, forKey: .point)
-        case let .append(id, point):
-            try container.encode("append", forKey: .type)
-            try container.encode(id, forKey: .id)
-            try container.encode(point, forKey: .point)
-        case let .end(id):
-            try container.encode("end", forKey: .type)
-            try container.encode(id, forKey: .id)
-        }
-    }
-}
-
-struct DeskInkEnvelope: Encodable {
-    let version = 1
-    let session: UInt32
-    let epoch: UInt32
-    let seq: UInt64
-    let command: DeskInkCommand
-}
-
 struct DeskInkCanvas: UIViewRepresentable {
     let videoSize: CGSize
     let enabled: Bool
