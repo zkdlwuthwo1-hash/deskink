@@ -46,6 +46,24 @@ struct DisplaySessionVtable {
     get_excluded: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> HRESULT,
 }
 
+// IGraphicsCaptureSession5 ABI from Microsoft's windows 0.62.2 projection.
+// windows 0.58 does not expose MinUpdateInterval yet.
+#[repr(transparent)]
+#[derive(Clone)]
+struct CaptureTiming(IInspectable);
+unsafe impl Interface for CaptureTiming {
+    type Vtable = CaptureTimingVtable;
+    const IID: windows::core::GUID =
+        windows::core::GUID::from_u128(0x67c0ea62_1f85_5061_925a_239be0ac09cb);
+}
+#[repr(C)]
+struct CaptureTimingVtable {
+    base: IInspectable_Vtbl,
+    get_interval:
+        unsafe extern "system" fn(*mut c_void, *mut windows::Foundation::TimeSpan) -> HRESULT,
+    set_interval: unsafe extern "system" fn(*mut c_void, windows::Foundation::TimeSpan) -> HRESULT,
+}
+
 /// Owns the D3D device, frame pool and session together. The caller initializes
 /// WinRT on its capture thread before constructing this object.
 pub struct MonitorCapture {
@@ -101,6 +119,23 @@ impl MonitorCapture {
             item.Size()?,
         )?;
         let session = pool.CreateCaptureSession(&item)?;
+        match session.cast::<CaptureTiming>() {
+            Ok(timing) => unsafe {
+                // The default 16 ms gate can skip display updates when capture
+                // delivery jitters around a 60 Hz refresh. Let WGC deliver each
+                // change; the host already enforces the negotiated FPS limit.
+                // SAFETY: QI verifies the interface; TimeSpan and its vtable
+                // match Microsoft's published projection. No pointers escape.
+                (timing.vtable().set_interval)(
+                    timing.as_raw(),
+                    windows::Foundation::TimeSpan { Duration: 0 },
+                )
+                .ok()?;
+            },
+            // Older Windows versions retain their original capture behavior.
+            Err(error) if error.code() == HRESULT(0x80004002u32 as i32) => {}
+            Err(error) => return Err(error),
+        }
         Ok(Self {
             device,
             pool,

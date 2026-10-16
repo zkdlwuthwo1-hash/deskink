@@ -11,4 +11,4 @@
 - [ ] USB 영상과 iPad 입력 경로가 실기기에서 연결된다.
 - [ ] 초기 지연과 중복 합성 여부를 기록한다.
 
-Windows 개발용 실행 파일 및 iPad 입력/로컬 선 소스 구현. `docs/first-stroke-status.md` 참조. iPad 빌드/설치·Pencil·Zoom 검증 전이므로 작업 01은 완료가 아니다.
+Windows 개발용 실행 파일 및 iPad 입력/로컬 선 소스 구현. iPad 빌드·개인 서명·설치 및 USB 영상 수신을 확인했다. 사용자는 펜 표시 성공과 FPS 저하를 보고했다. `docs/first-stroke-status.md`와 `docs/fps-diagnosis.md` 참조. FPS 수정본의 실기기 확인, 양쪽 필기·Pencil·Zoom 검증이 남아 작업 01은 완료가 아니다.

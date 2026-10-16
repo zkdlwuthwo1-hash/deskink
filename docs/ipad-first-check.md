@@ -1,6 +1,6 @@
 # iPad에서 첫 연결과 필기를 확인하는 순서
 
-현재는 첫 연결 검증용 개발 버전이다. Mac에서 아직 컴파일하지 않았으므로, 아래 빌드·테스트가 먼저 통과해야 실제 iPad에 설치할 수 있다. 확대·여러 도구·더블탭 지우개·저장은 후속 작업이며 이번 검증의 통과 항목으로 넣지 않는다. 프로젝트의 최소 배포 대상은 iPadOS 17이다.
+현재는 첫 연결 검증용 개발 버전이다. GitHub macOS 빌드에서 시뮬레이터 단위 테스트 153개와 기기용 IPA 빌드가 통과했고, 이 사용자의 iPad에는 iloader로 개인 서명·설치를 완료했다. 앱 실행과 USB 영상 수신이 확인되어 현재 FPS와 필기를 검증한다. 아래 1–2단계는 다른 Mac에서 직접 빌드할 때의 대안이다. 확대·여러 도구·더블탭 지우개·저장은 후속 작업이며 이번 검증의 통과 항목으로 넣지 않는다. 프로젝트의 최소 배포 대상은 iPadOS 17이다.
 
 **Windows에서 계속 진행하는 경우:** 아래 1–2단계 대신 [클라우드 빌드 → Windows 설치 안내](windows-only-ipad.md)를 사용한다. 설치 후에는 이 문서의 3–5단계로 USB와 실제 필기를 확인한다.
 
@@ -32,7 +32,7 @@ open ios/DeskInk.xcodeproj
 
 ## 3. Windows로 옮겨 USB 연결
 
-이제 iPad USB 케이블을 **Mac에서 빼서 Windows PC에 꽂는다**. Mac은 앱을 만드는 데 쓰고, 필기 검증은 Windows와 iPad 사이에서 한다.
+Windows에서 설치했다면 연결된 USB 케이블을 유지한다. Mac에서 설치한 경우에만 케이블을 Mac에서 빼서 Windows PC에 꽂는다. 필기 검증은 Windows와 iPad 사이에서 한다.
 
 - Windows에서 Apple Devices에 iPad가 나타나는지 확인한다. 본인 PC에서 처음 연결할 때 iPad가 ‘이 컴퓨터를 신뢰’할지 물으면 직접 선택한다. 충전 전용 케이블은 사용할 수 없다. [Apple의 Windows 연결 확인 안내](https://support.apple.com/en-ie/108643)
 - 현재 열려 있는 DeskInk를 사용한다. 다시 실행하려면 Windows 프로젝트 폴더에서 아래 명령을 실행한다. 이미 열려 있으면 두 번째 인스턴스를 띄우지 않는다.
@@ -45,7 +45,7 @@ powershell -File scripts/run-windows.ps1 -Monitor 0
 - iPad에서 DeskInk를 열고 앞 화면에 유지한다. `USB cable` 영역이 꺼져 있으면 `Turn on`, 일시 중단되어 있으면 `Connect USB`를 사용한다. 이 첫 버전은 IP 주소나 QR 입력 없이 USB 연결 경로를 시험한다.
 - 페어링 창이 나타나면 Windows DeskInk에 표시된 6자리 코드를 입력한다. 연결 후 Windows는 `iPad connected`, iPad는 선택한 Windows 모니터 화면을 표시해야 한다.
 
-Windows의 `Capture 0 fps / Encode 0 fps`는 연결 전에는 정상적인 대기 표시다. 연결되었다고 나오는데 화면이 검거나 움직이지 않으면 아래 검사에서 실패로 기록한다.
+Windows의 `Capture 0 fps / Encode 0 fps`는 연결 전에는 정상적인 대기 표시다. 화면이 정지했을 때는 같은 화면을 약 2fps로 재전송하므로, FPS 성능은 창 이동이나 스크롤 중에 확인한다. 연결되었다고 나오는데 화면이 검거나 움직이지 않으면 아래 검사에서 실패로 기록한다.
 
 ## 4. 5분 기능 확인
 

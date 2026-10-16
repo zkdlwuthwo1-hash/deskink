@@ -67,19 +67,22 @@ pub fn run(
     let mut last: Option<RawFrame> = None;
     let mut pending = false;
     let mut published = Instant::now() - Duration::from_secs(1);
+    let mut next_frame = Instant::now();
+    let mut timer = super::timing::FrameTimer::new();
     while shared.running.load(Ordering::SeqCst)
         && crate::supervisor::generation_is_current(generation)
     {
         heartbeat(&shared.hb_capture_loop_ms);
         let budget = super::frame_budget_for(shared.effective_fps());
-        let wait = if pending && shared.client_connected() {
-            budget
-                .saturating_sub(published.elapsed())
-                .min(Duration::from_millis(16))
+        let arrived = if pending && shared.client_connected() {
+            // recv_timeout uses a coarse OS wait on Windows. Repeated short
+            // waits plus readback time capped a 60 Hz stream near 40 fps.
+            // Use the same precise absolute-deadline timer as synthetic capture.
+            timer.wait_until(next_frame.min(Instant::now() + budget));
+            rx.try_recv().is_ok()
         } else {
-            Duration::from_millis(16)
+            rx.recv_timeout(Duration::from_millis(16)).is_ok()
         };
-        let arrived = rx.recv_timeout(wait).is_ok();
         let connected = shared.client_connected();
         if arrived {
             if let Some(frame) = capture.latest_frame()? {
@@ -97,7 +100,7 @@ pub fn run(
                 pending = true;
             }
         }
-        let due = published.elapsed() >= super::frame_budget_for(shared.effective_fps());
+        let due = Instant::now() >= next_frame;
         let keepalive = published.elapsed() >= Duration::from_millis(500);
         if connected
             && due
@@ -105,6 +108,12 @@ pub fn run(
         {
             if let Some(frame) = &last {
                 let mut frame = frame.clone();
+                if !pending {
+                    // This is a new sample of an unchanged desktop. Reusing
+                    // the previous sample's timestamp makes idle keepalives
+                    // look hundreds of ms late and falsely triggers ABR.
+                    frame.timestamp = Instant::now();
+                }
                 frame.frame_number = count;
                 count += 1;
                 heartbeat(&shared.hb_capture_frame_ms);
@@ -114,6 +123,11 @@ pub fn run(
                 slot.publish(frame);
                 pending = false;
                 published = Instant::now();
+                next_frame += budget;
+                // Never catch up by bursting stale frames after idle or stalls.
+                if next_frame <= published {
+                    next_frame = published + budget;
+                }
             }
         }
     }

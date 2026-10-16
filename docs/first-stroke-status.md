@@ -13,8 +13,9 @@
 - 추가 검토에서 상태창 최소화 중 표시 중단을 픽셀 테스트로 재현하고 수정했다. 마지막 프레임 보류, 빈 캡처 풀 처리, USB 페어링 반복 실패 제한도 보강했다. [검토 기록](review-first-stroke.md)에 확인 범위를 구분했다.
 - [GitHub 실행 38885470010](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38885470010)에서 iPad 시뮬레이터 단위 테스트 153개와 기기용 arm64 Release 빌드·IPA 생성이 모두 성공했다. Swift/Rust 필기 메시지 계약 검사도 포함된다. Xcode 16.4, 소스 `efe1c325454627b1b52fa28ab6ae1a4fa09cc9b2` 기준이다.
 - `artifacts/local/DeskInk-unsigned.ipa`를 내려받아 SHA-256, ZIP CRC, Info.plist, Mach-O의 arm64·실기기 iOS 플랫폼을 검사했다. 크기 3,756,568바이트, SHA-256 `84e2817752748aa88b4a085bec9e0b00dc34ee25556cd8f93baafc70280ee916`. 개인 서명 전 파일이다.
-- Sideloadly 0.70.1 설치와 USB iPad 목록 표시를 확인했다. Apple 계정으로 앱을 서명하거나 실제 iPad에 DeskInk를 설치한 상태는 아직 아니다.
-- 설치 도구에서 인증이 막혀 있다. Sideloadly는 팀 조회 중 GSA HTTP 503, 대체 설치한 iloader 2.3.9는 기본 인증 보조 서버의 `client_info` 요청에서 HTTP 502가 발생했다. 기본 목록의 대체 서버 두 곳은 계정 없는 검사에서 HTTP 200이었다. 서버 변경 안내 뒤 사용자 재시도 화면은 `Auth error -20970: Your account information was entered incorrectly.`로 바뀌었다. 현재는 본인의 계정 정보 확인이 필요하며 인증·설치 성공으로 간주하지 않는다.
+- Sideloadly의 GSA HTTP 503과 iloader의 HTTP 502·계정 인증 오류를 거친 뒤, 사용자가 iloader 로그인을 완료했다. 사용자 화면에서 `Operation completed / Sign & Install App` 성공을 확인했다. 개인 서명과 iPad 설치는 완료됐다.
+- 개발자 모드 안내 이후 사용자가 앱에서 펜이 나타난다고 보고했다. Windows 로그에서 실제 USB 세션 연결과 iPad의 영상 디코드 보고를 확인했다. 양쪽 필기 위치·손바닥 구분·Zoom 수신 검사는 아직 완료하지 않았다.
+- 사용자의 FPS 저하 보고를 움직이는 테스트 창으로 재현했다. WGC 기본 간격과 앱의 대기 처리를 수정한 Windows 캡처→인코딩 경로는 같은 장치에서 약 55–59fps를 처리했다. 정지 화면 재전송의 오래된 시간값도 수정했다. 실제 iPad 수신에 수정본을 적용하는 검증은 별도로 남긴다. [FPS 진단 기록](fps-diagnosis.md)
 
 ## 연결한 코드
 
@@ -24,7 +25,7 @@ Windows의 `deskink` 진입점은 가상 화면 드라이버 변경, 원격 마�
 
 ## 아직 검증/구현하지 않은 사항
 
-- 개인 계정 서명·iPad 설치, 실제 USB 영상/입력 왕복, Pencil 지연과 손바닥 처리.
+- 수정본의 실제 USB 영상 FPS, 양쪽 필기 입력 왕복과 위치, Pencil 지연과 손바닥 처리.
 - Zoom 실제 수신 화면. 글로벌 캡처 제외는 사용하지 않지만 Zoom 성공으로 간주하지 않는다.
 - iPad만 확대/이동, Pencil 더블탭 지우개, 여러 도구와 포인터, 지우기/숨기기/실행 취소.
 - PC 두 대 선택 UI, 영구 저장 및 재시작 복원, 재연결 시 iPad로 전체 필기 복원.
@@ -34,7 +35,7 @@ Windows의 `deskink` 진입점은 가상 화면 드라이버 변경, 원격 마�
 
 현재 코드를 완성된 발표용 앱이나 측정된 초저지연 제품으로 표시하지 않는다. 작업 01은 실제 iPad 검증 뒤 완료하고 02–06을 이어간다.
 
-사용자는 Windows에서 계속 진행하기로 정했다. [비공개 저장소](https://github.com/zkdlwuthwo1-hash/deskink)와 GitHub macOS 빌드를 연결했다. 다음 필수 작업은 최종 IPA를 Windows에서 개인 서명·iPad 설치한 뒤 USB 경로를 확인하는 것이다. [Windows 중심 진행 방법](windows-only-ipad.md)을 따른다. 직접 Mac을 쓰는 기존 절차는 대안으로 남긴다.
+사용자는 Windows에서 계속 진행하기로 정했다. [비공개 저장소](https://github.com/zkdlwuthwo1-hash/deskink)와 GitHub macOS 빌드를 연결했고, IPA 개인 서명·설치를 마쳤다. 다음 작업은 FPS 수정본의 USB 수신과 실제 필기 품질을 확인하는 것이다. [Windows 중심 진행 방법](windows-only-ipad.md)을 따른다. 직접 Mac을 쓰는 기존 절차는 대안으로 남긴다.
 
 사용자 실행 순서와 통과 기준은 [iPad 첫 검증 안내](ipad-first-check.md)에 정리했다.
 
