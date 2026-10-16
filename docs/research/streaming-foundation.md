@@ -108,3 +108,73 @@ Apple은 coalesced touches를 수집하고, predicted touches를 별도 보관�
 - 실제 사용 iPad Air의 모델·OS·화면 주사율·케이블/포트 조건에 따른 지연.
 - 기존 프로젝트의 네트워크 전송은 암호화되지 않는다. 인증과 암호화는 별개이며, 향후 LAN/이더넷 배포에서는 기존 페어링만으로 전송 기밀성이 확보된다고 설명하면 안 된다. [기존 보안 설명](https://github.com/sidebandstudio/EternalMonitor/blob/9888f37a5a457c76ec1d960dc9d9f1115304e6a9/SECURITY.md)
 
+## 6. 추가 조사: WGC 확장 인터페이스의 정확한 ABI
+
+2026-10-16 추가 확인. Microsoft `windows-rs` 기준 커밋은 `d3c0d1e528f02edec11c5c2902eb2aa8565219c1`이다. 다음 값은 이 커밋의 생성 바인딩에서 확인했으며 추정한 GUID가 아니다. [고정 소스](https://github.com/microsoft/windows-rs/blob/d3c0d1e528f02edec11c5c2902eb2aa8565219c1/crates/libs/windows/src/Windows/Graphics/Capture/mod.rs)
+
+| 항목 | 확인 값 |
+| --- | --- |
+| 인터페이스 | `Windows.Graphics.Capture.IDisplayGraphicsCaptureSession` |
+| IID | `bb91f61b-218a-587d-8580-2701a74c0525` |
+| 상속 | `IUnknown` → `IInspectable` → 해당 인터페이스 |
+| 첫 추가 메서드 | `SetWindowExclusionList(this: *mut c_void, excludedWindows: *mut c_void, result: *mut u64) -> HRESULT` |
+| 둘째 추가 메서드 | `GetWindowExclusionList(this: *mut c_void, result: *mut *mut c_void) -> HRESULT` |
+| 호출 규약 | `unsafe extern "system"` |
+| 제외 목록 타입 | 첫 포인터는 WinRT `IIterable<Windows.UI.WindowId>` 인터페이스 포인터. `HWND[]`나 `u64[]`의 시작 주소를 직접 전달하는 API가 아님 |
+| 반환값 | Rust 투영은 `Result<u64>`. ABI는 `HRESULT`와 `u64` out parameter를 분리하므로 함수 반환값 자체를 `u64`로 선언하면 틀림 |
+
+0부터 센 vtable 슬롯은 `QueryInterface=0`, `AddRef=1`, `Release=2`, `GetIids=3`, `GetRuntimeClassName=4`, `GetTrustLevel=5`, **Set=6**, **Get=7**이다. 이는 현재 생성 인터페이스 순서와 0.58.0의 실제 [IUnknown 정의](https://github.com/microsoft/windows-rs/blob/0.58.0/crates/libs/core/src/unknown.rs), [IInspectable 정의](https://github.com/microsoft/windows-rs/blob/0.58.0/crates/libs/core/src/inspectable.rs)를 대조한 결과다. 숫자 슬롯을 흩어 쓰기보다 `#[repr(C)]` vtable과 타입을 한 모듈에 선언하는 편이 검토하기 쉽다.
+
+**`windows = 0.58` 유지 가능성:** 0.58.0에는 `IInspectable_Vtbl`, `IIterable<T>`, `Windows.UI.WindowId`와 WGC 기본 인터페이스가 이미 있다. 따라서 새 IID/두 메서드의 수동 선언만 추가하고 기존 `GraphicsCaptureSession`에서 QueryInterface하는 방식은 ABI 차원에서 가능하다. 이는 소스에 근거한 구현 가능성 판단이며, 이 조사에서 컴파일하거나 OS 호출을 시험하지 않았다. master의 새 `windows_collections` 크레이트 타입을 그대로 복사하지 말고 0.58의 `windows::Foundation::Collections::IIterable`을 사용해야 한다. [0.58 Collections](https://github.com/microsoft/windows-rs/blob/0.58.0/crates/libs/windows/src/Windows/Foundation/Collections/mod.rs), [0.58 UI](https://github.com/microsoft/windows-rs/blob/0.58.0/crates/libs/windows/src/Windows/UI/mod.rs)
+
+**배포 버전 확인:** crates.io API가 반환한 최신 stable은 `windows 0.62.2`였다. 실제 [0.62.2 배포 tarball](https://static.crates.io/crates/windows/windows-0.62.2.crate)을 메모리에서 열어 `src/Windows/Graphics/Capture/mod.rs`를 확인했으나 `IDisplayGraphicsCaptureSession`/`SetWindowExclusionList`가 없었다. 0.58.0에도 없다. 따라서 현재 확인한 최신 배포본으로 단순 업그레이드하면 해결된다고 안내하지 않는다. master에서는 발견되지만 master 전체 의존성을 가져와야 한다는 뜻도 아니다. [배포 버전 API](https://crates.io/api/v1/crates/windows)
+
+### WindowId 변환
+
+필요한 값은 `Windows.UI.WindowId { Value: u64 }`다. WinUI의 `Microsoft.UI.WindowId`와 이름이 비슷하지만 WinRT 제네릭 타입 서명이 다르므로 같은 `IIterable` 타입으로 간주하면 안 된다. 0.58 생성 코드의 RuntimeType 서명은 `struct(Windows.UI.WindowId;u8)`이다. [0.58 실제 정의](https://github.com/microsoft/windows-rs/blob/0.58.0/crates/libs/windows/src/Windows/UI/mod.rs)
+
+공식 Windows SDK 변환 함수는 `windows.ui.interop.h`의 `HRESULT GetWindowIdFromWindow(HWND hwnd, ABI::Windows::UI::WindowId* id)`다. [Microsoft 함수 문서](https://learn.microsoft.com/en-us/windows/win32/api/windows.ui.interop/nf-windows-ui-interop-getwindowidfromwindow), [Microsoft SDK 헤더 고정 소스](https://github.com/microsoft/win32metadata/blob/0f012441d654d3bb7de898fdc664b5fcad52bdcc/generation/WinSDK/RecompiledIdlHeaders/um/windows.ui.interop.h)
+
+별도 WinUI 런타임을 도입하지 않는 경로도 있다. API 담당자는 HWND의 정수값을 WindowId로 캐스팅하는 방식을 허용한다고 직접 설명했다. 유효한 자기 필기창의 HWND를 포인터 폭의 unsigned 정수로 바꾼 후 `u64 Value`에 담는 작은 변환 함수를 둘 수 있다. 창이 파괴되거나 다시 만들어지면 목록을 갱신해야 한다. [담당자 사용 안내](https://github.com/robmikh/Win32CaptureSample/issues/106)
+
+## 7. 추가 조사: 기존 CI와 동일한 FFmpeg SDK
+
+EternalMonitor 고정 커밋의 Windows CI는 **Gyan FFmpeg 7.1.1 full shared**를 사용한다. `FFMPEG_DIR`는 압축을 푼 최상위 디렉터리, DLL 검색 경로는 그 아래 `bin`이다. [CI의 실제 다운로드 단계](https://github.com/sidebandstudio/EternalMonitor/blob/9888f37a5a457c76ec1d960dc9d9f1115304e6a9/.github/workflows/ci.yml)
+
+- CI가 사용하는 고정 자산: [ffmpeg-7.1.1-full_build-shared.7z](https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-full_build-shared.7z).
+- 직접 검사한 같은 릴리스의 ZIP: [ffmpeg-7.1.1-full_build-shared.zip](https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-full_build-shared.zip).
+- ZIP 크기: `71,806,900` bytes. 조사 중 받은 바이트의 SHA-256: `9f28727e8b472a04c1d2e520aaa425dca82721b995139b35710091130ea6e699`. 이는 직접 계산한 고정 식별값이며 독립적인 배포자 서명을 검증했다는 뜻은 아니다. 해당 과거 자산의 별도 Gyan checksum URL은 찾지 못했다.
+- ZIP 내부에서 `include/libavcodec/avcodec.h`, `lib/{avcodec,avdevice,avfilter,avformat,avutil,postproc,swresample,swscale}.lib`, 대응 `.def`, `bin/avcodec-61.dll` 등 8개 DLL을 확인했다.
+- ZIP의 `README.txt`는 **GPL v3** 및 FFmpeg source commit `db69d06eee`를 명시하고, `LICENSE`도 GPLv3다. 이 SDK를 MIT 라이브러리나 LGPL 빌드라고 표시하면 안 된다. Gyan의 현재 설명도 release full shared를 개발 파일 포함 GPLv3 빌드로 안내한다. [배포자 설명](https://www.gyan.dev/ffmpeg/builds/)
+
+FFmpeg 공식 프로젝트는 소스만 직접 배포하고 Windows 바이너리 제공처로 Gyan과 BtbN을 연결한다. 따라서 위 자산은 **FFmpeg 공식 사이트가 안내하는 외부 빌드**이지 FFmpeg 프로젝트 자체가 제작·서명한 Windows SDK라는 뜻은 아니다. [FFmpeg 다운로드](https://ffmpeg.org/download.html)
+
+## 8. 향후 배포를 위한 LGPL shared SDK 후보
+
+기존 CI의 GPL SDK를 자동 채택하지 않기 위해 BtbN의 **고정된 7.1.5 LGPL shared x64 자산**을 추가 확인했다. 현재 `latest` 릴리스에는 7.1 자산이 없었으므로 `latest` URL을 사용하지 않는다.
+
+| 항목 | 확인 값 |
+| --- | --- |
+| 고정 릴리스 | `autobuild-2026-07-31-14-10` |
+| 자산 | `ffmpeg-n7.1.5-12-g1fdbca85aa-win64-lgpl-shared-7.1.zip` |
+| 크기 | `62,425,578` bytes |
+| SHA-256 | `0f376f96fb38554ccefb1b2ae9c7c6a7b351f0e60a372b38262c320e8392c5d0` |
+| 검증 | 메모리에서 ZIP 전체의 SHA-256을 계산했고 같은 고정 릴리스의 `checksums.sha256` 값과 일치 |
+| FFmpeg 구성 | x86_64, mingw32, `--enable-version3 --enable-shared --disable-static`; `--enable-gpl` 및 `--enable-nonfree` 없음 |
+| 라이선스 | 압축 내부 `LICENSE.txt`는 **GNU LGPL version 3** |
+
+출처: [고정 릴리스](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-07-31-14-10), [검사한 ZIP](https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-31-14-10/ffmpeg-n7.1.5-12-g1fdbca85aa-win64-lgpl-shared-7.1.zip), [배포자 checksum](https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-31-14-10/checksums.sha256).
+
+ZIP은 디스크에 설치·추출하거나 실행하지 않고 메모리에서 읽었다. 내부 파일 확인 결과:
+
+- `include/libavcodec/avcodec.h` 존재. `include/libavcodec/version_major.h`의 `LIBAVCODEC_VERSION_MAJOR`는 **61**.
+- `lib/avcodec.lib`, `avdevice.lib`, `avfilter.lib`, `avformat.lib`, `avutil.lib`, `swresample.lib`, `swscale.lib`와 대응 `.def`가 존재.
+- `bin/avcodec-61.dll`, `avdevice-61.dll`, `avfilter-10.dll`, `avformat-61.dll`, `avutil-59.dll`, `swresample-5.dll`, `swscale-8.dll`이 존재. Gyan GPL SDK의 `postproc`와 똑같은 라이브러리 구성은 아니다.
+- `avcodec.lib`는 `!<arch>` archive이며 COFF 멤버 machine은 AMD64(`0x8664`)다. **MSVC 링크용 `.lib` 자산이 실제 존재한다**는 것을 확인했지만 실제 MSVC 링크/실행 성공을 검증한 것은 아니다.
+- 실행 없이 `avutil-59.dll`의 ASCII 구성 문자열을 읽었다. `--enable-amf`, `--enable-ffnvcodec`, `--enable-libvpl`, `--enable-libopus`, `--enable-libopenh264`가 있고, `--disable-libx264`, `--disable-libx265`가 있다. 따라서 기존 소프트웨어 `libx264` fallback을 그대로 기대하면 안 된다. 하드웨어 NVENC/AMF/QSV 실제 사용 가능 여부는 해당 PC 드라이버로 확인해야 한다.
+
+BtbN 패키징 소스도 `.lib`, `.def`, `.dll.a`, DLL 및 include를 함께 복사하며, LGPL shared 변형은 `COPYING.LGPLv3`와 `--enable-version3`, `--enable-shared --disable-static`을 선택한다. [패키징 스크립트](https://github.com/BtbN/FFmpeg-Builds/blob/63ac3265b0789ea16c7b1f8351cd2ad195a28722/variants/windows-install-shared.sh), [LGPL 설정](https://github.com/BtbN/FFmpeg-Builds/blob/63ac3265b0789ea16c7b1f8351cd2ad195a28722/variants/defaults-lgpl.sh), [shared 설정](https://github.com/BtbN/FFmpeg-Builds/blob/63ac3265b0789ea16c7b1f8351cd2ad195a28722/variants/defaults-lgpl-shared.sh)
+
+**MSVC import library 주의점:** FFmpeg 공식 플랫폼 문서는 `dlltool`로 만든 import library를 `/OPT:REF`와 사용할 때의 문제와, 제공 `.def`에서 `lib.exe`로 import library를 재생성하는 방법을 안내한다. 이 SDK는 MinGW 계열 구성이다. `.lib`가 있다는 이유만으로 Release 링크/실행까지 보장하지 않는다. 필요한 경우 원본 SDK를 보존하고 별도 staging에서 `lib.exe /machine:x64 /def:avcodec-61.def /out:avcodec.lib`와 같은 방식으로 생성한 뒤 확인할 수 있다. 이는 앞으로의 구현/검증 절차이며 이번 조사에서는 수행하지 않았다. [FFmpeg MSVC 링크 안내](https://ffmpeg.org/platform.html#Linking-to-FFmpeg-with-Microsoft-Visual-C_002b_002b)
+
+**선택 제안:** 우리 첫 빌드 후보는 위 BtbN LGPL shared 자산을 우선 검토하고, 기존 호스트의 사용 라이브러리/하드웨어 인코더와 실제로 링크되는지 검증한다. GPL `libx264` fallback을 유지하려고 SDK 전체를 자동으로 GPL 빌드로 바꾸지 않는다. LGPL도 고지·대응 소스 제공 등 배포 조건이 있으며, MIT인 호스트 소스만으로 바이너리 배포 조건이 끝나지 않는다. 배포 시 실제 구성에 맞는 고지와 소스 자료를 준비한다. [FFmpeg 라이선스 설명](https://ffmpeg.org/legal.html)

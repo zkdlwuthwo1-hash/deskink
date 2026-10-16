@@ -1,0 +1,4 @@
+[build]
+# Full host test compilation exhausted commit memory on the 16 GB development PC.
+# Serialize compilers without changing Windows paging or other system settings.
+jobs = 1
