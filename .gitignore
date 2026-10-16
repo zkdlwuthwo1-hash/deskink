@@ -1,0 +1,21 @@
+# Build output and local dependencies
+target/
+.build/
+DerivedData/
+.reference/
+.tools/
+
+# Local device captures, keys and signing material
+artifacts/local/
+*.p12
+*.mobileprovision
+.env
+.env.*
+!.env.example
+
+# Editor and OS state
+.DS_Store
+Thumbs.db
+.vs/
+*.xcuserstate
+xcuserdata/
