@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       test_filter:
-        description: XCTest target or test identifier (default runs all unit tests)
+        description: Comma-separated XCTest targets or test identifiers (default runs all unit tests)
         required: false
         default: EternalMonitorTests
         type: string

@@ -4,7 +4,7 @@ import SwiftUI
 /// Debug builds only: put the UI in a state that normally needs a live PC,
 /// for screenshots and design review. Never opens a connection.
 ///
-/// `EM_UI_PREVIEW=display|quality|connecting|error|pairing|settings|recent`.
+/// `EM_UI_PREVIEW=display|quality|connecting|error|pairing|settings|recent|deskink`.
 /// Launch with `-allowUSB NO` so the USB listener stays off as well.
 enum UIPreview {
     static let mode = ProcessInfo.processInfo.environment["EM_UI_PREVIEW"] ?? ""
@@ -38,17 +38,14 @@ enum UIPreview {
         @State private var tools = DeskInkTools()
         @State private var events = 0
         var body: some View {
-            ZStack {
-                GesturePreviewCanvas(tools: tools) { events += $0.count }.ignoresSafeArea()
-                VStack {
-                    HStack {
-                        Text("필기 이벤트 \(events)").accessibilityIdentifier("deskink.previewEvents")
-                        Spacer()
-                        Button("화면 맞춤") { tools.resetZoom() }.accessibilityIdentifier("deskink.fit")
-                    }.padding(12).background(.regularMaterial, in: Capsule())
+            DeskInkWorkspace(tools: tools) {
+                GesturePreviewCanvas(tools: tools) { events += $0.count }
+            } header: {
+                HStack {
+                    Text("필기 이벤트 \(events)").accessibilityIdentifier("deskink.previewEvents")
                     Spacer()
-                    DeskInkToolbar(tools: tools).accessibilityIdentifier("deskink.toolbar")
-                }.padding(16)
+                    Button("화면 맞춤") { tools.resetZoom() }.accessibilityIdentifier("deskink.fit")
+                }.padding(12).background(.regularMaterial, in: Capsule())
             }
         }
     }
@@ -66,10 +63,15 @@ enum UIPreview {
     }
 
     private final class GesturePreviewVideo: UIView {
+        let desktop = UIView()
         let marker = UILabel()
         override init(frame: CGRect) {
             super.init(frame: frame)
-            backgroundColor = UIColor(red: 0.08, green: 0.18, blue: 0.32, alpha: 1)
+            backgroundColor = .black
+            desktop.backgroundColor = UIColor(red: 0.08, green: 0.18, blue: 0.32, alpha: 1)
+            desktop.layer.borderColor = UIColor.lightGray.cgColor
+            desktop.layer.borderWidth = 2
+            addSubview(desktop)
             marker.text = "모니터 중앙"; marker.textColor = .black
             marker.backgroundColor = .systemYellow; marker.textAlignment = .center
             marker.accessibilityIdentifier = "deskink.previewMarker"
@@ -78,6 +80,10 @@ enum UIPreview {
         required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
         override func layoutSubviews() {
             super.layoutSubviews()
+            let scale = MetalRenderer.aspectFitScale(video: CGSize(width: 1920, height: 1080), drawable: bounds.size)
+            let size = CGSize(width: bounds.width * CGFloat(scale.x), height: bounds.height * CGFloat(scale.y))
+            desktop.frame = CGRect(x: bounds.midX-size.width/2, y: bounds.midY-size.height/2,
+                                   width: size.width, height: size.height)
             marker.frame = CGRect(x: bounds.midX-60, y: bounds.midY-22, width: 120, height: 44)
         }
     }

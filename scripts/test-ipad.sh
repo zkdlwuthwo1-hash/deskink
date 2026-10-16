@@ -13,7 +13,14 @@ if [[ -z "$destination" ]]; then
   [[ -n "$simulator_id" ]] || { echo 'Install an iPad simulator runtime in Xcode, then rerun this script.' >&2; exit 1; }
   destination="platform=iOS Simulator,id=$simulator_id"
 fi
+# Multiple comma-separated identifiers let a run cover the unit suite and just
+# the UI tests that do not require an external streaming host.
+IFS=',' read -r -a test_filters <<< "${DESKINK_TEST_FILTER:-EternalMonitorTests}"
+test_arguments=()
+for test_filter in "${test_filters[@]}"; do
+  test_arguments+=("-only-testing:$test_filter")
+done
 xcodebuild -project DeskInk.xcodeproj -scheme EternalMonitor \
   -configuration Debug -destination "$destination" \
   -derivedDataPath "$project_root/DerivedData" \
-  "-only-testing:${DESKINK_TEST_FILTER:-EternalMonitorTests}" CODE_SIGNING_ALLOWED=NO test
+  "${test_arguments[@]}" CODE_SIGNING_ALLOWED=NO test
