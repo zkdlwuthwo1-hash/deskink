@@ -100,7 +100,7 @@ final class VideoDecoderTests: XCTestCase {
         }
     }
 
-    func testBadAccessUnitRequestsOneKeyframeAndRecoversInTheSameSession() throws {
+    func testBadAccessUnitCoalescesRequestsAndRecoversWithAtMostOneRebuild() throws {
         let data = try fixtureData()
         let decoder = VideoDecoder()
         defer { decoder.shutdown() }
@@ -109,20 +109,28 @@ final class VideoDecoderTests: XCTestCase {
         let recovered = expectation(description: "recovery frame")
         let sessionEvents = OSAllocatedUnfairLock(initialState: 0)
         let requests = OSAllocatedUnfairLock(initialState: 0)
+        let recoveredTimestamps = OSAllocatedUnfairLock(initialState: [UInt64]())
+        let retry = packet(seq: 21, data: data, keyframe: true)
         decoder.onEvent = { message in
-            print("[DEBUG-decoder-recovery] \(message)")
             if message.hasPrefix("VideoToolbox session ready") {
                 sessionEvents.withLock { $0 += 1 }
             }
         }
         decoder.onFrameDecoded = { _, timestamp in
             if timestamp == 16_667 { first.fulfill() }
-            if timestamp == 20 * 16_667 { recovered.fulfill() }
+            if timestamp == 20 * 16_667 || timestamp == 21 * 16_667 {
+                let count = recoveredTimestamps.withLock { $0.append(timestamp); return $0.count }
+                if count == 1 { recovered.fulfill() }
+            }
         }
-        decoder.onNeedsKeyframe = {
+        decoder.onNeedsKeyframe = { [weak decoder] in
             let count = requests.withLock { $0 += 1; return $0 }
-            print("[DEBUG-decoder-recovery] request \(count)")
             if count == 1 { request.fulfill() }
+            // Some software decoders reject the first replacement IDR after
+            // bad dependent data. The existing recovery path rebuilds that
+            // failed session and asks the host for another IDR. Supply exactly
+            // one more frame, so a permanent failure cannot pass this test.
+            if count == 2 { decoder?.decode(packet: retry) }
         }
         decoder.decode(packet: packet(seq: 1, data: data, keyframe: true))
         wait(for: [first], timeout: 10)
@@ -138,10 +146,21 @@ final class VideoDecoderTests: XCTestCase {
         for seq in 3...10 {
             decoder.decode(packet: packet(seq: UInt32(seq), data: corrupt, keyframe: false))
         }
+        let drained = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in decoder.decodeDepth == 0 }, object: nil
+        )
+        wait(for: [drained], timeout: 3)
+        XCTAssertEqual(requests.withLock { $0 }, 1, "dependent frames must not cause a request storm")
+        XCTAssertEqual(sessionEvents.withLock { $0 }, 1, "try a replacement IDR before rebuilding")
+
         decoder.decode(packet: packet(seq: 20, data: data, keyframe: true))
         wait(for: [recovered], timeout: 10)
-        XCTAssertEqual(requests.withLock { $0 }, 1, "wait for a sync sample without a request storm")
-        XCTAssertEqual(sessionEvents.withLock { $0 }, 1, "bad data must not rebuild a healthy session")
+        let requestCount = requests.withLock { $0 }
+        XCTAssertTrue((1...2).contains(requestCount), "recovery must finish within one additional IDR")
+        XCTAssertEqual(sessionEvents.withLock { $0 }, requestCount,
+                       "only a rejected replacement IDR warrants a session rebuild")
+        XCTAssertEqual(recoveredTimestamps.withLock { $0 },
+                       [UInt64(requestCount == 1 ? 20 : 21) * 16_667])
     }
 
     func testKeyframeThatFailsToDecodeRebuildsTheSession() throws {
