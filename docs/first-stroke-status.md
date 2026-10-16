@@ -30,7 +30,7 @@ Windows의 `deskink` 진입점은 가상 화면 드라이버 변경, 원격 마�
 
 현재 코드를 완성된 발표용 앱이나 측정된 초저지연 제품으로 표시하지 않는다. 작업 01은 실제 iPad 검증 뒤 완료하고 02–06을 이어간다.
 
-다음 필수 작업은 Mac에서 `bash scripts/build-ipad.sh`와 `bash scripts/test-ipad.sh`를 실행하고 실제 iPad에 설치해 Windows USB 경로를 확인하는 것이다. 이 Windows 세션에는 Xcode와 연결된 iPad가 없어 그 결과를 대신 확인할 수 없다. 필요한 소스는 `artifacts/local/DeskInk-source.zip`으로 옮길 수 있다.
+사용자는 Windows에서 계속 진행하기로 정했다. 다음 필수 작업은 준비한 GitHub macOS 빌드 워크플로로 테스트와 기기용 IPA 생성을 확인하고, Windows에서 개인 서명·iPad 설치 후 USB 경로를 확인하는 것이다. [Windows 중심 진행 방법](windows-only-ipad.md)을 따른다. 현재 원격 저장소·클라우드 실행·IPA 생성은 아직 없다. 직접 Mac을 쓰는 기존 절차는 대안으로 남긴다.
 
 사용자 실행 순서와 통과 기준은 [iPad 첫 검증 안내](ipad-first-check.md)에 정리했다.
 

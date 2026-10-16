@@ -1,0 +1,59 @@
+name: Build iPad app
+
+# Manual only: editing/pushing source does not automatically consume Mac minutes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipad-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Prepare build tools
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+          mkdir -p artifacts/local/ipad-cloud
+      - name: Select an installed iPad simulator compatible with Xcode 16.4
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          devices = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
+          candidates = [device for runtime, group in devices.items()
+                        if ".iOS-18-" in runtime
+                        for device in group if device.get("isAvailable") and "iPad" in device["name"]]
+          if not candidates:
+              raise SystemExit("No available iOS 18 iPad simulator on this runner. Update the runner/runtime selection before building.")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write("DESKINK_TEST_DESTINATION=platform=iOS Simulator,id=" + candidates[0]["udid"] + "\n")
+          PY
+      - name: Build and test the iPad app
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/test-ipad.sh 2>&1 | tee artifacts/local/ipad-cloud/tests.log
+      - name: Build an unsigned device IPA
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/build-ipad-unsigned.sh 2>&1 | tee artifacts/local/ipad-cloud/build.log
+      - name: Save IPA and build evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: DeskInk-iPad-${{ github.run_number }}
+          path: artifacts/local/ipad-cloud/
+          if-no-files-found: warn
+          retention-days: 3

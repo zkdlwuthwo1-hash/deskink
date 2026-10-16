@@ -9,6 +9,7 @@ Windows에서는 `scripts/build-windows.ps1`로 빌드합니다. 실행할 터�
 이 PC의 개발용 앱을 바로 실행하려면 `powershell -File scripts/run-windows.ps1`을 사용합니다. 두 번째 모니터는 `-Monitor 1`로 선택합니다. Mac으로 옮길 소스와 빌드·테스트 절차는 아래 안내에 있습니다.
 
 - [현재 구현과 실제 검증 결과](docs/first-stroke-status.md)
+- [Windows에서 계속 개발하고 iPad에 설치하기](docs/windows-only-ipad.md)
 - [Mac에서 iPad 빌드 이어가기](docs/mac-build.md)
 
 - [확정한 요구사항](docs/requirements.md)

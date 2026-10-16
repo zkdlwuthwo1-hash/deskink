@@ -2,6 +2,7 @@
 target/
 .build/
 DerivedData/
+DerivedData-device/
 .reference/
 .tools/
 
