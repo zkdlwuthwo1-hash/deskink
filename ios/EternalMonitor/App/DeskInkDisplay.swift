@@ -2,25 +2,32 @@ import SwiftUI
 
 struct DeskInkDisplay: View {
     @EnvironmentObject private var connection: ConnectionManager
+    @State private var tools = DeskInkTools()
+
+    private var toolsSupported: Bool { (connection.hostInfo?.hostCaps ?? 0) & 0x2000 != 0 }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Color.black.ignoresSafeArea()
             MetalView().ignoresSafeArea()
             DeskInkCanvas(videoSize: connection.videoSize,
-                          enabled: !connection.signalLost && connection.transportMode == "USB",
+                          enabled: !connection.signalLost && connection.transportMode == "USB" && toolsSupported,
                           connectionKey: "\(connection.hostInfo?.sessionId ?? 0):\(connection.hostStreamConfig?.streamEpoch ?? 0)",
+                          tools: tools,
                           send: connection.sendInk)
                 .ignoresSafeArea()
-            VStack(alignment: .trailing, spacing: 8) {
-                Text(connection.signalLost ? "연결 복구 중" : "DeskInk · USB")
-                Text("첫 연결 검증용 · 기본 펜")
-                    .font(.caption)
+            VStack {
+                HStack {
+                    Label(connection.signalLost ? "연결 복구 중" : toolsSupported ? "DeskInk · USB" : "Windows DeskInk를 업데이트하세요", systemImage: "cable.connector")
+                        .font(.caption.weight(.semibold)).padding(10).background(.regularMaterial, in: Capsule())
+                    Spacer()
+                    Button { connection.disconnect() } label: { Image(systemName: "xmark").frame(width:44,height:44).background(.regularMaterial,in:Circle()) }
+                        .accessibilityLabel("연결 종료")
+                }
+                Spacer()
+                DeskInkToolbar(tools: tools).disabled(!toolsSupported || connection.signalLost)
             }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .padding()
-            .allowsHitTesting(false)
+            .padding(16)
         }
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)

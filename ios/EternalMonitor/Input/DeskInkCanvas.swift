@@ -5,128 +5,212 @@ struct DeskInkCanvas: UIViewRepresentable {
     let videoSize: CGSize
     let enabled: Bool
     let connectionKey: String
+    let tools: DeskInkTools
     let send: ([DeskInkCommand]) -> Void
 
     func makeUIView(context: Context) -> InkCanvasView { InkCanvasView() }
     func updateUIView(_ view: InkCanvasView, context: Context) {
-        view.send = send
+        view.send = send; view.tools = tools; tools.canvas = view
         view.configure(videoSize: videoSize, enabled: enabled, connectionKey: connectionKey)
     }
 }
 
-/// Fast input/rendering stays inside this UIKit view. SwiftUI does not observe
-/// every Pencil point. The video is a separate Metal layer beneath the canvas.
-final class InkCanvasView: UIView {
+/// UIKit owns the hot input path; SwiftUI observes tool choices and history only.
+final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     var send: ([DeskInkCommand]) -> Void = { _ in }
+    weak var tools: DeskInkTools?
+    let document = DeskInkDocument()
     private var videoSize = CGSize.zero
     private var enabled = false
     private var connectionKey = ""
     private var activeTouch: UITouch?
     private var activeID: UInt64?
-    private var activePath: CGMutablePath?
-    private var activeLayer: CAShapeLayer?
+    private var activeTool: DeskInkTool?
     private var lastTimestamp: TimeInterval = 0
+    private var lastPointerAt: TimeInterval = 0
     private let inkLayer = CALayer()
+    private let pointerLayer = CAShapeLayer()
+    private var expiryTimer: Timer?
+    private final class RenderedStroke {
+        let layer = CAShapeLayer()
+        let path = CGMutablePath()
+        var count = 0
+    }
+    private var rendered: [UInt64: RenderedStroke] = [:]
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = .clear
-        isOpaque = false
-        isMultipleTouchEnabled = true
-        layer.addSublayer(inkLayer)
+        backgroundColor = .clear; isOpaque = false; isMultipleTouchEnabled = true
+        layer.addSublayer(inkLayer); layer.addSublayer(pointerLayer)
+        let pencil = UIPencilInteraction(); pencil.delegate = self; addInteraction(pencil)
+        let hover = UIHoverGestureRecognizer(target: self, action: #selector(hovered(_:)))
+        hover.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+        addGestureRecognizer(hover)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        expiryTimer?.invalidate(); expiryTimer = nil
+        if window != nil {
+            let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                if self.document.advanceTime(Self.nowMs) { self.synchronizeLayers() }
+            }
+            RunLoop.main.add(timer, forMode: .common); expiryTimer = timer
+        } else { finish() }
+    }
+    private static var nowMs: UInt64 { UInt64(ProcessInfo.processInfo.systemUptime * 1000) }
+
     func configure(videoSize: CGSize, enabled: Bool, connectionKey: String) {
         if self.connectionKey != connectionKey || self.videoSize != videoSize {
-            // The send closure already belongs to the new binding. Never send
-            // the previous connection's final command into that new session.
             finish(sendEnd: false)
-            self.connectionKey = connectionKey
-            self.videoSize = videoSize
+            self.connectionKey = connectionKey; self.videoSize = videoSize
             setNeedsLayout()
         }
         if self.enabled && !enabled { finish() }
         self.enabled = enabled
     }
-
     private var imageRect: CGRect {
         guard videoSize.width > 0, videoSize.height > 0 else { return .zero }
         let scale = min(bounds.width / videoSize.width, bounds.height / videoSize.height)
         let size = CGSize(width: videoSize.width * scale, height: videoSize.height * scale)
-        return CGRect(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2,
-                      width: size.width, height: size.height)
+        return CGRect(x: (bounds.width-size.width)/2, y: (bounds.height-size.height)/2, width: size.width, height: size.height)
     }
-
     override func layoutSubviews() {
         super.layoutSubviews()
         let rect = imageRect
         guard rect.width > 0 else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
-        inkLayer.anchorPoint = .zero
-        inkLayer.bounds = CGRect(origin: .zero, size: videoSize)
-        inkLayer.position = rect.origin
-        inkLayer.setAffineTransform(CGAffineTransform(scaleX: rect.width / videoSize.width, y: rect.height / videoSize.height))
+        for canvasLayer in [inkLayer, pointerLayer] {
+            canvasLayer.anchorPoint = .zero
+            canvasLayer.bounds = CGRect(origin: .zero, size: videoSize)
+            canvasLayer.position = rect.origin
+            canvasLayer.setAffineTransform(CGAffineTransform(scaleX: rect.width/videoSize.width, y: rect.height/videoSize.height))
+        }
         CATransaction.commit()
     }
-
-    private func reading(_ touch: UITouch) -> DeskInkPoint? {
+    private func reading(location: CGPoint, pressure: CGFloat) -> DeskInkPoint? {
         let rect = imageRect
         guard rect.width > 0, rect.height > 0 else { return nil }
-        let p = touch.preciseLocation(in: self)
-        let pressure = touch.maximumPossibleForce > 0 ? touch.force / touch.maximumPossibleForce : 0.5
-        return DeskInkPoint(x: min(videoSize.width, max(0, (p.x - rect.minX) * videoSize.width / rect.width)),
-                            y: min(videoSize.height, max(0, (p.y - rect.minY) * videoSize.height / rect.height)),
-                            pressure: min(1, max(0, pressure)))
+        return DeskInkPoint(x: min(videoSize.width, max(0, (location.x-rect.minX)*videoSize.width/rect.width)),
+                            y: min(videoSize.height, max(0, (location.y-rect.minY)*videoSize.height/rect.height)), pressure: min(1,max(0,pressure)))
+    }
+    private func reading(_ touch: UITouch) -> DeskInkPoint? {
+        reading(location: touch.preciseLocation(in: self), pressure: touch.maximumPossibleForce > 0 ? touch.force/touch.maximumPossibleForce : 0.5)
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard enabled, activeTouch == nil,
-              let touch = touches.first(where: { $0.type == .pencil }) ?? touches.first,
+        guard enabled, activeTouch == nil, let tools,
+              let touch = touches.first(where: { $0.type == .pencil }) ?? (tools.fingerDrawing ? touches.first(where: { $0.type == .direct }) : nil),
               imageRect.contains(touch.preciseLocation(in: self)), let point = reading(touch) else { return }
+        if !document.visible { submit([.setVisible(true)]); updateControls() }
         let id = UInt64.random(in: 1...UInt64.max)
-        activeTouch = touch; activeID = id; lastTimestamp = touch.timestamp
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: point.x, y: point.y))
-        // A zero-length round-capped segment makes a tap visible on both sides.
-        path.addLine(to: CGPoint(x: point.x + 0.001, y: point.y))
-        let line = CAShapeLayer()
-        let brush = DeskInkBrush()
-        line.strokeColor = brush.uiColor.cgColor
-        line.fillColor = UIColor.clear.cgColor
-        line.lineWidth = brush.width; line.lineCap = .round; line.lineJoin = .round
-        line.path = path
-        inkLayer.addSublayer(line)
-        activePath = path; activeLayer = line
-        send([.begin(id: id, brush: brush, point: point)])
-    }
-
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = activeTouch, touches.contains(touch), let id = activeID, let path = activePath else { return }
+        activeTouch = touch; activeID = id; activeTool = tools.tool; lastTimestamp = touch.timestamp
         var commands: [DeskInkCommand] = []
+        switch tools.tool {
+        case .eraser: commands.append(.eraseBegin(id: id, point: point, radius: max(12,tools.width*3)))
+        case .laser: break
+        case .vanishing: commands.append(.transientBegin(id: id, brush: tools.brush, point: point, lifetimeMs: 2000))
+        case .pen, .highlighter: commands.append(.begin(id: id, brush: tools.brush, point: point))
+        }
+        commands.append(pointerCommand(point)); submit(commands)
+    }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = activeTouch, touches.contains(touch), let id = activeID else { return }
+        var commands: [DeskInkCommand] = []; var lastPoint: DeskInkPoint?
         for sample in event?.coalescedTouches(for: touch) ?? [touch] {
             guard sample.timestamp > lastTimestamp, let point = reading(sample) else { continue }
-            lastTimestamp = sample.timestamp
-            path.addLine(to: CGPoint(x: point.x, y: point.y))
-            commands.append(.append(id: id, point: point))
+            lastTimestamp = sample.timestamp; lastPoint = point
+            switch activeTool {
+            case .eraser: commands.append(.eraseTo(id: id, point: point))
+            case .laser, .none: break
+            default: commands.append(.append(id: id, point: point))
+            }
         }
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        activeLayer?.path = path
-        CATransaction.commit()
-        if !commands.isEmpty { send(commands) }
+        if let point = lastPoint, ProcessInfo.processInfo.systemUptime-lastPointerAt >= 1.0/60 {
+            commands.append(pointerCommand(point)); lastPointerAt = ProcessInfo.processInfo.systemUptime
+        }
+        submit(commands)
     }
-
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = activeTouch, touches.contains(touch) else { return }
-        touchesMoved(touches, with: event)
-        finish()
+        touchesMoved(touches, with: event); finish()
     }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = activeTouch, touches.contains(touch) else { return }
-        finish()
+        guard let touch = activeTouch, touches.contains(touch) else { return }; finish()
     }
-    private func finish(sendEnd: Bool = true) {
-        if sendEnd, let id = activeID { send([.end(id: id)]) }
-        activeTouch = nil; activeID = nil; activePath = nil; activeLayer = nil
+    func finish(sendEnd: Bool = true) {
+        guard let id = activeID else { return }
+        let command: DeskInkCommand? = activeTool == .laser ? nil : activeTool == .eraser ? .eraseEnd(id: id) : .end(id: id)
+        activeTouch = nil; activeID = nil; activeTool = nil
+        if let command { submit([command], transmit: sendEnd) }
+        updateControls()
+    }
+    func perform(_ command: DeskInkCommand) {
+        guard enabled else { return }; finish(); submit([command]); updateControls()
+    }
+    private func submit(_ commands: [DeskInkCommand], transmit: Bool = true) {
+        guard !commands.isEmpty else { return }
+        document.advanceTime(Self.nowMs)
+        let accepted = commands.filter { document.apply($0) }
+        synchronizeLayers()
+        if transmit, !accepted.isEmpty { send(accepted) }
+    }
+    private func updateControls() {
+        let undo = document.canUndo, redo = document.canRedo, visible = document.visible
+        // A binding change can finish a stroke inside updateUIView.
+        DispatchQueue.main.async { [weak self] in
+            self?.tools?.canUndo = undo; self?.tools?.canRedo = redo; self?.tools?.visible = visible
+        }
+    }
+    private func pointerCommand(_ point: DeskInkPoint?) -> DeskInkCommand {
+        let tool = activeTool ?? tools?.tool ?? .pen
+        return .pointer(point: point, color: tool == .eraser ? [235,240,250,255] : tools?.color.rgba ?? [255,80,40,255],
+                        radius: tool == .eraser ? max(12,(tools?.width ?? 4)*3) : 7, laser: tool == .laser || tool == .eraser)
+    }
+    @objc private func hovered(_ gesture: UIHoverGestureRecognizer) {
+        guard enabled, activeTouch == nil else { return }
+        if gesture.state == .ended || gesture.state == .cancelled { submit([pointerCommand(nil)]); return }
+        let location = gesture.location(in: self)
+        guard imageRect.contains(location), let point = reading(location: location, pressure: 0) else { return }
+        submit([pointerCommand(point)])
+    }
+    func pencilInteractionDidTap(_ interaction: UIPencilInteraction) { tools?.toggleEraser() }
+    @available(iOS 17.5, *)
+    func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) { tools?.toggleEraser() }
+
+    private func synchronizeLayers() {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        let strokes = document.renderStrokes, ids = Set(strokes.map(\.id))
+        for id in Array(rendered.keys) where !ids.contains(id) { rendered.removeValue(forKey: id)?.layer.removeFromSuperlayer() }
+        for (index, stroke) in strokes.enumerated() {
+            let entry: RenderedStroke
+            if let existing = rendered[stroke.id] { entry = existing }
+            else {
+                entry = RenderedStroke(); rendered[stroke.id] = entry
+                entry.layer.strokeColor = stroke.brush.uiColor.cgColor; entry.layer.fillColor = UIColor.clear.cgColor
+                entry.layer.lineWidth = stroke.brush.width; entry.layer.lineCap = .round; entry.layer.lineJoin = .round
+                inkLayer.insertSublayer(entry.layer, at: UInt32(index))
+            }
+            if entry.count < stroke.points.count {
+                for point in stroke.points.dropFirst(entry.count) {
+                    if entry.count == 0 {
+                        entry.path.move(to: CGPoint(x:point.x,y:point.y)); entry.path.addLine(to: CGPoint(x:point.x+0.001,y:point.y))
+                    } else { entry.path.addLine(to: CGPoint(x:point.x,y:point.y)) }
+                    entry.count += 1
+                }
+                entry.layer.path = entry.path
+            }
+        }
+        if let pointer = document.pointer {
+            let path = CGMutablePath(), x = pointer.point.x, y = pointer.point.y
+            if pointer.laser { path.addEllipse(in: CGRect(x:x-pointer.radius,y:y-pointer.radius,width:pointer.radius*2,height:pointer.radius*2)) }
+            else { path.move(to: CGPoint(x:x,y:y)); path.addLine(to: CGPoint(x:x+7,y:y-20)); path.addLine(to: CGPoint(x:x+15,y:y-12)); path.closeSubpath() }
+            pointerLayer.path = path
+            pointerLayer.fillColor = DeskInkBrush(color:pointer.color).uiColor.withAlphaComponent(0.92).cgColor
+            pointerLayer.strokeColor = UIColor.white.cgColor; pointerLayer.lineWidth = 2
+        } else { pointerLayer.path = nil }
+        CATransaction.commit()
     }
 }
