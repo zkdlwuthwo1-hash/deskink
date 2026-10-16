@@ -110,6 +110,7 @@ final class VideoDecoderTests: XCTestCase {
         let sessionEvents = OSAllocatedUnfairLock(initialState: 0)
         let requests = OSAllocatedUnfairLock(initialState: 0)
         decoder.onEvent = { message in
+            print("[DEBUG-decoder-recovery] \(message)")
             if message.hasPrefix("VideoToolbox session ready") {
                 sessionEvents.withLock { $0 += 1 }
             }
@@ -119,8 +120,9 @@ final class VideoDecoderTests: XCTestCase {
             if timestamp == 20 * 16_667 { recovered.fulfill() }
         }
         decoder.onNeedsKeyframe = {
-            requests.withLock { $0 += 1 }
-            request.fulfill()
+            let count = requests.withLock { $0 += 1; return $0 }
+            print("[DEBUG-decoder-recovery] request \(count)")
+            if count == 1 { request.fulfill() }
         }
         decoder.decode(packet: packet(seq: 1, data: data, keyframe: true))
         wait(for: [first], timeout: 10)

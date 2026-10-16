@@ -16,4 +16,4 @@ fi
 xcodebuild -project DeskInk.xcodeproj -scheme EternalMonitor \
   -configuration Debug -destination "$destination" \
   -derivedDataPath "$project_root/DerivedData" \
-  -only-testing:EternalMonitorTests CODE_SIGNING_ALLOWED=NO test
+  "-only-testing:${DESKINK_TEST_FILTER:-EternalMonitorTests}" CODE_SIGNING_ALLOWED=NO test
