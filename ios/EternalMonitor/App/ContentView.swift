@@ -4,6 +4,18 @@ struct ContentView: View {
     @EnvironmentObject var connectionManager: ConnectionManager
 
     var body: some View {
+        #if DEBUG
+        if UIPreview.mode == "deskink" {
+            UIPreview.DeskInkGesturePreview()
+        } else {
+            connectionContent
+        }
+        #else
+        connectionContent
+        #endif
+    }
+
+    @ViewBuilder private var connectionContent: some View {
         switch connectionManager.state {
         case .disconnected, .connecting:
             ConnectView()

@@ -32,6 +32,56 @@ enum UIPreview {
         }
     }
 
+    /// No live PC or network: exercises the same native viewport and canvas
+    /// with a visible marker that UI tests can follow through real gestures.
+    struct DeskInkGesturePreview: View {
+        @State private var tools = DeskInkTools()
+        @State private var events = 0
+        var body: some View {
+            ZStack {
+                GesturePreviewCanvas(tools: tools) { events += $0.count }.ignoresSafeArea()
+                VStack {
+                    HStack {
+                        Text("필기 이벤트 \(events)").accessibilityIdentifier("deskink.previewEvents")
+                        Spacer()
+                        Button("화면 맞춤") { tools.resetZoom() }.accessibilityIdentifier("deskink.fit")
+                    }.padding(12).background(.regularMaterial, in: Capsule())
+                    Spacer()
+                    DeskInkToolbar(tools: tools).accessibilityIdentifier("deskink.toolbar")
+                }.padding(16)
+            }
+        }
+    }
+
+    private struct GesturePreviewCanvas: UIViewRepresentable {
+        let tools: DeskInkTools
+        let send: ([DeskInkCommand]) -> Void
+        func makeUIView(context: Context) -> DeskInkViewportView {
+            DeskInkViewportView(videoView: GesturePreviewVideo())
+        }
+        func updateUIView(_ view: DeskInkViewportView, context: Context) {
+            view.configure(videoSize: CGSize(width: 1920, height: 1080), enabled: true,
+                           connectionKey: "preview", tools: tools, send: send)
+        }
+    }
+
+    private final class GesturePreviewVideo: UIView {
+        let marker = UILabel()
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            backgroundColor = UIColor(red: 0.08, green: 0.18, blue: 0.32, alpha: 1)
+            marker.text = "모니터 중앙"; marker.textColor = .black
+            marker.backgroundColor = .systemYellow; marker.textAlignment = .center
+            marker.accessibilityIdentifier = "deskink.previewMarker"
+            addSubview(marker)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            marker.frame = CGRect(x: bounds.midX-60, y: bounds.midY-22, width: 120, height: 44)
+        }
+    }
+
     /// A stand-in Windows desktop, so the translucent controls have
     /// something behind them.
     struct Backdrop: View {
