@@ -17,7 +17,7 @@ app="$project_root/DerivedData-device/Build/Products/Release-iphoneos/DeskInk.ap
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :DTPlatformName' "$app/Info.plist")" == "iphoneos" ]] || {
   echo 'Refusing to package a simulator app as an installable IPA.' >&2; exit 1;
 }
-xcrun lipo -verify_arch arm64 "$app/DeskInk"
+xcrun lipo "$app/DeskInk" -verify_arch arm64
 
 # A fresh staging directory avoids accidentally packaging a previous build.
 stage="$(mktemp -d "${TMPDIR:-/tmp}/deskink-ipa.XXXXXX")"
@@ -33,6 +33,7 @@ unzip -tq "$output_dir/DeskInk-unsigned.ipa"
 {
   echo 'Unsigned, unprovisioned iPad device build. Sign and install locally on Windows.'
   echo "Source: $(git -C "$project_root" rev-parse HEAD)"
+  echo "Test selection: ${DESKINK_TEST_FILTER:-EternalMonitorTests}"
   xcodebuild -version
   xcrun --sdk iphoneos --show-sdk-version
   echo 'Building successfully is not proof of real USB, Pencil latency, or Zoom behavior.'
