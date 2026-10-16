@@ -16,6 +16,11 @@
 - Sideloadly의 GSA HTTP 503과 iloader의 HTTP 502·계정 인증 오류를 거친 뒤, 사용자가 iloader 로그인을 완료했다. 사용자 화면에서 `Operation completed / Sign & Install App` 성공을 확인했다. 개인 서명과 iPad 설치는 완료됐다.
 - 개발자 모드 안내 이후 사용자가 앱에서 펜이 나타난다고 보고했다. Windows 로그에서 실제 USB 세션 연결과 iPad의 영상 디코드 보고를 확인했다. 양쪽 필기 위치·손바닥 구분·Zoom 수신 검사는 아직 완료하지 않았다.
 - 사용자의 FPS 저하 보고를 움직이는 테스트 창으로 재현했다. WGC 기본 간격과 앱의 대기 처리를 수정한 Windows 캡처→인코딩 경로는 같은 장치에서 약 55–59fps를 처리했다. 정지 화면 재전송의 오래된 시간값도 수정했다. 실제 iPad 수신에 수정본을 적용하는 검증은 별도로 남긴다. [FPS 진단 기록](fps-diagnosis.md)
+- 발표 도구를 양쪽에 구현했다. 지우개는 선 단위로 지우며 한 제스처를 한 번에 실행 취소한다. 사용자 요청대로 지운 뒤 펜을 화면에서 떼면 직전 도구로 자동 복귀하고 기존 색·굵기를 유지한다. 형광펜, 2초 후 사라지는 펜, 레이저·펜 모양 포인터, 7색·3굵기, 취소·다시 실행·전체 지우기·숨기기, Pencil 더블탭 지우개를 포함한다. 손가락 필기는 기본 꺼짐이며 굵기 메뉴에서 선택할 수 있다. 호버는 지원 기기에서만 동작한다.
+- 새 도구의 핵심 Rust 검사 20개가 통과했다. 실제 Windows 픽셀 검사에서 지우기→복원→숨기기→보이기를 확인했고, 캡처 관련 검사 13개도 통과했다. [iPad 전체 검사 38897105780](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38897105780)는 158개 단위 테스트와 Release IPA 빌드가 성공했다. 이 결과는 새 버전의 실기기 설치·더블탭·Zoom 검증을 대신하지 않는다.
+- Windows 호스트 라이브러리는 134개 통과 후 x264 검사 한 개가 제품용 LGPL 런타임의 코덱 부재로 실패했다. 기존에 분리해 둔 test-only GPL 런타임에서 해당 검사도 통과했다. 제품 런타임은 LGPL을 유지한다. Windows Release 실행물도 빌드했다.
+- [도구 계약·화면 검사 38898160968](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38898160968)에서 도구 검사 6개가 통과했다. XCTest 이미지 첨부를 추출해 가로·세로 iPad 도구막대의 아이콘·글자·배치가 잘리지 않는 것을 직접 확인했다. 실제 사용자 데스크톱이 아닌 앱의 미리보기 배경을 사용했다.
+- 최종 [자동 복귀 포함 빌드 38898711423](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38898711423), 소스 `64375a0`, 앱 빌드 번호 8에서 전체 iPad 테스트 160개와 Release IPA 생성이 통과했다. 자동 복귀 테스트를 먼저 추가한 이전 실행은 해당 동작 부재로 실패한 것을 확인했다. `artifacts/local/DeskInk-tools-build8.ipa` 및 `%TEMP%\DeskInk-tools-build8.ipa`를 준비했다. ZIP CRC, arm64 실기기 플랫폼, 번들 ID·빌드 번호와 SHA-256을 검사했다. SHA-256: `da77c1f855b815093a343435d29a8af32244a92137e65fcc358e9e0dbfa4c742`. 아직 새 IPA를 실제 iPad에 설치하지 않았다.
 
 ## 연결한 코드
 
@@ -27,7 +32,8 @@ Windows의 `deskink` 진입점은 가상 화면 드라이버 변경, 원격 마�
 
 - 수정본의 실제 USB 영상 FPS, 양쪽 필기 입력 왕복과 위치, Pencil 지연과 손바닥 처리.
 - Zoom 실제 수신 화면. 글로벌 캡처 제외는 사용하지 않지만 Zoom 성공으로 간주하지 않는다.
-- iPad만 확대/이동, Pencil 더블탭 지우개, 여러 도구와 포인터, 지우기/숨기기/실행 취소.
+- 새 도구의 실기기 양쪽 화면 일치, 실제 Pencil 더블탭·호버·손바닥 구분.
+- iPad만 확대/이동.
 - PC 두 대 선택 UI, 영구 저장 및 재시작 복원, 재연결 시 iPad로 전체 필기 복원.
 - LAN/이더넷 필기 경로. 첫 연결 구현은 USB만 받는다.
 - Windows 필기 렌더러의 긴 필기 성능. 현재 전체 장면 CPU 래스터 방식이며 최종 저지연 렌더러가 아님.
@@ -35,7 +41,7 @@ Windows의 `deskink` 진입점은 가상 화면 드라이버 변경, 원격 마�
 
 현재 코드를 완성된 발표용 앱이나 측정된 초저지연 제품으로 표시하지 않는다. 작업 01은 실제 iPad 검증 뒤 완료하고 02–06을 이어간다.
 
-사용자는 Windows에서 계속 진행하기로 정했다. [비공개 저장소](https://github.com/zkdlwuthwo1-hash/deskink)와 GitHub macOS 빌드를 연결했고, IPA 개인 서명·설치를 마쳤다. 다음 작업은 FPS 수정본의 USB 수신과 실제 필기 품질을 확인하는 것이다. [Windows 중심 진행 방법](windows-only-ipad.md)을 따른다. 직접 Mac을 쓰는 기존 절차는 대안으로 남긴다.
+사용자는 Windows에서 계속 진행하기로 정했다. [비공개 저장소](https://github.com/zkdlwuthwo1-hash/deskink)와 GitHub macOS 빌드를 연결했고, 기존 IPA 개인 서명·설치를 마쳤다. 다음 작업은 도구가 들어간 IPA로 업데이트하고 Windows Release 버전에서 FPS·필기를 확인하는 것이다. 현재 Windows 앱을 닫으면 기존 필기가 사라지므로 사용자 확인 없이 재시작하지 않는다. [Windows 중심 진행 방법](windows-only-ipad.md)을 따른다. 직접 Mac을 쓰는 기존 절차는 대안으로 남긴다.
 
 사용자 실행 순서와 통과 기준은 [iPad 첫 검증 안내](ipad-first-check.md)에 정리했다.
 

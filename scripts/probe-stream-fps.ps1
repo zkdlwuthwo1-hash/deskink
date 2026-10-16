@@ -15,6 +15,9 @@ if ($HostProbe) {
     $probeLog = Join-Path $localDir 'stream-fps-probe.log'
     $probeError = Join-Path $localDir 'stream-fps-probe-error.log'
     $probe = Start-Process -FilePath $probePath -ArgumentList "--minimum-fps=$MinimumFps" -WindowStyle Hidden -PassThru -RedirectStandardOutput $probeLog -RedirectStandardError $probeError
+    # Retain the process handle before it exits; Windows PowerShell can otherwise
+    # return a null ExitCode for a detached Start-Process result.
+    $null = $probe.Handle
 } elseif (-not $LogPath -or -not (Test-Path -LiteralPath $LogPath)) {
     throw 'Provide -LogPath for the running Windows DeskInk log, or use -HostProbe.'
 }

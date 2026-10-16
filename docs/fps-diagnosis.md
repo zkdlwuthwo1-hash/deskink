@@ -10,6 +10,7 @@
 - WGC의 `MinUpdateInterval` 실측 기본값은 16,000µs. 이를 0으로 둔 비교에서 원본 캡처가 약 43.8→58.3fps로 증가했다. [Microsoft API](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.graphicscapturesession.minupdateinterval), ABI는 Microsoft windows 0.62.2의 `IGraphicsCaptureSession5`와 대조했다.
 - 이 변경만으로 앱 경로는 44.6fps에 머물렀다. 앱의 상대적 `recv_timeout` 대기를 기존 정밀 타이머와 절대 프레임 시각으로 변경한 뒤 54.5–58.5fps 범위, 중앙값 약 58fps로 통과했다. Windows 캡처 최소 간격과 앱 대기의 두 원인을 구분했다.
 - 정지 화면 재전송이 기존 프레임의 오래된 timestamp를 유지하는 별도 결함도 확인했다. 실제 경로의 `--maximum-frame-age-ms=100` 검사가 p95 538.6ms로 실패했고, 재전송 샘플만 새 시각으로 기록한 뒤 p95 12.9ms로 통과했다. 이 값은 화면 내용의 나이가 아니라 전송 샘플 처리 시간이며 물리적인 표시 지연이 아니다.
+- 도구 구현 이후 같은 8초 자극에서 인코딩은 54.8–58.6fps였다. Windows PowerShell이 이미 끝난 프로세스의 ExitCode를 null로 읽는 진단 스크립트 결함을 발견해, 시작 직후 프로세스 핸들을 유지하도록 수정하고 재검사했다. 성능 통과 여부와 스크립트 종료 상태를 혼동하지 않는다.
 
 ## 재현 명령
 
