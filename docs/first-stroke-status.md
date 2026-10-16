@@ -14,6 +14,7 @@
 - [GitHub 실행 38885470010](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38885470010)에서 iPad 시뮬레이터 단위 테스트 153개와 기기용 arm64 Release 빌드·IPA 생성이 모두 성공했다. Swift/Rust 필기 메시지 계약 검사도 포함된다. Xcode 16.4, 소스 `efe1c325454627b1b52fa28ab6ae1a4fa09cc9b2` 기준이다.
 - `artifacts/local/DeskInk-unsigned.ipa`를 내려받아 SHA-256, ZIP CRC, Info.plist, Mach-O의 arm64·실기기 iOS 플랫폼을 검사했다. 크기 3,756,568바이트, SHA-256 `84e2817752748aa88b4a085bec9e0b00dc34ee25556cd8f93baafc70280ee916`. 개인 서명 전 파일이다.
 - Sideloadly 0.70.1 설치와 USB iPad 목록 표시를 확인했다. Apple 계정으로 앱을 서명하거나 실제 iPad에 DeskInk를 설치한 상태는 아직 아니다.
+- 설치 도구에서 인증이 막혀 있다. Sideloadly는 팀 조회 중 GSA HTTP 503, 대체 설치한 iloader 2.3.9는 기본 인증 보조 서버의 `client_info` 요청에서 HTTP 502가 발생했다. 기본 목록의 대체 서버 두 곳은 계정 없는 검사에서 HTTP 200이었다. 서버 변경 안내 뒤 사용자 재시도 화면은 `Auth error -20970: Your account information was entered incorrectly.`로 바뀌었다. 현재는 본인의 계정 정보 확인이 필요하며 인증·설치 성공으로 간주하지 않는다.
 
 ## 연결한 코드
 
