@@ -10,6 +10,8 @@ Windows에서는 `scripts/build-windows.ps1`로 빌드합니다. 실행할 터�
 
 최적화한 Windows 실행물은 `powershell -File scripts/build-windows.ps1 -Release`로 빌드하고 `powershell -File scripts/run-windows.ps1 -Release`로 실행합니다. 이미 실행 중인 인스턴스와 동시에 열지 않습니다.
 
+이 PC의 바탕화면에는 `DeskInk - 화면 1`, `DeskInk - 화면 2` 바로가기를 만들었습니다. 원하는 아이콘을 두 번 누르면 해당 모니터로 실행됩니다. 바로가기는 `scripts/start-deskink.ps1`에서 Release 앱과 로컬 DLL을 연결하며, 중복 실행을 막고 실행 로그를 `artifacts/local`에 남깁니다. 화면을 바꾸려면 기존 Windows DeskInk를 먼저 닫아야 하며 현재 필기는 사라집니다. 바로가기가 이 프로젝트 폴더를 참조하므로 폴더를 옮긴 경우 다시 연결해야 합니다.
+
 - [현재 구현과 실제 검증 결과](docs/first-stroke-status.md)
 - [Windows에서 계속 개발하고 iPad에 설치하기](docs/windows-only-ipad.md)
 - [Mac에서 iPad 빌드 이어가기](docs/mac-build.md)
