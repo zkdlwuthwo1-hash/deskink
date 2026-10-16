@@ -5,15 +5,19 @@ Windows를 개발 환경으로 유지한다. iPad 코드는 GitHub의 macOS 빌�
 ## 현재 PC에서 확인한 것
 
 - Apple Devices `1.1540.24088.0` 설치됨.
-- 설치된 Store 앱과 데스크톱 프로그램 등록 목록에서 Sideloadly, AltServer, iTunes, iCloud, macOS 가상머신은 발견하지 못함. 별도 휴대용 프로그램이나 원격 서비스까지 없다는 뜻은 아님.
-- 검사 당시 연결된 iPad는 발견하지 못함.
-- GitHub CLI 2.102.0을 `.tools/github-cli/bin/gh.exe`에 설치하고 공식 SHA-256 값과 대조했다. GitHub 로그인과 이 프로젝트의 Git 원격 저장소 연결은 아직 진행 전이다.
+- Sideloadly 0.70.1을 공식 배포본으로 사용자 계정에 설치했다. 설치 파일에는 Authenticode 서명이 없으며 공식 HTTPS 배포 주소를 사용했다.
+- Windows 장치 목록과 Sideloadly 화면에서 USB iPad 인식을 확인했다. Sideloadly가 표시한 기기 OS 버전은 27.0.1이며 실제 DeskInk 설치·동작 검증은 별도다.
+- GitHub CLI 2.102.0을 `.tools/github-cli/bin/gh.exe`에 설치하고 공식 SHA-256 값과 대조했다. 사용자 브라우저 승인 후 Windows 자격 증명 저장소에 로그인이 완료됐다.
+- [비공개 저장소](https://github.com/zkdlwuthwo1-hash/deskink)에 소스를 업로드하고 macOS 빌드를 실행했다.
+- 웹 배포판 iTunes·iCloud 설치 파일은 `.tools/ipad-install`에 준비했고 Apple Inc.의 유효한 서명을 확인했다. 아직 설치하지 않았다. 현재 Sideloadly에서 기기를 인식하므로 기존 Apple Devices를 제거하지 않는다.
 
 Apple Devices는 기기 인식·동기화·백업 등을 담당하며 iPad 앱 컴파일러가 아니다. [Apple Devices의 역할](https://support.apple.com/guide/devices-windows/syncing-overview-mchl923c1147/windows)
 
 ## 1. 준비된 클라우드 빌드 실행
 
 `.github/workflows/ipad-build.yml`을 준비했다. 수동 실행 전용이며, Xcode 16.4에서 iPad 시뮬레이터 단위 테스트 후 실제 기기용 Release 앱을 서명 없이 빌드한다. Apple 계정·비밀번호·인증서·개인 서명 키를 CI에 넣지 않는다. 실패한 빌드에서도 진단 로그는 결과 파일로 남긴다.
+
+현재 첫 전체 성공 실행은 [38885470010](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38885470010)이다. 이 PC의 `artifacts/local/DeskInk-unsigned.ipa`가 검증한 기기용 파일이며, Sideloadly로 개인 서명·설치를 이어간다. 아래 저장소 생성·로그인 과정은 이 PC에서는 이미 완료했다.
 
 Windows에서 진행할 순서:
 
@@ -23,7 +27,7 @@ Windows에서 진행할 순서:
 2. 이 프로젝트를 Git으로 업로드한다. `.tools`, `target`, 로컬 로그·서명 파일은 `.gitignore`로 제외된다. ZIP 자체를 저장소에 올리는 것만으로는 Actions가 실행되지 않는다. 압축을 이용한다면 압축을 푼 프로젝트 파일과 숨김 폴더 `.github`까지 저장소 루트에 있어야 한다.
 3. 저장소의 `Actions` → `Build iPad app` → `Run workflow`를 선택한다.
 4. 성공한 실행의 Artifacts에서 `DeskInk-iPad-실행번호`를 내려받는다. 안의 `DeskInk-unsigned.ipa`가 다음 설치 도구에 넣을 파일이다.
-5. 실패했다면 내려받은 `tests.log` 또는 `build.log`의 첫 컴파일/테스트 오류를 수정한다. 현재는 클라우드 실행 전이므로 IPA 생성 성공을 확인한 상태가 아니다.
+5. 실패했다면 내려받은 `tests.log` 또는 `build.log`의 첫 컴파일/테스트 오류를 수정한다. 빌드·실기기 검증의 최신 결과는 [첫 연결 구현 상태](first-stroke-status.md)에 기록한다.
 
 GitHub에 로그인하고 비공개 저장소를 만든 뒤, 원격 주소를 알고 있다면 프로젝트 터미널에서 다음처럼 연결한다. 예시의 `사용자명/저장소`는 본인 주소로 바꾼다. 로그인은 Git Credential Manager의 본인 로그인 화면에서 처리하고 토큰을 대화나 명령에 붙여넣지 않는다.
 
@@ -38,7 +42,7 @@ GitHub는 macOS 실행 환경과 결과 파일 다운로드를 제공한다. 비
 
 ## 2. Windows에서 개인 iPad에 설치
 
-설치 도구는 [Sideloadly 공식 사이트](https://sideloadly.io/)를 기준으로 한다. IPA가 아직 없으므로 기존 Apple 프로그램을 먼저 지우거나 교체하지 않는다. 공식 안내는 Windows에서 웹 배포판 iTunes와 iCloud를 요구하므로, Apple Devices만 설치되어 있다고 설치 준비가 모두 끝난 것으로 간주하지 않는다. 필요한 구성 요소와 기존 드라이버의 공존 여부는 실제 설치 단계에서 확인한다.
+설치 도구는 [Sideloadly 공식 사이트](https://sideloadly.io/)를 기준으로 한다. 공식 안내는 Windows에서 웹 배포판 iTunes와 iCloud를 요구한다. 이 PC에서는 Apple Devices와 Sideloadly만으로 기기 목록 표시까지 확인했다. 이는 Apple 계정 인증과 서명도 성공했다는 뜻은 아니다. 실제 서명에서 구성 요소 부족 오류가 발생하면 준비한 공식 Apple 설치 파일로 해결한다.
 
 1. 공식 배포본의 Windows 64비트 Sideloadly와 안내된 Apple 구성 요소를 준비한다.
 2. 데이터 전송이 되는 USB 케이블로 iPad를 Windows에 연결하고, iPad 잠금을 풀고 본인 PC 신뢰 절차를 진행한다.

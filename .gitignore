@@ -8,6 +8,7 @@ DerivedData-device/
 
 # Local device captures, keys and signing material
 artifacts/local/
+/sideloadlydaemon.log
 *.p12
 *.mobileprovision
 .env
