@@ -3,6 +3,24 @@ import SwiftUI
 @testable import EternalMonitor
 
 final class DeskInkToolsTests: XCTestCase {
+    @MainActor
+    func testLiftingAfterErasingRestoresThePreviousPen() {
+        let tools = DeskInkTools()
+        tools.select(.eraser)
+        tools.eraserGestureDidEnd()
+        XCTAssertEqual(tools.tool, .pen)
+
+        tools.select(.highlighter)
+        tools.toggleEraser()
+        tools.eraserGestureDidEnd()
+        XCTAssertEqual(tools.tool, .highlighter)
+
+        tools.select(.vanishing)
+        tools.select(.eraser)
+        tools.eraserGestureDidEnd()
+        XCTAssertEqual(tools.tool, .vanishing)
+    }
+
     func testToolWireContractMatchesWindowsAndPreservesHistory() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "deskink-tools", withExtension: "json", subdirectory: "testdata"))
         let data = try Data(contentsOf: url)
