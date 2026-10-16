@@ -7,7 +7,7 @@ Windows를 개발 환경으로 유지한다. iPad 코드는 GitHub의 macOS 빌�
 - Apple Devices `1.1540.24088.0` 설치됨.
 - 설치된 Store 앱과 데스크톱 프로그램 등록 목록에서 Sideloadly, AltServer, iTunes, iCloud, macOS 가상머신은 발견하지 못함. 별도 휴대용 프로그램이나 원격 서비스까지 없다는 뜻은 아님.
 - 검사 당시 연결된 iPad는 발견하지 못함.
-- GitHub CLI와 이 프로젝트의 Git 원격 저장소는 없음.
+- GitHub CLI 2.102.0을 `.tools/github-cli/bin/gh.exe`에 설치하고 공식 SHA-256 값과 대조했다. GitHub 로그인과 이 프로젝트의 Git 원격 저장소 연결은 아직 진행 전이다.
 
 Apple Devices는 기기 인식·동기화·백업 등을 담당하며 iPad 앱 컴파일러가 아니다. [Apple Devices의 역할](https://support.apple.com/guide/devices-windows/syncing-overview-mchl923c1147/windows)
 
@@ -16,6 +16,8 @@ Apple Devices는 기기 인식·동기화·백업 등을 담당하며 iPad 앱 �
 `.github/workflows/ipad-build.yml`을 준비했다. 수동 실행 전용이며, Xcode 16.4에서 iPad 시뮬레이터 단위 테스트 후 실제 기기용 Release 앱을 서명 없이 빌드한다. Apple 계정·비밀번호·인증서·개인 서명 키를 CI에 넣지 않는다. 실패한 빌드에서도 진단 로그는 결과 파일로 남긴다.
 
 Windows에서 진행할 순서:
+
+현재 PC에서는 `artifacts/local/github-login.cmd`를 실행하면 공식 GitHub 로그인 절차가 열린다. 창에서 Enter를 누르고, 브라우저에서 본인 계정으로 로그인한 다음 클립보드에 복사된 일회용 코드를 붙여넣고 GitHub CLI 연결을 승인한다. 로그인 이후의 비공개 저장소 생성·업로드·빌드 실행은 Codex가 이어서 처리할 수 있다. 비밀번호나 토큰을 대화로 전달하지 않는다. 이 실행 파일과 도구는 로컬 전용이며 소스 업로드에서 제외된다.
 
 1. GitHub에서 본인 계정의 **비공개 저장소**를 만든다. 이 단계는 소스를 GitHub에 올리는 선택이므로 공개 저장소로 만들지 않는다.
 2. 이 프로젝트를 Git으로 업로드한다. `.tools`, `target`, 로컬 로그·서명 파일은 `.gitignore`로 제외된다. ZIP 자체를 저장소에 올리는 것만으로는 Actions가 실행되지 않는다. 압축을 이용한다면 압축을 푼 프로젝트 파일과 숨김 폴더 `.github`까지 저장소 루트에 있어야 한다.
