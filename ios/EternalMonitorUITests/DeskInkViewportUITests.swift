@@ -26,6 +26,11 @@ final class DeskInkViewportUITests: XCTestCase {
         XCTAssertLessThanOrEqual(app.buttons["deskink.fit"].frame.maxY, viewport.frame.minY,
                                  "The top controls must also leave the desktop unobstructed")
         capture("deskink-landscape-dock", app: app)
+        // A screen capture also records the uncropped display; element captures
+        // can use a different coordinate basis when the simulator is rotated.
+        let screen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screen.name = "deskink-landscape-screen"; screen.lifetime = .keepAlways
+        add(screen)
     }
 
     func testTwoFingerZoomPanAndFitKeepToolbarFixedWithoutDrawing() throws {
