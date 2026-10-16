@@ -108,11 +108,8 @@ struct DeskInk {
 }
 
 impl eframe::App for DeskInk {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        ui.painter()
-            .rect_filled(ui.max_rect(), 0.0, egui::Color32::from_rgb(248, 249, 251));
-        ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(25, 31, 42));
-        ui.spacing_mut().item_spacing.y = 9.0;
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // eframe calls logic even while the controller is minimized/occluded.
         let revision = self.annotation.revision.load(Ordering::Acquire);
         if revision != self.shown_revision {
             if let Err(error) = self.overlay.present(self.annotation.ink.lock().board()) {
@@ -120,6 +117,14 @@ impl eframe::App for DeskInk {
             }
             self.shown_revision = revision;
         }
+        ctx.request_repaint_after(Duration::from_secs(1));
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        ui.painter()
+            .rect_filled(ui.max_rect(), 0.0, egui::Color32::from_rgb(248, 249, 251));
+        ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(25, 31, 42));
+        ui.spacing_mut().item_spacing.y = 9.0;
         ui.heading("DeskInk");
         ui.label("USB first-stroke development build");
         ui.add_space(12.0);
@@ -150,6 +155,79 @@ impl eframe::App for DeskInk {
         if let Some(error) = &self.error {
             ui.colored_label(egui::Color32::LIGHT_RED, error);
         }
-        ui.ctx().request_repaint_after(Duration::from_secs(1));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use deskink_core::{Board, Brush, Command, Point};
+    use eframe::App;
+    use eternal_host::transport::link::PeerId;
+    use windows::Win32::Graphics::Gdi::{GetDC, GetPixel, ReleaseDC};
+
+    #[test]
+    fn accepted_ink_reaches_desktop_without_a_controller_ui_pass() {
+        // eframe runs only App::logic when the controller is minimized/occluded.
+        // Exercise that real lifecycle entry point and inspect desktop pixels.
+        unsafe {
+            let _ = windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext(
+                windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+            );
+        }
+        let output = capture::OutputInfo {
+            adapter_index: 0,
+            output_index: 0,
+            device_name: "test".into(),
+            width: 64,
+            height: 64,
+            left: 0,
+            top: 0,
+            is_primary: true,
+            adapter_name: "test".into(),
+        };
+        let overlay = Overlay::new(0, 0, 64, 64).unwrap();
+        let mut initial = Board::new();
+        initial
+            .apply(Command::Begin {
+                id: 1,
+                brush: Brush {
+                    color: [17, 197, 89, 255],
+                    width: 20.0,
+                },
+                point: Point {
+                    x: 32.0,
+                    y: 32.0,
+                    pressure: 0.5,
+                },
+            })
+            .unwrap();
+        overlay.present(&initial).unwrap();
+        let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
+        let mut app = DeskInk {
+            shared: SharedControl::new(9876, 15_000_000),
+            annotation: annotation.clone(),
+            overlay,
+            shown_revision: 0,
+            error: None,
+        };
+        let peer = PeerId::usb(7);
+        assert!(annotation.receive(peer, Some(peer), Some(42), 3,
+            br#"{"version":1,"session":42,"epoch":3,"seq":1,"command":{"type":"begin","id":7,"brush":{"color":[237,19,53,255],"width":20},"point":{"x":32,"y":32,"pressure":0.4}}}"#));
+        app.logic(
+            &egui::Context::default(),
+            &mut eframe::Frame::_new_kittest(),
+        );
+        let rgb = unsafe {
+            let dc = GetDC(None);
+            let rgb = GetPixel(dc, 32, 32).0;
+            ReleaseDC(None, dc);
+            rgb
+        };
+        assert_eq!(
+            rgb & 0x00ff_ffff,
+            237 | (19 << 8) | (53 << 16),
+            "A minimized controller must still display newly accepted ink"
+        );
     }
 }

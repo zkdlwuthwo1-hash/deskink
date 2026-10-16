@@ -97,7 +97,7 @@ impl Overlay {
             }
         }
         // DIBs use BGRA; tiny-skia's buffer is already premultiplied RGBA.
-        for pixel in pixels.data_mut().chunks_exact_mut(4) {
+        for pixel in pixels.data_mut().as_chunks_mut::<4>().0 {
             pixel.swap(0, 2);
         }
         self.present_bgra(pixels.data())

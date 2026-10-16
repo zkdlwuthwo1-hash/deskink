@@ -33,6 +33,14 @@ macOS/Xcode에서 해야 하는 iPad 앱 빌드·서명·설치는 이 Windows �
 - `rustc --version`, `cargo --version`, 설치된 구성 요소 목록을 확인했습니다.
 - 임시 폴더의 자체 작성 프로그램을 네이티브 Windows 실행 파일로 컴파일·링크·실행했습니다. 출력: `DeskInk Windows toolchain OK`.
 - 이 검사는 컴파일러 설치 검사입니다. 제품 기능 테스트나 Windows 호스트 전체 빌드 결과가 아닙니다.
-- FFmpeg shared SDK, LLVM/libclang, 최신 캡처 기능용 Windows SDK는 아직 별도 준비·검증이 필요합니다.
+- 이 기록 당시 FFmpeg shared SDK와 LLVM/libclang은 미설치 상태였으며 아래 구현 단계에서 준비했습니다.
 
 공식 설치 근거: [Rust 설치](https://rust-lang.org/tools/install/), [Windows MSVC 도구체인](https://rust-lang.github.io/rustup/installation/windows.html).
+
+## 첫 구현에서 추가 검증
+
+- 프로젝트 내부 `.tools`에 고정 FFmpeg 7.1.5 LGPL shared SDK와 libclang 18.1.1을 준비하고 실제 MSVC 링크·DeskInk 실행을 확인했습니다. 시스템 전체 DLL 검색 경로는 바꾸지 않았습니다.
+- 신규 WGC 제외 기능은 별도 Windows SDK 전체 교체 없이 격리한 인터페이스 코드로 호출하고 실제 캡처 픽셀까지 확인했습니다.
+- 현재 AMD GPU에서 AMF 인코더 테스트가 통과했습니다. 실기기 전체 지연 측정과는 구분합니다.
+- 기반 소스의 x264 테스트는 별도 test-only GPL SDK로 실행했습니다. 제품 실행·링크용 SDK는 LGPL 경로를 유지합니다.
+- 메모리 부족으로 병렬 링크가 실패한 뒤 `.cargo/config.toml`의 `jobs = 1`로 직렬 빌드를 사용합니다.

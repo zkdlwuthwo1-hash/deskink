@@ -108,7 +108,9 @@ fn wait_for_pixel(
         if rx.recv_timeout(Duration::from_millis(20)).is_err() {
             continue;
         }
-        let frame = capture.next_frame()?;
+        let Some(frame) = capture.latest_frame()? else {
+            continue;
+        };
         let at = (100 * frame.width as usize + 180) * 4;
         let pixel = &frame.bgra[at..at + 4];
         let red = pixel[2] > 240 && pixel[1] < 15 && pixel[0] < 15;

@@ -1,5 +1,6 @@
 //! Pairing credentials and bounded, clock-injected failed-attempt accounting.
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::net::IpAddr;
 use std::time::{Duration, Instant};
 
@@ -58,7 +59,10 @@ pub struct Pairing {
     pub require_usb_code: bool,
     token: [u8; 16],
     code: u32,
-    limiter: RateLimiter,
+    limiter: RateLimiter<IpAddr>,
+    // All USB attempts share a bounded bucket: reconnecting changes device_id
+    // and must not reset the limit for the six-digit pairing code.
+    usb_limiter: RateLimiter<()>,
 }
 
 pub struct Grant {
@@ -75,6 +79,7 @@ impl Pairing {
             token,
             code: random_code(0)?,
             limiter: RateLimiter::default(),
+            usb_limiter: RateLimiter::default(),
         })
     }
 
@@ -134,6 +139,9 @@ impl Pairing {
             });
         }
         let usb = matches!(peer.link, LinkId::Usb { .. });
+        if usb && self.require_usb_code && self.usb_limiter.blocked((), now) {
+            return Err(HelloStatus::RateLimited);
+        }
         if !usb
             && peer
                 .addr
@@ -153,6 +161,10 @@ impl Pairing {
                 used_code: false,
             });
         }
+        if usb && self.usb_limiter.fail((), FailedRequest::from(hello), now) {
+            warn!("USB pairing rate limited for 60 seconds");
+            return Err(HelloStatus::RateLimited);
+        }
         if let Some(addr) = peer.addr {
             if self
                 .limiter
@@ -166,12 +178,20 @@ impl Pairing {
     }
 }
 
-#[derive(Default)]
-struct RateLimiter {
-    entries: HashMap<IpAddr, Attempts>,
+struct RateLimiter<K> {
+    entries: HashMap<K, Attempts>,
     // Untracked addresses share a bucket when full. Never evict a live ban:
     // cycling spoofed IPs must not reset another address's failed attempts.
     overflow: Option<Attempts>,
+}
+
+impl<K> Default for RateLimiter<K> {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+            overflow: None,
+        }
+    }
 }
 
 struct Attempts {
@@ -207,7 +227,7 @@ impl Attempts {
     }
 }
 
-impl RateLimiter {
+impl<K: Eq + Hash> RateLimiter<K> {
     fn prune(&mut self, now: Instant) {
         self.entries.retain(|_, entry| entry.active(now));
         if self
@@ -218,7 +238,7 @@ impl RateLimiter {
             self.overflow = None;
         }
     }
-    fn blocked(&mut self, ip: IpAddr, now: Instant) -> bool {
+    fn blocked(&mut self, ip: K, now: Instant) -> bool {
         self.prune(now);
         self.entries
             .get(&ip)
@@ -226,7 +246,7 @@ impl RateLimiter {
             .is_some_and(|entry| entry.blocked(now))
     }
     /// True only when this failure starts a ban (one warning per ban).
-    fn fail(&mut self, ip: IpAddr, request: FailedRequest, now: Instant) -> bool {
+    fn fail(&mut self, ip: K, request: FailedRequest, now: Instant) -> bool {
         self.prune(now);
         let fresh = || Attempts {
             since: now,
@@ -290,7 +310,7 @@ mod tests {
 
     #[test]
     fn failures_are_per_ip_and_bans_expire_without_extension() {
-        let mut limiter = RateLimiter::default();
+        let mut limiter = RateLimiter::<IpAddr>::default();
         let ip = "192.0.2.1".parse().unwrap();
         let other = "192.0.2.2".parse().unwrap();
         let start = Instant::now();
@@ -315,7 +335,7 @@ mod tests {
 
     #[test]
     fn unexpired_limits_survive_address_flood_and_partial_windows_expire() {
-        let mut limiter = RateLimiter::default();
+        let mut limiter = RateLimiter::<IpAddr>::default();
         let start = Instant::now();
         let ip = "192.0.2.1".parse().unwrap();
         for n in 0..5 {

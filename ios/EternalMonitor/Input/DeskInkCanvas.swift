@@ -12,13 +12,37 @@ struct DeskInkPoint: Encodable {
 struct DeskInkBrush: Encodable {
     var color: [UInt8] = [255, 80, 40, 255]
     var width: CGFloat = 4
+
+    var uiColor: UIColor {
+        UIColor(red: CGFloat(color[0]) / 255, green: CGFloat(color[1]) / 255,
+                blue: CGFloat(color[2]) / 255, alpha: CGFloat(color[3]) / 255)
+    }
 }
 
-struct DeskInkCommand: Encodable {
-    let type: String
-    var id: UInt64? = nil
-    var brush: DeskInkBrush? = nil
-    var point: DeskInkPoint? = nil
+enum DeskInkCommand: Encodable {
+    case begin(id: UInt64, brush: DeskInkBrush, point: DeskInkPoint)
+    case append(id: UInt64, point: DeskInkPoint)
+    case end(id: UInt64)
+
+    private enum CodingKeys: String, CodingKey { case type, id, brush, point }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .begin(id, brush, point):
+            try container.encode("begin", forKey: .type)
+            try container.encode(id, forKey: .id)
+            try container.encode(brush, forKey: .brush)
+            try container.encode(point, forKey: .point)
+        case let .append(id, point):
+            try container.encode("append", forKey: .type)
+            try container.encode(id, forKey: .id)
+            try container.encode(point, forKey: .point)
+        case let .end(id):
+            try container.encode("end", forKey: .type)
+            try container.encode(id, forKey: .id)
+        }
+    }
 }
 
 struct DeskInkEnvelope: Encodable {
@@ -67,7 +91,9 @@ final class InkCanvasView: UIView {
 
     func configure(videoSize: CGSize, enabled: Bool, connectionKey: String) {
         if self.connectionKey != connectionKey || self.videoSize != videoSize {
-            finish()
+            // The send closure already belongs to the new binding. Never send
+            // the previous connection's final command into that new session.
+            finish(sendEnd: false)
             self.connectionKey = connectionKey
             self.videoSize = videoSize
             setNeedsLayout()
@@ -117,13 +143,14 @@ final class InkCanvasView: UIView {
         // A zero-length round-capped segment makes a tap visible on both sides.
         path.addLine(to: CGPoint(x: point.x + 0.001, y: point.y))
         let line = CAShapeLayer()
-        line.strokeColor = UIColor(red: 1, green: 80.0 / 255, blue: 40.0 / 255, alpha: 1).cgColor
+        let brush = DeskInkBrush()
+        line.strokeColor = brush.uiColor.cgColor
         line.fillColor = UIColor.clear.cgColor
-        line.lineWidth = 4; line.lineCap = .round; line.lineJoin = .round
+        line.lineWidth = brush.width; line.lineCap = .round; line.lineJoin = .round
         line.path = path
         inkLayer.addSublayer(line)
         activePath = path; activeLayer = line
-        send([DeskInkCommand(type: "begin", id: id, brush: DeskInkBrush(), point: point)])
+        send([.begin(id: id, brush: brush, point: point)])
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -133,7 +160,7 @@ final class InkCanvasView: UIView {
             guard sample.timestamp > lastTimestamp, let point = reading(sample) else { continue }
             lastTimestamp = sample.timestamp
             path.addLine(to: CGPoint(x: point.x, y: point.y))
-            commands.append(DeskInkCommand(type: "append", id: id, point: point))
+            commands.append(.append(id: id, point: point))
         }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         activeLayer?.path = path
@@ -150,8 +177,8 @@ final class InkCanvasView: UIView {
         guard let touch = activeTouch, touches.contains(touch) else { return }
         finish()
     }
-    private func finish() {
-        if let id = activeID { send([DeskInkCommand(type: "end", id: id)]) }
+    private func finish(sendEnd: Bool = true) {
+        if sendEnd, let id = activeID { send([.end(id: id)]) }
         activeTouch = nil; activeID = nil; activePath = nil; activeLayer = nil
     }
 }

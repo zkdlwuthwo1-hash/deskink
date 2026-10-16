@@ -1,0 +1,5 @@
+[
+  {"version":1,"session":42,"epoch":3,"seq":1,"command":{"type":"begin","id":18446744073709551615,"brush":{"color":[255,80,40,255],"width":4},"point":{"x":100,"y":200,"pressure":0.5}}},
+  {"version":1,"session":42,"epoch":3,"seq":2,"command":{"type":"append","id":18446744073709551615,"point":{"x":120,"y":215,"pressure":0.75}}},
+  {"version":1,"session":42,"epoch":3,"seq":3,"command":{"type":"end","id":18446744073709551615}}
+]

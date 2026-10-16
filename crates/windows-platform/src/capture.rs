@@ -110,12 +110,33 @@ impl MonitorCapture {
         })
     }
 
-    /// Read one delivered frame. Caller waits for FrameArrived before calling.
-    pub fn next_frame(&mut self) -> Result<CapturedFrame> {
-        let frame = self.pool.TryGetNextFrame()?;
+    /// Coalesced FrameArrived notifications are hints, not a one-to-one queue.
+    /// Drain at most our two pool buffers and read back only the newest frame.
+    /// A stale notification may legitimately find an empty pool.
+    pub fn latest_frame(&mut self) -> Result<Option<CapturedFrame>> {
+        let mut latest = None;
+        for _ in 0..2 {
+            match self.pool.TryGetNextFrame() {
+                Ok(frame) => {
+                    if let Some(previous) = latest.replace(frame) {
+                        let _ = previous.Close();
+                    }
+                }
+                // windows 0.58 projects WinRT's successful null return as an
+                // empty Error (HRESULT S_OK). Real HRESULT failures propagate.
+                Err(error) if error.code() == HRESULT(0) => break,
+                Err(error) => {
+                    if let Some(previous) = latest {
+                        let _ = previous.Close();
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        let Some(frame) = latest else { return Ok(None) };
         let result = self.read_frame(&frame);
         let _ = frame.Close();
-        result
+        result.map(Some)
     }
 
     fn read_frame(

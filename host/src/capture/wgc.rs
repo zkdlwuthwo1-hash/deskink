@@ -65,32 +65,43 @@ pub fn run(
     capture.session.StartCapture()?;
     let mut count = 0;
     let mut last: Option<RawFrame> = None;
+    let mut pending = false;
     let mut published = Instant::now() - Duration::from_secs(1);
     while shared.running.load(Ordering::SeqCst)
         && crate::supervisor::generation_is_current(generation)
     {
         heartbeat(&shared.hb_capture_loop_ms);
-        let arrived = rx.recv_timeout(Duration::from_millis(16)).is_ok();
+        let budget = super::frame_budget_for(shared.effective_fps());
+        let wait = if pending && shared.client_connected() {
+            budget
+                .saturating_sub(published.elapsed())
+                .min(Duration::from_millis(16))
+        } else {
+            Duration::from_millis(16)
+        };
+        let arrived = rx.recv_timeout(wait).is_ok();
         let connected = shared.client_connected();
         if arrived {
-            let frame = capture.next_frame()?;
-            if frame.width != output.width || frame.height != output.height {
-                return Err("Display size changed during capture".into());
+            if let Some(frame) = capture.latest_frame()? {
+                if frame.width != output.width || frame.height != output.height {
+                    return Err("Display size changed during capture".into());
+                }
+                // Drain the capture pool even while idle; retain only the latest frame.
+                last = Some(RawFrame {
+                    frame_number: count,
+                    timestamp: Instant::now(),
+                    data: Arc::new(frame.bgra),
+                    width: frame.width,
+                    height: frame.height,
+                });
+                pending = true;
             }
-            // Drain the capture pool even while idle; retain only the latest frame.
-            last = Some(RawFrame {
-                frame_number: count,
-                timestamp: Instant::now(),
-                data: Arc::new(frame.bgra),
-                width: frame.width,
-                height: frame.height,
-            });
         }
         let due = published.elapsed() >= super::frame_budget_for(shared.effective_fps());
         let keepalive = published.elapsed() >= Duration::from_millis(500);
         if connected
             && due
-            && (arrived || keepalive || shared.force_next_idr.load(Ordering::SeqCst))
+            && (pending || keepalive || shared.force_next_idr.load(Ordering::SeqCst))
         {
             if let Some(frame) = &last {
                 let mut frame = frame.clone();
@@ -101,6 +112,7 @@ pub fn run(
                     .lock()
                     .record_capture(frame.width, frame.height);
                 slot.publish(frame);
+                pending = false;
                 published = Instant::now();
             }
         }

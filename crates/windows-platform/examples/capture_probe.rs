@@ -17,7 +17,12 @@ fn main() -> windows::core::Result<()> {
 
 fn probe() -> windows::core::Result<()> {
     println!("WGC supported: {}", GraphicsCaptureSession::IsSupported()?);
-    let capture = MonitorCapture::primary()?;
+    let mut capture = MonitorCapture::primary()?;
+    assert!(
+        capture.latest_frame()?.is_none(),
+        "An empty pool is not a capture failure"
+    );
+    println!("Empty frame pool: handled without a capture error");
     println!(
         "Monitor: {} ({} x {})",
         capture.item.DisplayName()?,

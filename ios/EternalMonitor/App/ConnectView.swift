@@ -162,10 +162,10 @@ struct ConnectView: View {
                 .scaleEffect(appeared || reduceMotion ? 1 : 0.9)
                 .animation(reduceMotion ? nil : Motion.gentle, value: appeared)
             VStack(spacing: 6) {
-                Text("EternalMonitor")
+                Text("DeskInk")
                     .font(.app(30, .semibold, relativeTo: .largeTitle))
                     .foregroundStyle(Theme.text)
-                Text("Use this iPad as a second screen for your Windows PC.")
+                Text("Windows 화면을 보며 펜으로 설명하세요. 이 개발 버전은 USB로 연결합니다.")
                     .font(.app(16, relativeTo: .body))
                     .foregroundStyle(Theme.textMuted)
                     .multilineTextAlignment(.center)
@@ -190,9 +190,9 @@ struct ConnectView: View {
                 }
                 .accessibilityLabel("Dismiss tips")
             }
-            onboardingStep(1, "Open EternalMonitor on your Windows PC.")
-            onboardingStep(2, "Choose the PC below, scan its QR code, or plug in a USB cable.")
-            onboardingStep(3, "The first time on Wi-Fi, enter the six-digit code the PC shows.")
+            onboardingStep(1, "Windows PC에서 DeskInk를 실행하세요.")
+            onboardingStep(2, "iPad를 데이터 전송이 가능한 USB 케이블로 PC에 연결하세요.")
+            onboardingStep(3, "연결 코드 입력창이 나오면 Windows 화면의 6자리 코드를 입력하세요.")
         }
         .card()
         .transition(.opacity.combined(with: .move(edge: .top)))
