@@ -14,7 +14,7 @@ try {
     } else {
         & cargo test -p deskink-core -p eternal-wire
         if ($LASTEXITCODE -ne 0) { throw 'Core/protocol tests failed' }
-        & cargo test -p eternal-host --test annotation_session --test usbmuxd
+        & cargo test -p eternal-host --test annotation_session --test usbmuxd --test android_usb
         if ($LASTEXITCODE -ne 0) { throw 'Host input/USB tests failed' }
         & cargo test -p eternal-host --bin deskink
     }

@@ -24,15 +24,21 @@ if (-not (Test-Path -LiteralPath $passwordFile)) {
     $secure = ConvertTo-SecureString ([Convert]::ToBase64String($bytes)) -AsPlainText -Force
     ConvertFrom-SecureString $secure | Set-Content -LiteralPath $passwordFile -Encoding ASCII
 }
-$secret = Get-Content -LiteralPath $passwordFile -Raw | ConvertTo-SecureString
+$secret = (Get-Content -LiteralPath $passwordFile -Raw).Trim() | ConvertTo-SecureString
 $credential = New-Object System.Management.Automation.PSCredential('deskink', $secret)
 $oldPassword = $env:DESKINK_SIGNING_PASSWORD
 $env:DESKINK_SIGNING_PASSWORD = $credential.GetNetworkCredential().Password
 $aligned = $outputFile + '.aligned.tmp.apk'
 try {
     if (-not (Test-Path -LiteralPath $keyFile)) {
-        & keytool.exe -genkeypair -keystore $keyFile -storetype PKCS12 -alias deskink -keyalg RSA -keysize 3072 -sigalg SHA256withRSA -validity 10000 -dname 'CN=DeskInk Android' -storepass:env DESKINK_SIGNING_PASSWORD -keypass:env DESKINK_SIGNING_PASSWORD
-        if ($LASTEXITCODE -ne 0) { throw 'Android signing key generation failed.' }
+        # keytool writes its successful generation notice to stderr on Windows.
+        $previousPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            & keytool.exe -genkeypair -keystore $keyFile -storetype PKCS12 -alias deskink -keyalg RSA -keysize 3072 -sigalg SHA256withRSA -validity 10000 -dname 'CN=DeskInk Android' -storepass:env DESKINK_SIGNING_PASSWORD -keypass:env DESKINK_SIGNING_PASSWORD
+            $keytoolExit = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $previousPreference }
+        if ($keytoolExit -ne 0) { throw 'Android signing key generation failed.' }
     }
     [void](New-Item -ItemType Directory -Path (Split-Path -Parent $outputFile) -Force)
     & $align -f -P 16 4 $inputFile $aligned
