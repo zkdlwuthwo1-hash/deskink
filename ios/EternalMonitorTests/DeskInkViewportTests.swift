@@ -1,8 +1,46 @@
 import XCTest
 import UIKit
+import SwiftUI
 @testable import EternalMonitor
 
 final class DeskInkViewportTests: XCTestCase {
+    @MainActor
+    func testAirLandscapeWorkspaceUsesBothScreenEdgesWithoutCroppingDesktop() throws {
+        let size = CGSize(width: 1180, height: 820) // iPad Air 10.9-inch landscape points
+        let host = UIHostingController(rootView: UIPreview.DeskInkGesturePreview())
+        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        host.view.frame = window.bounds
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        func viewport(in view: UIView) -> DeskInkViewportView? {
+            if let result = view as? DeskInkViewportView { return result }
+            return view.subviews.lazy.compactMap { viewport(in: $0) }.first
+        }
+        let surface = try XCTUnwrap(viewport(in: host.view))
+        XCTAssertEqual(surface.bounds.width, 1180, accuracy: 1)
+        // These are actual Pencil entry points. A pillarbox must reject them,
+        // while a full-width, uncropped desktop maps them to its two edges.
+        for x in [CGFloat(0.5), surface.canvas.bounds.width - 0.5] {
+            XCTAssertTrue(surface.canvas.beginStroke(at: CGPoint(x: x, y: surface.canvas.bounds.midY), pressure: 0.5),
+                          "The fitted desktop must reach both sides on iPad Air")
+            surface.canvas.finish()
+        }
+        let points = surface.canvas.document.strokes.compactMap { $0.points.first }
+        XCTAssertEqual(points.count, 2)
+        if points.count == 2 {
+            XCTAssertEqual(points[0].x, 0, accuracy: 1)
+            XCTAssertEqual(points[1].x, 1920, accuracy: 1)
+        }
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            host.view.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "deskink-air-full-width"; attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     @MainActor
     func testFitAndRotationKeepInkAndRejectLetterboxInput() throws {
         let viewport = DeskInkViewportView(videoView: UIView())
