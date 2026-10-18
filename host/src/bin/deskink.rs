@@ -258,7 +258,7 @@ impl eframe::App for DeskInk {
         ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(25, 31, 42));
         ui.spacing_mut().item_spacing.y = 9.0;
         ui.heading("DeskInk");
-        ui.label("Write on your Windows screen from iPad");
+        ui.label("Write on Windows from iPad or Android tablet");
         ui.add_space(12.0);
         let mut selected = None;
         ui.horizontal_wrapped(|ui| {
@@ -284,9 +284,9 @@ impl eframe::App for DeskInk {
             self.annotation.output.height
         ));
         ui.label(if self.shared.client_connected() {
-            "iPad connected"
+            "Tablet connected"
         } else {
-            "Connect your iPad by USB and open DeskInk"
+            "Connect your tablet by USB and open DeskInk"
         });
         ui.label(format!(
             "Pairing code: {:06}",
@@ -300,7 +300,7 @@ impl eframe::App for DeskInk {
         ui.label(format!("Stream: {}", stats.codec_name));
         drop(stats);
         ui.add_space(12.0);
-        ui.label("Choose your pen, eraser, laser and colors on iPad.");
+        ui.label("Choose your pen, eraser, laser and colors on your tablet.");
         ui.label("Screen shortcuts switch here. Each screen keeps its own ink.");
         ui.label("Closing this app clears ink on all screens.");
         if let Some(error) = &self.error {

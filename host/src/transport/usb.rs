@@ -12,6 +12,7 @@ use tokio::task::{AbortHandle, JoinHandle, JoinSet};
 use tracing::{debug, info, warn};
 
 use super::apple_usb::{self, AppleUsbState};
+use super::android_usb::Adb;
 use super::link::{FramedLink, Link, LinkId, PeerId, UdpLink};
 use super::usbmuxd::{self, BoxedTunnel, Client};
 use crate::stats::PIPELINE_STATS;
@@ -67,12 +68,14 @@ pub struct TransportLinks {
     events: mpsc::Receiver<UsbEvent>,
     event_tx: mpsc::Sender<UsbEvent>,
     supervisor: JoinHandle<()>,
+    android_supervisor: JoinHandle<()>,
 }
 
 impl TransportLinks {
     pub fn new(socket: UdpSocket, force_idr: Arc<AtomicBool>) -> Self {
         let (event_tx, events) = mpsc::channel(256);
         let supervisor_tx = event_tx.clone();
+        let android_supervisor = tokio::spawn(supervise_android(event_tx.clone(), Arc::clone(&force_idr)));
         let supervisor = tokio::spawn(supervise(supervisor_tx, force_idr));
         Self {
             udp: UdpLink::new(socket),
@@ -80,6 +83,7 @@ impl TransportLinks {
             events,
             event_tx,
             supervisor,
+            android_supervisor,
         }
     }
 
@@ -192,6 +196,7 @@ impl TransportLinks {
 impl Drop for TransportLinks {
     fn drop(&mut self) {
         self.supervisor.abort();
+        self.android_supervisor.abort();
     }
 }
 
@@ -199,18 +204,21 @@ impl Drop for TransportLinks {
 enum Source {
     Direct(String),
     Device(Arc<Client>, u32),
+    Android(Adb),
 }
 
 impl Source {
     fn peer(&self) -> PeerId {
-        PeerId::usb(match self {
-            Self::Direct(_) => 0,
-            Self::Device(_, id) => *id,
-        })
+        match self {
+            Self::Direct(_) => PeerId::usb(0),
+            Self::Device(_, id) => PeerId::usb(*id),
+            Self::Android(_) => PeerId::android_usb(),
+        }
     }
 
     async fn connect(&self) -> Result<BoxedTunnel, usbmuxd::Error> {
         match self {
+            Self::Android(adb) => adb.connect().await.map_err(Into::into),
             Self::Device(client, id) => client.connect_device(*id, usbmuxd::APP_PORT).await,
             Self::Direct(address) => {
                 let socket =
@@ -325,5 +333,17 @@ async fn supervise(events: mpsc::Sender<UsbEvent>, force_idr: Arc<AtomicBool>) {
             }
             _ = workers.join_next(), if !workers.is_empty() => {},
         }
+    }
+}
+
+async fn supervise_android(events: mpsc::Sender<UsbEvent>, force_idr: Arc<AtomicBool>) {
+    if std::env::var_os("ETERNAL_USB_DIRECT").is_some() { return; }
+    loop {
+        if let Some(adb) = Adb::discover() {
+            device_worker(Source::Android(adb), events, force_idr).await;
+            return;
+        }
+        // A running Windows host notices a first-time Android setup too.
+        tokio::time::sleep(Duration::from_secs(2)).await;
     }
 }

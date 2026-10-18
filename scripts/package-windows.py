@@ -35,9 +35,10 @@ def package(version, crt):
         copy(release / 'deskink.exe', 'bin/deskink.exe')
         copy(release / 'deskink-launcher.exe', 'DeskInk.exe')
         copy(release / 'deskink-launcher.exe', 'DeskInk-Shortcuts.exe')
+        copy(release / 'deskink-launcher.exe', 'DeskInk-Android.exe')
         copy(crt, 'vcruntime140.dll')
         copy(crt, 'bin/vcruntime140.dll')
-        for name in ('start-portable.ps1', 'create-shortcuts.ps1'):
+        for name in ('start-portable.ps1', 'start-android.ps1', 'create-shortcuts.ps1'):
             copy(ROOT / 'scripts/portable' / name, 'scripts/' + name)
         copy(ROOT / 'README.html', 'README.html')
         for name in ('README.md', 'README.ko.md'):

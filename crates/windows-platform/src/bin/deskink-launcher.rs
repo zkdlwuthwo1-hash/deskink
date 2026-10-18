@@ -37,11 +37,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     // The common case needs neither PowerShell nor a second host process.
     let executable = std::env::current_exe()?;
+    let android = args.iter().any(|value| value == "--android")
+        || executable.file_stem().is_some_and(|name| name.eq_ignore_ascii_case("DeskInk-Android"));
     let shortcuts = args.iter().any(|value| value == "--create-shortcuts")
         || executable
             .file_stem()
             .is_some_and(|name| name.eq_ignore_ascii_case("DeskInk-Shortcuts"));
-    if !shortcuts && deskink_windows::monitor_control::request_monitor(monitor)? {
+    if !shortcuts && !android && deskink_windows::monitor_control::request_monitor(monitor)? {
         return Ok(());
     }
     let (root, script) = if let Some(project) = argument("--project") {
@@ -58,6 +60,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             root,
             if shortcuts {
                 "scripts/create-shortcuts.ps1"
+            } else if android {
+                "scripts/start-android.ps1"
             } else {
                 "scripts/start-portable.ps1"
             },

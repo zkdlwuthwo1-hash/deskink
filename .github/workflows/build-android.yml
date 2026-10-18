@@ -38,13 +38,7 @@ jobs:
           ram-size: 2048M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: cd android && ./gradlew :app:connectedDebugAndroidTest :app:assembleRelease --console=plain
-      - name: Collect emulator screenshots and diagnostics
-        if: always()
-        run: |
-          mkdir -p artifacts/local/android-cloud
-          adb pull /sdcard/Android/data/com.deskink.android/files/previews artifacts/local/android-cloud/ || true
-          adb logcat -d > artifacts/local/android-cloud/logcat.txt || true
+          script: bash scripts/test-android-emulator.sh
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
