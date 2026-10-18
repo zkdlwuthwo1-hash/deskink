@@ -2,6 +2,16 @@ package com.deskink.core;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class InkDocumentTest {
+    @Test public void twoConnectedPcSessionsKeepSeparateMonitorInkWhenSwitchingBack() {
+        MonitorDocuments boards=new MonitorDocuments();
+        InkDocument first=boards.select("pc-one","Screen 1");
+        first.apply(Ink.begin(1,Ink.point(10,10,1),new int[]{255,0,0,255},4,false)); first.apply(Ink.id("end",1));
+        InkDocument second=boards.select("pc-two","Screen 1");
+        assertTrue(second.strokes().isEmpty());
+        assertSame(first,boards.select("pc-one","Screen 1"));
+        assertEquals(1,first.strokes().size());
+        assertSame(second,boards.select("pc-two","Screen 1"));
+    }
     @Test public void temporaryInkExpiresWithoutChangingPermanentUndoAndMonitorsKeepTheirOwnHistory() {
         MonitorDocuments boards=new MonitorDocuments();
         InkDocument one=boards.select("pc-token","Screen 1"); one.advanceTime(100);

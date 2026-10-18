@@ -6,7 +6,7 @@ Scope: native Android app, Windows ADB USB bridge, ordinary desktop screen short
 
 | Boundary | Result | What it establishes |
 | --- | --- | --- |
-| Java core | 18 tests passed | Momentary S Pen eraser state, shared wire vectors and commands, framing, pairing, stale monitor rejection, frame recovery, ink history and inverse zoom coordinates |
+| Java core | 19 tests passed | Momentary S Pen eraser state, shared wire vectors and commands, framing, pairing, stale monitor rejection, two-PC session isolation, frame recovery, ink history and inverse zoom coordinates |
 | Android Views / Robolectric | 6 tests passed | Native stylus and palm events, two-finger zoom, Canvas pixels, toolbar commands and Activity socket lifecycle |
 | Android API 35 emulator | 2 instrumentation tests passed | Actual MediaCodec output to a Surface and real app socket → decoded TextureView → toolbar command |
 | Windows USB/session | 12 tests passed | Owned ADB forward, cleanup after async runtime shutdown, authenticated Android/iPad ink, monitor isolation and existing Apple USB framing |
@@ -47,6 +47,7 @@ The added regressions were each run failing before their corresponding implement
 - `UsbClientTest.anUnresponsiveHandshakeReleasesThePortForTheNextUsbConnection`: an unanswered ACK blocked the only accept loop; now the next host is accepted.
 - `UsbClientTest.receiverReportDoesNotClaimFramesWereDecodedWhenNoVideoWasShown`: reported 60fps with no decoded video; now reports zero.
 - `FrameAssemblerTest.aWholeMissingDeltaFrameRequiresANewKeyframeBeforeVideoResumes`: accepted a dependent frame after a whole missing frame; now waits for a fresh keyframe.
+- `InkDocumentTest.twoConnectedPcSessionsKeepSeparateMonitorInkWhenSwitchingBack`: returning to the first PC recreated an empty tablet board; now the two most recently connected PC sessions keep separate monitor documents while the Android app stays alive. A new Windows process token starts fresh.
 - `owned_forward_is_removed_even_after_the_async_runtime_has_stopped`: left the forwarding port behind; now the bounded disconnect cleanup completes independently of that runtime.
 
 ## First physical Galaxy Tab check
