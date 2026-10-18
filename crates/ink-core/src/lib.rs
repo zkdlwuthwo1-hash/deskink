@@ -86,6 +86,7 @@ pub struct Board {
     pointer: Option<Pointer>,
 }
 
+#[derive(Clone)]
 pub struct Pointer {
     pub point: Point,
     pub color: [u8; 4],
@@ -94,6 +95,7 @@ pub struct Pointer {
     expires_at: u64,
 }
 
+#[derive(Clone)]
 struct TransientStroke {
     stroke: Stroke,
     lifetime_ms: u32,
@@ -276,6 +278,19 @@ impl Board {
 
     pub fn strokes(&self) -> &[Stroke] {
         &self.strokes
+    }
+
+    /// An immutable display copy, without editing history. The caller can
+    /// release the input-session lock before rasterizing or calling the OS.
+    pub fn snapshot_for_display(&self) -> Self {
+        Self {
+            strokes: self.strokes.clone(),
+            hidden: self.hidden,
+            temporary: self.temporary.clone(),
+            now_ms: self.now_ms,
+            pointer: self.pointer.clone(),
+            ..Self::default()
+        }
     }
 
     pub fn is_visible(&self) -> bool {

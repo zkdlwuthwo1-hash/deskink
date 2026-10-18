@@ -1,5 +1,6 @@
 //! DeskInk's entry point: no virtual-display changes, remote OS input, audio,
 //! autostart registration or upstream auto-updater.
+#![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
 use deskink_windows::monitor_control::{request_monitor, MonitorControl};
 use deskink_windows::overlay::Overlay;
 use eframe::egui;
@@ -219,23 +220,27 @@ impl eframe::App for DeskInk {
             }
             let revision = annotation.revision.load(Ordering::Acquire);
             if revision != *shown {
-                if let Err(error) = overlay.present(ink.board()) {
+                let board = ink.board().snapshot_for_display();
+                drop(ink);
+                if let Err(error) = overlay.present(&board) {
                     self.error = Some(error.to_string());
                 }
                 *shown = revision;
             }
         }
-        let has_temporary = {
+        let (has_temporary, revision, board) = {
             let mut ink = self.annotation.ink.lock();
             if ink.advance_time(eternal_host::clock::host_now_us() / 1000) {
                 self.annotation.revision.fetch_add(1, Ordering::Release);
             }
-            ink.board().has_temporary_content()
+            let revision = self.annotation.revision.load(Ordering::Acquire);
+            let board =
+                (revision != self.shown_revision).then(|| ink.board().snapshot_for_display());
+            (ink.board().has_temporary_content(), revision, board)
         };
         // eframe calls logic even while the controller is minimized/occluded.
-        let revision = self.annotation.revision.load(Ordering::Acquire);
-        if revision != self.shown_revision {
-            if let Err(error) = self.overlay.present(self.annotation.ink.lock().board()) {
+        if let Some(board) = board {
+            if let Err(error) = self.overlay.present(&board) {
                 self.error = Some(error.to_string());
             }
             self.shown_revision = revision;
@@ -311,6 +316,86 @@ mod tests {
     use eframe::App;
     use eternal_host::transport::link::PeerId;
     use windows::Win32::Graphics::Gdi::{GetDC, GetPixel, ReleaseDC};
+
+    #[test]
+    #[ignore = "interactive Release diagnostic: temporary 1080p ink for three seconds"]
+    fn pen_input_remains_responsive_while_the_desktop_is_presented() {
+        use std::time::Instant;
+        eternal_host::clock::init();
+        let output = capture::enumerate_outputs().remove(0);
+        let overlay = Overlay::new(output.left, output.top, output.width, output.height).unwrap();
+        let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
+        let peer = PeerId::usb(99);
+        let mut sequence = 0;
+        let mut send = |command| {
+            sequence += 1;
+            let bytes = serde_json::to_vec(&serde_json::json!({"version":1,"session":42,"epoch":3,"seq":sequence,"command":command})).unwrap();
+            assert!(annotation.receive(peer, Some(peer), Some(42), 3, &bytes));
+        };
+        for id in 1..=100 {
+            send(
+                serde_json::json!({"type":"begin","id":id,"brush":{"color":[255,130,30,255],"width":2},"point":{"x":40,"y":80+id%20*8,"pressure":0.5}}),
+            );
+            for point in 1..100 {
+                send(
+                    serde_json::json!({"type":"append","id":id,"point":{"x":40+point*4,"y":80+id%20*8+point%3,"pressure":0.5}}),
+                );
+            }
+            send(serde_json::json!({"type":"end","id":id}));
+        }
+        send(
+            serde_json::json!({"type":"begin","id":1001,"brush":{"color":[255,80,40,255],"width":2},"point":{"x":40,"y":300,"pressure":0.5}}),
+        );
+        let mut app = DeskInk {
+            shared: SharedControl::new(0, 15_000_000),
+            annotation: annotation.clone(),
+            overlay,
+            shown_revision: 0,
+            error: None,
+            outputs: Vec::new(),
+            other_monitors: HashMap::new(),
+            supervisor_tx: mpsc::channel().0,
+            selection_rx: mpsc::channel().1,
+            _monitor_control: None,
+        };
+        let context = egui::Context::default();
+        app.logic(&context, &mut eframe::Frame::_new_kittest());
+        let start = Instant::now();
+        let writer = std::thread::spawn(move || {
+            let mut durations = Vec::new();
+            for point in 1..=600 {
+                sequence += 1;
+                let bytes = serde_json::to_vec(&serde_json::json!({"version":1,"session":42,"epoch":3,"seq":sequence,
+                    "command":{"type":"append","id":1001,"point":{"x":40+point%400,"y":300+point%5,"pressure":0.5}}})).unwrap();
+                let began = Instant::now();
+                assert!(annotation.receive(peer, Some(peer), Some(42), 3, &bytes));
+                durations.push(began.elapsed().as_secs_f64() * 1000.0);
+                let deadline = start + Duration::from_micros(point * 4167);
+                if let Some(delay) = deadline.checked_duration_since(Instant::now()) {
+                    std::thread::sleep(delay);
+                }
+            }
+            durations
+        });
+        for frame in 1..=155 {
+            app.logic(&context, &mut eframe::Frame::_new_kittest());
+            let deadline = start + Duration::from_micros(frame * 16667);
+            if let Some(delay) = deadline.checked_duration_since(Instant::now()) {
+                std::thread::sleep(delay);
+            }
+        }
+        let mut durations = writer.join().unwrap();
+        durations.sort_by(f64::total_cmp);
+        println!(
+            "Concurrent pen receive: p50={:.3}ms p95={:.3}ms max={:.3}ms",
+            durations[300], durations[570], durations[599]
+        );
+        assert!(
+            durations[570] < 4.0,
+            "Presenting the desktop must not block new pen input for a frame"
+        );
+        assert!(app.error.is_none());
+    }
 
     #[test]
     #[ignore = "interactive two-monitor diagnostic; no updated DeskInk may be running"]

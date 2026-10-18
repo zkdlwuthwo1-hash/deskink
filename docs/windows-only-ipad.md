@@ -19,7 +19,7 @@ Apple Devices는 기기 인식·동기화·백업 등을 담당하며 iPad 앱 �
 
 `.github/workflows/ipad-build.yml`을 준비했다. 수동 실행 전용이며, Xcode 16.4에서 iPad 시뮬레이터 단위 테스트 후 실제 기기용 Release 앱을 서명 없이 빌드한다. Apple 계정·비밀번호·인증서·개인 서명 키를 CI에 넣지 않는다. 실패한 빌드에서도 진단 로그는 결과 파일로 남긴다.
 
-첫 전체 성공 실행은 [38885470010](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38885470010)이다. 현재 확대·검은 도구막대 영역과 화면별 필기·실행 취소 기록 보존을 포함한 업데이트는 [39116584431](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39116584431), 소스 `788b696`, 앱 빌드 11이다. 단위 테스트 163개와 UI 검사 2개, 기기용 Release 빌드가 통과했다. 이 PC의 `C:\Users\zkdlw\Desktop\DeskInk-monitors-build11.ipa` 및 프로젝트의 `artifacts/local/DeskInk-monitors-build11.ipa`가 검증한 최신 파일이다. 아래 저장소 생성·로그인 과정은 이 PC에서는 이미 완료했다.
+첫 전체 성공 실행은 [38885470010](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/38885470010)이다. 현재 확대·도구막대·화면별 필기 보존과 iPad Air 좌우 여백 수정을 포함한 업데이트는 [39118670760](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39118670760), 소스 `62f7c57`, 앱 빌드 12이다. 단위 테스트 164개와 UI 검사 2개, 기기용 Release 빌드가 통과했다. 이 PC의 `C:\Users\zkdlw\Desktop\DeskInk-smooth-build12.ipa` 및 프로젝트의 `artifacts/local/DeskInk-smooth-build12.ipa`가 검증한 최신 파일이다. 아래 저장소 생성·로그인 과정은 이 PC에서는 이미 완료했다.
 
 Windows에서 진행할 순서:
 
@@ -53,9 +53,9 @@ Sideloadly의 로그인 503이 반복되어 [iloader 2.3.9](https://github.com/n
 서버 변경 안내 뒤 한 시도에서 `Auth error -20970: Your account information was entered incorrectly.`가 나타났다. 이후 사용자 직접 로그인·이중 인증과 설치가 성공했다. 실패의 원인을 비밀번호 하나로 확정하지 않는다.
 
 1. 새 환경에서 로그인할 때는 iloader의 `Settings` → `Anisette Server`에 있는 공식 기본 서버 목록을 사용하고 본인이 Apple 계정 인증을 진행한다. 현재 PC의 성공한 로그인은 유지한다. 인증서 폐기나 계정 초기화를 자동으로 진행하지 않는다.
-2. 로그인된 iloader에서 연결된 iPad를 선택하고 `Import IPA` / `IPA 가져오기`에서 바탕화면의 `DeskInk-monitors-build11.ipa`를 고른다. 전체 경로는 `C:\Users\zkdlw\Desktop\DeskInk-monitors-build11.ipa`다. 기존 앱 위에 업데이트하며 앱 삭제나 계정 재로그인부터 반복하지 않는다. 빌드 10에는 모니터별 필기 보존이 없으므로 이번 전환 기능은 빌드 11이 필요하다.
+2. 로그인된 iloader에서 연결된 iPad를 선택하고 `Import IPA` / `IPA 가져오기`에서 바탕화면의 `DeskInk-smooth-build12.ipa`를 고른다. 전체 경로는 `C:\Users\zkdlw\Desktop\DeskInk-smooth-build12.ipa`다. 기존 앱 위에 업데이트하며 앱 삭제나 계정 재로그인부터 반복하지 않는다. 빌드 12는 화면별 필기 보존과 iPad Air 좌우 여백 수정을 포함한다.
 3. 설치 성공과 기기에서의 첫 실행을 각각 확인한다. 비밀번호와 인증코드는 설치 도구에서 직접 입력하며 로그·소스 저장소에 남기지 않는다.
-4. 필요한 기존 필기를 화면 캡처로 남긴 뒤 이전 Windows DeskInk를 한 번 닫고 `DeskInk - 화면 1` 바로가기로 다시 연다. **이전 앱을 닫을 때 현재 필기는 사라진다.** 새 실행 파일은 `target/monitor-switch/release/deskink.exe`이며 기존 바로가기가 이 파일을 선택하도록 수정했다. 이후에는 앱을 종료하지 않고 화면별 바로가기를 실행해 전환한다.
+4. 현재 PC에는 Windows의 필기 지연 개선과 콘솔 없는 바로가기를 이미 적용해 실행했다. iPad 업데이트를 위해 다시 종료할 필요는 없다. 다른 환경에서 Windows 구버전을 교체할 때는 필요한 필기를 캡처하고 앱을 한 번 닫은 뒤 바로가기로 다시 연다. **앱을 닫으면 현재 필기는 사라진다.** 실행 파일은 `target/monitor-switch/release/deskink.exe`이며 화면만 바꿀 때는 앱을 종료하지 않는다.
 
 독립 연결 검사에서는 Apple 공식 Root 인증서를 명령 하나의 `curl --cacert`에만 지정했을 때 GSA 서버의 TLS 검증과 응답 수신이 성공했다. 기본 Windows curl의 `UntrustedRoot`만으로 Sideloadly의 인증 실패 원인을 확정하지 않는다. 시스템 인증서 저장소나 보안 설정은 바꾸지 않았다. 계정 없는 GSA 요청은 실제 로그인 재현 검사가 아니다.
 
@@ -75,6 +75,6 @@ Sideloadly의 로그인 503이 반복되어 [iloader 2.3.9](https://github.com/n
 
 Windows DeskInk를 실행한 상태에서 iPad DeskInk를 연다. 페어링 창에 Windows의 6자리 코드를 입력하고 Windows 화면이 보이는지 확인한다. 다음으로 선이 양쪽의 같은 위치에 보이는지, 상태창을 최소화해도 필기되는지, PC 마우스 조작과 Zoom 수신 화면이 정상인지 확인한다. [구체적인 5분 검사와 지연 촬영 방법](ipad-first-check.md#4-5분-기능-확인)
 
-빌드 11에서도 두 손가락을 벌리면 iPad만 확대되고, 확대 후 두 손가락으로 드래그하면 보는 위치가 바뀐다. Windows는 원래 배율을 유지한다. 아래 검은 영역의 도구막대가 영상을 가리지 않는지, 확대 후 Pencil 입력이 Windows의 같은 위치에 나타나는지 확인한다. 위쪽 화면 맞춤 버튼으로 전체 보기에 돌아간다.
+빌드 12에서도 두 손가락을 벌리면 iPad만 확대되고, 확대 후 두 손가락으로 드래그하면 보는 위치가 바뀐다. Windows는 원래 배율을 유지한다. iPad Air 가로 화면에서 작은 좌우 여백이 사라졌는지, 아래 도구막대가 영상을 가리지 않는지, 확대 후 Pencil 입력이 Windows의 같은 위치에 나타나는지 확인한다. 위쪽 화면 맞춤 버튼으로 전체 보기에 돌아간다.
 
 화면 1에 A를 쓰고 화면 2 바로가기로 전환해 B를 쓴 뒤 다시 화면 1로 돌아간다. 각 화면의 필기와 실행 취소가 따로 유지되는지 확인한다. Stream Deck에는 기존 화면별 `.lnk` 파일을 각각 등록하면 된다. 전환은 USB 스트림을 다시 연결하므로 영상이 잠깐 멈출 수 있으며 실제 전환 시간은 아직 측정하지 않았다. 영구 저장은 후속 작업이라 Windows 앱 자체를 닫으면 모든 화면의 필기가 사라진다. 클라우드 빌드, IPA 생성, 실제 업데이트 설치, USB 필기, 지연 측정을 각각 따로 기록한다.

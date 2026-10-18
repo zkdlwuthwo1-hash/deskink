@@ -38,3 +38,21 @@ powershell -File scripts/probe-stream-fps.ps1 -LogPath artifacts/local/deskink-f
 - Windows Release 실행물, 동일 해상도와 전원 조건에서 재확인.
 - Pencil→양쪽 화면의 물리적 표시 지연, 장시간 필기 렌더링, Zoom 실제 수신.
 - 앱을 배경으로 보냈다 다시 여는 과정에서 관찰한 watchdog 재시작은 이번 움직이는 화면 FPS 재현과 별개다. 추가 검증 대상으로 남긴다.
+
+## 2026-10-18: PC에 나타나는 필기의 버벅임
+
+사용자는 iPad의 로컬 필기는 자연스럽고 PC의 선만 버벅인다고 확인했다. 영상 FPS를 올리는 것으로 해결되지 않는 별도 경로다. 실제 iPad 영상 검사 명령은 이번 실행에서 연결된 수신 보고를 얻지 못했으므로 영상 성능 수치로 사용하지 않았다.
+
+Release 하드웨어 진단 `ink_latency_probe`는 실제 1080p 투명창에 각각 100점을 가진 1·20·100개 선을 그린 뒤 포인터를 120번 갱신한다. 매번 표시 시간을 측정하며 p95 16.7ms를 넘으면 실패한다. 100개 선에서 p50 13.58ms, p95 18.92ms, 최댓값 29.34ms로 실패했다. 원인은 변경 없는 완료 선을 매번 다시 래스터화하는 비용이었다. 완료한 선의 이미지를 보관하고 새 선·포인터만 합성하자 같은 검사에서 p50 6.14ms, p95 8.52ms로 통과했다. 지우기·취소·숨기기나 선 내용이 바뀌면 캐시를 무효화한다.
+
+그 다음 실제 `DeskInk::logic` 표시와 `AnnotationState::receive` 입력을 동시에 실행했다. 화면 그리기가 입력 세션의 잠금을 붙잡아, 입력 p95 5.009ms·최댓값 8.270ms로 4ms 검사에 실패했다. 표시할 선만 복사하고 잠금을 해제한 뒤 Windows에 그리도록 변경한 결과 p95 0.081ms·최댓값 0.234ms로 통과했다. 이 검사는 100개 완료 선 위에 240Hz 입력을 보내며 60Hz 표시를 2.6초간 실행한다. 두 수치는 각각 렌더링 호출 시간과 입력 함수 처리 시간이며 USB·실제 디스플레이 스캔·Pencil 전체 지연을 포함하지 않는다.
+
+기존 렌더러와 모니터 전환 추가 직후 렌더러의 소스는 동일했다. 이번 검사는 누적 필기에서 드러나는 병목과 그리기 중 입력 대기를 확인한 것이며, 사용자 기기의 모든 체감 변화 원인을 단정하지 않는다. 수정본에서 실제 Pencil로 다시 확인한다.
+
+```powershell
+. ./scripts/windows-env.ps1
+cargo run -p deskink-windows --example ink_latency_probe --release --target-dir target/monitor-switch
+cargo test -p eternal-host --bin deskink --release --target-dir target/monitor-switch pen_input_remains_responsive -- --ignored --nocapture --test-threads=1
+```
+
+두 진단은 임시 필기창을 표시한 뒤 제거한다. 기존 사용자 필기나 화면 파일을 저장하거나 전송하지 않는다. 임계값은 이 PC의 회귀 검사 기준이며 모든 기기의 성능 보장은 아니다.
