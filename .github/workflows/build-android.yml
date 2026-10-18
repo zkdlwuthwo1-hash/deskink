@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: android-${{ github.ref }}
+  group: android-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   android:

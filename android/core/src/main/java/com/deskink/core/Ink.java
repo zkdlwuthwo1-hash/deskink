@@ -21,8 +21,11 @@ public final class Ink {
     public static JSONObject id(String type,long id) { return object("type",type,"id",id); }
     public static JSONObject at(String type,long id,JSONObject p) { return object("type",type,"id",id,"point",p); }
     public static JSONObject begin(long id,JSONObject p,int[] color,float width,boolean temporary) {
-        return object("type",temporary?"transient_begin":"begin","id",id,"point",p,
-            "brush",object("color",new JSONArray(color),"width",width),"lifetime_ms",2000);
+        JSONObject command=object("type",temporary?"transient_begin":"begin","id",id,"point",p,
+            "brush",object("color",new JSONArray(color),"width",width));
+        if(temporary) try { command.put("lifetime_ms",2000); }
+        catch(JSONException e) { throw new IllegalArgumentException(e); }
+        return command;
     }
     public static byte[] envelope(long session,long epoch,long seq,JSONObject command) {
         String json=object("version",1,"session",session,"epoch",epoch,"seq",seq,"command",command).toString();

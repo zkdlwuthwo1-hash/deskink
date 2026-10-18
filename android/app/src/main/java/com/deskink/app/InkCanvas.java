@@ -107,9 +107,16 @@ public final class InkCanvas extends View {
     private static boolean stylus(MotionEvent e,int i) {
         return e.getToolType(i)==MotionEvent.TOOL_TYPE_STYLUS||e.getToolType(i)==MotionEvent.TOOL_TYPE_ERASER;
     }
+    // This continuous stylus surface has no click action. Accessible actions
+    // (tools, clear, undo, zoom reset) are ordinary toolbar buttons.
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
     @Override public boolean onTouchEvent(MotionEvent e) {
         int action=e.getActionMasked();
         if(action==MotionEvent.ACTION_CANCEL) { finish(true); pen.cancel(); pointerId=-1; cursor(null,false); return true; }
+        // Pointer transitions belong to the pointer that changed, not the pen
+        // still present in the same event. A palm must never open a new stroke.
+        if((action==MotionEvent.ACTION_POINTER_DOWN||action==MotionEvent.ACTION_POINTER_UP)
+                &&pointerId>=0&&e.getPointerId(e.getActionIndex())!=pointerId) return true;
         int i=pointerId<0?e.getActionIndex():e.findPointerIndex(pointerId);
         if(i<0||!stylus(e,i)) { fingers(e); return true; }
         buttons(e); if(sender==null) return true;

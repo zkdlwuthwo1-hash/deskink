@@ -12,6 +12,29 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void aPalmLandingAndLiftingDuringAStrokeDoesNotRestartThePenGesture() {
+        InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
+        List<JSONObject> sent=new ArrayList<>();
+        canvas.bind(new InkDocument(),c -> {sent.add(c); return true;},1920,1080);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,400,300);
+        MotionEvent.PointerProperties pen=new MotionEvent.PointerProperties(); pen.id=0; pen.toolType=MotionEvent.TOOL_TYPE_STYLUS;
+        MotionEvent.PointerProperties palm=new MotionEvent.PointerProperties(); palm.id=1; palm.toolType=MotionEvent.TOOL_TYPE_FINGER;
+        MotionEvent.PointerCoords a=new MotionEvent.PointerCoords(); a.x=450; a.y=300; a.pressure=1;
+        MotionEvent.PointerCoords b=new MotionEvent.PointerCoords(); b.x=650; b.y=500;
+        for(int action:new int[]{MotionEvent.ACTION_POINTER_DOWN|(1<<8),MotionEvent.ACTION_MOVE,MotionEvent.ACTION_POINTER_UP|(1<<8)}) {
+            MotionEvent event=MotionEvent.obtain(100,110,action,2,new MotionEvent.PointerProperties[]{pen,palm},
+                new MotionEvent.PointerCoords[]{a,b},0,0,1,1,0,0,InputDevice.SOURCE_STYLUS,0);
+            canvas.dispatchTouchEvent(event); event.recycle();
+        }
+        touch(canvas,MotionEvent.ACTION_UP,0,500,300);
+        canvas.command("clear");
+        List<JSONObject> gestures=new ArrayList<>();
+        for(JSONObject c:sent) if(!c.optString("type").equals("pointer")) gestures.add(c);
+        assertEquals(Arrays.asList("begin","append","append","end","clear"),
+            gestures.stream().map(c -> c.optString("type")).collect(java.util.stream.Collectors.toList()));
+        long id=gestures.get(0).optLong("id");
+        for(int i=1;i<4;i++) assertEquals(id,gestures.get(i).optLong("id"));
+    }
     @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
     public void nativeCanvasShowsInkImmediatelyAndClearRemovesIt() {
         InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);

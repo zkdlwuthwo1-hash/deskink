@@ -68,10 +68,13 @@ public class StreamingTest {
                 byte[] command; do { command=read(in); } while(command[0]!='D');
                 String json=new String(command,4,command.length-4,java.nio.charset.StandardCharsets.UTF_8);
                 assertEquals("clear",new org.json.JSONObject(json).getJSONObject("command").getString("type"));
-                Bitmap screenshot=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-                File folder=new File(InstrumentationRegistry.getInstrumentation().getTargetContext().getExternalFilesDir(null),"previews"); folder.mkdirs();
-                try(FileOutputStream file=new FileOutputStream(new File(folder,"android-streaming.png"))) { screenshot.compress(Bitmap.CompressFormat.PNG,100,file); }
-                screenshot.recycle();
+                // The test runner uninstalls the app afterwards, so preserve the
+                // actual emulator screenshot outside its app-data directory.
+                try(android.os.ParcelFileDescriptor capture=InstrumentationRegistry.getInstrumentation().getUiAutomation()
+                        .executeShellCommand("screencap -p /sdcard/Download/deskink-android-streaming.png");
+                    InputStream captureOutput=new android.os.ParcelFileDescriptor.AutoCloseInputStream(capture)) {
+                    byte[] discard=new byte[1024]; while(captureOutput.read(discard)!=-1) { }
+                }
             }
         }
     }

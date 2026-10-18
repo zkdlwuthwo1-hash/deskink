@@ -15,6 +15,14 @@ public final class UsbClient implements AutoCloseable {
         void state(State state);
         void stream(Binding binding);
         void frame(FrameAssembler.Frame frame);
+        default DecodeStats decoding() { return new DecodeStats(0,0,0); }
+    }
+    public static final class DecodeStats {
+        public final long completed;
+        public final int pending,inFlight;
+        public DecodeStats(long completed,int pending,int inFlight) {
+            this.completed=completed; this.pending=pending; this.inFlight=inFlight;
+        }
     }
     public static final class Binding {
         public final long session;
@@ -61,7 +69,7 @@ public final class UsbClient implements AutoCloseable {
             try {
                 Socket socket=server.accept();
                 FramedConnection link=new FramedConnection(socket);
-                socket.setSoTimeout(0); // authenticated liveness is checked by the timer
+                socket.setSoTimeout(0); // handshake and session liveness are checked by the timer
                 candidate=new Connection(link);
                 synchronized(lock) {
                     if(closed) { candidate.close(); return; }
@@ -72,9 +80,11 @@ public final class UsbClient implements AutoCloseable {
                 // USB removal, host switch and shutdown all close the framed socket.
             } finally {
                 if(candidate!=null) candidate.close();
+                boolean disconnected=false;
                 synchronized(lock) {
-                    if(current==candidate) { current=null; binding=null; if(!closed) listener.state(State.DISCONNECTED); }
+                    if(current==candidate) { current=null; binding=null; disconnected=!closed; }
                 }
+                if(disconnected) listener.state(State.DISCONNECTED);
             }
         }
     }
@@ -85,7 +95,9 @@ public final class UsbClient implements AutoCloseable {
         final Thread writer;
         volatile boolean stopped;
         volatile long lastPacket=System.nanoTime();
+        boolean awaitingPairing;
         long highest;
+        long reportedDecoded=-1,reportedAt;
         Connection(FramedConnection link) {
             this.link=link;
             writer=daemon(() -> {
@@ -108,6 +120,7 @@ public final class UsbClient implements AutoCloseable {
     private void hello() {
         if(current==null) return;
         nonce=Integer.toUnsignedLong(random.nextInt());
+        current.lastPacket=System.nanoTime();
         current.offer(Wire.hello(++controlSequence,nonce,9877,1,9,width,height,width,height,60,
             "DeskInk Android",device,60,tokens.get(tokenIndex),pairingCode));
     }
@@ -131,54 +144,75 @@ public final class UsbClient implements AutoCloseable {
         }
     }
     private void receive(Connection source,Wire.Packet packet) throws IOException {
-        synchronized(lock) {
-            if(current!=source) return;
-            if(packet.type==0x11) {
-                Wire.Ack ack=packet.ack(); if(ack.nonce!=nonce) return;
-                if(ack.status!=0) {
-                    if(ack.status==4&&pairingCode==0&&tokenIndex+1<tokens.size()) { tokenIndex++; hello(); return; }
-                    listener.state(ack.status==5?State.RATE_LIMITED:ack.status==1?State.BUSY:State.PAIRING); return;
-                }
-                if(ack.version!=2||ack.session==0||(ack.caps&0x7000)!=0x7000) { listener.state(State.INCOMPATIBLE); source.close(); return; }
-                if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return;
-                configure(source,new Binding(ack.session,ack.config,ack.host,ack.token));
-                listener.state(State.CONNECTED); return;
-            }
-            if(binding==null||packet.session!=binding.session) return;
+        Runnable notification;
+        synchronized(lock) { notification=receiveLocked(source,packet); }
+        // Video/UI consumers may be busy; never hold the pen writer's lock here.
+        if(notification!=null) notification.run();
+    }
+    private Runnable receiveLocked(Connection source,Wire.Packet packet) throws IOException {
+        if(current!=source) return null;
+        if(packet.type==0x11) {
+            Wire.Ack ack=packet.ack(); if(ack.nonce!=nonce) return null;
             source.lastPacket=System.nanoTime();
-            if(packet.type==0x12||packet.type==0x18) {
-                Wire.Config config=packet.config();
-                if(config.epoch!=binding.config.epoch&&(int)(config.epoch-binding.config.epoch)>0)
-                    configure(source,new Binding(binding.session,config,binding.host,binding.token));
-            } else if(packet.type==0x13) { source.close(); }
-            else if(packet.type==0x16) {
-                ByteBuffer input=packet.body(); Wire.require(input.remaining()>=8);
-                ByteBuffer out=ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN);
-                long now=System.nanoTime()/1000; out.putLong(input.getLong()).putLong(now).putLong(now);
-                source.offer(Wire.control(0x17,binding.session,++controlSequence,out.array()));
-            } else if(packet.type==1) {
-                FrameAssembler.Frame frame=source.frames.accept(packet);
-                if(frame!=null) { source.highest=frame.sequence; listener.frame(frame); }
-                else if(source.frames.needsKeyframe()) requestKeyframe();
+            if(ack.status!=0) {
+                source.awaitingPairing=true;
+                if(ack.status==4&&pairingCode==0&&tokenIndex+1<tokens.size()) { tokenIndex++; hello(); return null; }
+                State state=ack.status==5?State.RATE_LIMITED:ack.status==1?State.BUSY:State.PAIRING;
+                return () -> listener.state(state);
             }
+            if(ack.version!=2||ack.session==0||(ack.caps&0x7000)!=0x7000) {
+                source.close(); return () -> listener.state(State.INCOMPATIBLE);
+            }
+            if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return null;
+            Binding next=new Binding(ack.session,ack.config,ack.host,ack.token);
+            configure(source,next);
+            return () -> { listener.stream(next); listener.state(State.CONNECTED); };
         }
+        if(binding==null||packet.session!=binding.session) return null;
+        source.lastPacket=System.nanoTime();
+        if(packet.type==0x12||packet.type==0x18) {
+            Wire.Config config=packet.config();
+            if(config.epoch!=binding.config.epoch&&(int)(config.epoch-binding.config.epoch)>0) {
+                Binding next=new Binding(binding.session,config,binding.host,binding.token);
+                configure(source,next); return () -> listener.stream(next);
+            }
+        } else if(packet.type==0x13) { source.close(); }
+        else if(packet.type==0x16) {
+            ByteBuffer input=packet.body(); Wire.require(input.remaining()>=8);
+            ByteBuffer out=ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN);
+            long now=System.nanoTime()/1000; out.putLong(input.getLong()).putLong(now).putLong(now);
+            source.offer(Wire.control(0x17,binding.session,++controlSequence,out.array()));
+        } else if(packet.type==1) {
+            FrameAssembler.Frame frame=source.frames.accept(packet);
+            if(frame!=null) { source.highest=frame.sequence; return () -> listener.frame(frame); }
+            else if(source.frames.needsKeyframe()) requestKeyframe();
+        }
+        return null;
     }
     private void configure(Connection source,Binding next) throws IOException {
         Wire.Config c=next.config;
         Wire.require(c.epoch!=0&&c.codec==0&&c.width>0&&c.height>0&&c.width<=8192&&c.height<=8192&&(long)c.width*c.height<=16777216);
         binding=next; inkSequence=0; source.lastPacket=System.nanoTime(); source.frames.reset(next.session,c.epoch);
         source.outgoing.clear(); lastKeyframe=0;
+        source.reportedDecoded=-1;
         tokens.removeIf(t -> Arrays.equals(t,next.token)); tokens.add(0,next.token.clone());
         while(tokens.size()>2) tokens.remove(tokens.size()-1);
-        listener.stream(next); requestKeyframe();
+        requestKeyframe();
     }
     private void tick() {
+        DecodeStats decoding=listener.decoding();
         synchronized(lock) {
-            if(current==null||binding==null) return;
-            if(System.nanoTime()-current.lastPacket>5_000_000_000L) { current.close(); return; }
+            if(current==null) return;
+            long timeout=binding==null&&current.awaitingPairing?60_000_000_000L:5_000_000_000L;
+            if(System.nanoTime()-current.lastPacket>timeout) { current.close(); return; }
+            if(binding==null) return;
+            long now=System.nanoTime();
+            int fps=current.reportedDecoded<0?0:(int)Math.min(65535,
+                Math.max(0,decoding.completed-current.reportedDecoded)*10_000_000_000.0/Math.max(1,now-current.reportedAt));
+            current.reportedDecoded=decoding.completed; current.reportedAt=now;
             FrameAssembler f=current.frames;
             current.offer(Wire.report(binding.session,++controlSequence,binding.config.epoch,current.highest,
-                f.completed,f.dropped,f.fragments,0,0,600,0,0,0,0));
+                f.completed,f.dropped,f.fragments,0,0,fps,decoding.pending,decoding.inFlight,0,0));
         }
     }
     @Override public void close() {

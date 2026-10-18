@@ -128,6 +128,9 @@ public final class MainActivity extends Activity {
                     if(pairingDialog!=null) pairingDialog.dismiss(); transformVideo();
                 });
             }
+            public UsbClient.DecodeStats decoding() {
+                VideoDecoder d=decoder; return d==null?new UsbClient.DecodeStats(0,0,0):d.statistics();
+            }
             public void frame(FrameAssembler.Frame frame) { VideoDecoder d=decoder; if(generation==runId&&d!=null) d.offer(frame); }
         });
         client=session;

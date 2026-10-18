@@ -8,6 +8,65 @@ import java.util.concurrent.*;
 import static org.junit.Assert.*;
 
 public class UsbClientTest {
+    @Test public void receiverReportDoesNotClaimFramesWereDecodedWhenNoVideoWasShown() throws Exception {
+        UsbClient.Listener listener=new UsbClient.Listener() {
+            public void state(UsbClient.State state) { }
+            public void stream(UsbClient.Binding binding) { }
+            public void frame(FrameAssembler.Frame frame) { }
+        };
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Collections.emptyList(),listener);
+                Socket host=new Socket("127.0.0.1",client.start())) {
+            host.setSoTimeout(2000); OutputStream out=host.getOutputStream(); InputStream in=host.getInputStream();
+            out.write(new byte[]{'E','M','L','I','N','K',1,0}); send(out,ack(read(in),true));
+            Wire.Packet report; do { report=Wire.decode(read(in)); } while(report.type!=0x15);
+            assertEquals("No decoder output means zero measured FPS",0,Short.toUnsignedInt(report.body().getShort(28)));
+        }
+    }
+    @Test public void anUnresponsiveHandshakeReleasesThePortForTheNextUsbConnection() throws Exception {
+        UsbClient.Listener listener=new UsbClient.Listener() {
+            public void state(UsbClient.State state) { }
+            public void stream(UsbClient.Binding binding) { }
+            public void frame(FrameAssembler.Frame frame) { }
+        };
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Collections.emptyList(),listener)) {
+            int port=client.start();
+            try(Socket stalled=new Socket("127.0.0.1",port)) {
+                stalled.setSoTimeout(6500);
+                stalled.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                read(stalled.getInputStream());
+                assertEquals("Missing ACK must time out",-1,stalled.getInputStream().read());
+            }
+            try(Socket next=new Socket("127.0.0.1",port)) {
+                next.setSoTimeout(1000); next.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                assertEquals(0x10,Wire.decode(read(next.getInputStream())).type);
+            }
+        }
+    }
+    @Test public void penCommandsProgressWhileTheVideoConsumerIsBusy() throws Exception {
+        BlockingQueue<UsbClient.Binding> bindings=new LinkedBlockingQueue<>();
+        CountDownLatch releaseVideo=new CountDownLatch(1);
+        UsbClient.Listener listener=new UsbClient.Listener() {
+            public void state(UsbClient.State state) { }
+            public void stream(UsbClient.Binding binding) {
+                bindings.add(binding);
+                try { releaseVideo.await(5,TimeUnit.SECONDS); }
+                catch(InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+            public void frame(FrameAssembler.Frame frame) { }
+        };
+        ExecutorService pen=Executors.newSingleThreadExecutor();
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Collections.emptyList(),listener);
+                Socket host=new Socket("127.0.0.1",client.start())) {
+            host.setSoTimeout(3000); OutputStream out=host.getOutputStream(); InputStream in=host.getInputStream();
+            out.write(new byte[]{'E','M','L','I','N','K',1,0}); out.flush(); send(out,ack(read(in),true));
+            UsbClient.Binding binding=bindings.poll(3,TimeUnit.SECONDS); assertNotNull(binding);
+            try {
+                assertTrue("Pen must not wait for the video consumer",pen.submit(() -> client.ink(binding,Ink.command("clear"))).get(1,TimeUnit.SECONDS));
+                byte[] command; do { command=read(in); } while(command[0]!='D');
+                assertTrue(new String(command,java.nio.charset.StandardCharsets.UTF_8).contains("clear"));
+            } finally { releaseVideo.countDown(); }
+        } finally { releaseVideo.countDown(); pen.shutdownNow(); }
+    }
     static void send(OutputStream out,byte[] b) throws IOException { out.write(b.length&255); out.write(b.length>>8); out.write(b); out.flush(); }
     static byte[] read(InputStream stream) throws IOException {
         DataInputStream in=new DataInputStream(stream); int n=in.readUnsignedByte()|(in.readUnsignedByte()<<8);

@@ -17,8 +17,10 @@ public final class VideoDecoder implements AutoCloseable {
     private Wire.Config config;
     private Surface surface;
     private MediaCodec codec;
-    private boolean waiting=true,resetNeeded,wake,closed;
-    private int inFlight;
+    private boolean waiting=true,resetNeeded,wake;
+    private volatile boolean closed;
+    private volatile int inFlight;
+    private volatile long completed;
     public VideoDecoder(Runnable requestKeyframe,Runnable decoded) {
         this.requestKeyframe=requestKeyframe; this.decoded=decoded; thread.start(); handler=new Handler(thread.getLooper());
     }
@@ -38,27 +40,39 @@ public final class VideoDecoder implements AutoCloseable {
     private void schedule() {
         if(!closed&&!wake) { wake=true; handler.post(this::drain); }
     }
+    public synchronized UsbClient.DecodeStats statistics() {
+        return new UsbClient.DecodeStats(completed,pending.size(),inFlight);
+    }
+    // Codec operations are confined to this HandlerThread. The short shared
+    // monitor protects only the mailbox, never configure/start/stop/queue.
     private void drain() {
+        Wire.Config format; Surface output; FrameAssembler.Frame first; boolean reset;
         synchronized(this) {
             wake=false; if(closed) return;
-            if(resetNeeded) { disposeCodec(); resetNeeded=false; }
-            if(surface==null||!surface.isValid()||config==null||pending.isEmpty()) return;
-            try {
-                if(codec==null) {
-                    if(!pending.peekFirst().keyframe) { fail(); return; }
-                    startCodec(pending.peekFirst().bytes);
-                }
-                while(!pending.isEmpty()&&!inputs.isEmpty()&&inFlight<2) {
-                    FrameAssembler.Frame frame=pending.removeFirst(); int index=inputs.removeFirst();
-                    ByteBuffer buffer=codec.getInputBuffer(index);
-                    if(buffer==null||buffer.capacity()<frame.bytes.length) { fail(); return; }
-                    buffer.clear(); buffer.put(frame.bytes);
-                    codec.queueInputBuffer(index,0,frame.bytes.length,System.nanoTime()/1000,0); inFlight++;
-                }
-            } catch(Exception error) { fail(); }
+            reset=resetNeeded; resetNeeded=false;
+            format=config; output=surface; first=pending.peekFirst();
         }
+        if(reset) disposeCodec();
+        if(output==null||!output.isValid()||format==null||first==null) return;
+        try {
+            if(codec==null) {
+                if(!first.keyframe) { fail(); return; }
+                startCodec(first.bytes,format,output);
+            }
+            while(!inputs.isEmpty()&&inFlight<2) {
+                FrameAssembler.Frame frame;
+                synchronized(this) {
+                    if(closed||resetNeeded||pending.isEmpty()) return;
+                    frame=pending.removeFirst();
+                }
+                int index=inputs.removeFirst(); ByteBuffer buffer=codec.getInputBuffer(index);
+                if(buffer==null||buffer.capacity()<frame.bytes.length) { fail(); return; }
+                buffer.clear(); buffer.put(frame.bytes);
+                codec.queueInputBuffer(index,0,frame.bytes.length,System.nanoTime()/1000,0); inFlight++;
+            }
+        } catch(Exception error) { fail(); }
     }
-    private void startCodec(byte[] keyframe) throws Exception {
+    private void startCodec(byte[] keyframe,Wire.Config config,Surface output) throws Exception {
         byte[] sps=nal(keyframe,7),pps=nal(keyframe,8);
         if(sps==null||pps==null) throw new IllegalArgumentException("Missing H264 parameter sets");
         MediaFormat format=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,config.width,config.height);
@@ -68,24 +82,25 @@ public final class VideoDecoder implements AutoCloseable {
         codec=MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         codec.setCallback(new MediaCodec.Callback() {
             @Override public void onInputBufferAvailable(MediaCodec source,int index) {
-                synchronized(VideoDecoder.this) { if(source!=codec||closed) return; inputs.addLast(index); schedule(); }
+                if(source!=codec||closed) return; inputs.addLast(index);
+                synchronized(VideoDecoder.this) { schedule(); }
             }
             @Override public void onOutputBufferAvailable(MediaCodec source,int index,MediaCodec.BufferInfo info) {
-                synchronized(VideoDecoder.this) {
-                    if(source!=codec||closed) return;
-                    try { source.releaseOutputBuffer(index,true); inFlight=Math.max(0,inFlight-1); handler.post(decoded); schedule(); }
-                    catch(IllegalStateException error) { fail(); }
-                }
+                if(source!=codec||closed) return;
+                try {
+                    source.releaseOutputBuffer(index,true); inFlight=Math.max(0,inFlight-1); completed++; handler.post(decoded);
+                    synchronized(VideoDecoder.this) { schedule(); }
+                } catch(IllegalStateException error) { fail(); }
             }
             @Override public void onOutputFormatChanged(MediaCodec source,MediaFormat format) { }
-            @Override public void onError(MediaCodec source,MediaCodec.CodecException error) {
-                synchronized(VideoDecoder.this) { if(source==codec) fail(); }
-            }
+            @Override public void onError(MediaCodec source,MediaCodec.CodecException error) { if(source==codec) fail(); }
         },handler);
-        codec.configure(format,surface,null,0); codec.start();
+        codec.configure(format,output,null,0); codec.start();
     }
     private void fail() {
-        disposeCodec(); pending.clear(); waiting=true; handler.post(requestKeyframe);
+        disposeCodec();
+        synchronized(this) { pending.clear(); waiting=true; }
+        handler.post(requestKeyframe);
     }
     private void disposeCodec() {
         MediaCodec previous=codec; codec=null; inputs.clear(); inFlight=0;
@@ -110,6 +125,6 @@ public final class VideoDecoder implements AutoCloseable {
     }
     @Override public synchronized void close() {
         if(closed) return; closed=true; pending.clear();
-        handler.post(() -> { synchronized(VideoDecoder.this) { disposeCodec(); } thread.quitSafely(); });
+        handler.post(() -> { disposeCodec(); thread.quitSafely(); });
     }
 }
