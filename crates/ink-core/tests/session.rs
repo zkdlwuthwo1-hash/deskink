@@ -85,4 +85,11 @@ fn reconnect_keeps_visible_ink_but_rejects_the_old_connections_packets() {
     assert!(session
         .receive(br#"{"version":1,"session":42,"epoch":3,"seq":2,"command":{"type":"end","id":7}}"#)
         .is_err());
+    session
+        .receive(br#"{"version":1,"session":43,"epoch":4,"seq":1,"command":{"type":"undo"}}"#)
+        .unwrap();
+    assert!(
+        session.board().strokes().is_empty(),
+        "An interrupted stroke must still be undoable when returning to this monitor"
+    );
 }

@@ -57,6 +57,15 @@ impl ConfigSource for SharedConfigSource<'_> {
             let (w, h) = stats.capture_resolution;
             (w, h, stats.using_software_fallback)
         };
+        let (width, height) = self
+            .shared
+            .annotation
+            .as_ref()
+            .map(|workspace| {
+                let active = workspace.active();
+                (active.output.width, active.output.height)
+            })
+            .unwrap_or((width, height));
         eternal_wire::v2::control::StreamConfig {
             stream_epoch: self.stream_epoch,
             width: width.min(u32::from(u16::MAX)) as u16,
@@ -78,7 +87,10 @@ impl ConfigSource for SharedConfigSource<'_> {
 
     fn host_caps(&self) -> u16 {
         if self.shared.annotation.is_some() {
-            return crate::annotation::HOST_CAP | crate::annotation::TOOLS_CAP | eternal_wire::v2::control::HOSTCAP_USB;
+            return crate::annotation::HOST_CAP
+                | crate::annotation::TOOLS_CAP
+                | crate::annotation::MONITOR_CAP
+                | eternal_wire::v2::control::HOSTCAP_USB;
         }
         let usb = if PIPELINE_STATS.lock().usb_service_reachable {
             eternal_wire::v2::control::HOSTCAP_USB
@@ -100,9 +112,24 @@ impl ConfigSource for SharedConfigSource<'_> {
     }
 
     fn host_name(&self) -> String {
-        std::env::var("COMPUTERNAME")
+        let pc = std::env::var("COMPUTERNAME")
             .or_else(|_| std::env::var("HOSTNAME"))
-            .unwrap_or_else(|_| "EternalMonitor".to_string())
+            .unwrap_or_else(|_| "EternalMonitor".to_string());
+        if let Some(workspace) = &self.shared.annotation {
+            // The authenticated host label identifies the selected monitor.
+            // Paired iPads group their in-memory boards by auth token + label.
+            format!(
+                "{} · {}",
+                pc,
+                workspace
+                    .active()
+                    .output
+                    .device_name
+                    .trim_start_matches("\\\\.\\")
+            )
+        } else {
+            pc
+        }
     }
 }
 
@@ -117,7 +144,11 @@ pub async fn start_sender(
     shared: SharedControl,
     supervisor_tx: std_mpsc::Sender<SupervisorCommand>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bind_ip = if shared.annotation.is_some() { "127.0.0.1" } else { "0.0.0.0" };
+    let bind_ip = if shared.annotation.is_some() {
+        "127.0.0.1"
+    } else {
+        "0.0.0.0"
+    };
     let bind_addr: SocketAddr = format!("{bind_ip}:{listen_port}").parse().unwrap();
     let socket = {
         let raw = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
@@ -162,6 +193,24 @@ pub async fn start_sender(
         .fetch_add(1, Ordering::Relaxed)
         .wrapping_add(1)
         .max(1);
+    struct FinishInk {
+        state: Option<std::sync::Arc<crate::annotation::AnnotationState>>,
+        epoch: u32,
+    }
+    impl Drop for FinishInk {
+        fn drop(&mut self) {
+            if let Some(state) = &self.state {
+                state.finish_stream(self.epoch);
+            }
+        }
+    }
+    let _finish_ink = FinishInk {
+        state: shared
+            .annotation
+            .as_ref()
+            .map(|workspace| workspace.active()),
+        epoch: stream_epoch,
+    };
 
     let local_addr = socket.local_addr()?;
     info!(%local_addr, stream_epoch, "UDP transport ready — waiting for a v2 client HELLO");
@@ -169,11 +218,17 @@ pub async fn start_sender(
         .lock()
         .set_target_addr(shared.target_addr.lock().to_string());
 
-    let mut input_relay = if shared.annotation.is_none() { Some(crate::input::InputRelay::default()) } else { None };
+    let mut input_relay = if shared.annotation.is_none() {
+        Some(crate::input::InputRelay::default())
+    } else {
+        None
+    };
     let config = SharedConfigSource {
         shared: &shared,
         stream_epoch,
-        pen_available: input_relay.as_ref().is_some_and(|relay| relay.pen_available()),
+        pen_available: input_relay
+            .as_ref()
+            .is_some_and(|relay| relay.pen_available()),
     };
 
     let abr_enabled = !std::env::var("ETERNAL_ABR").is_ok_and(|v| v.trim() == "0");
@@ -264,7 +319,7 @@ pub async fn start_sender(
                         let datagram = datagram.as_slice();
                         if let (Some(annotations), Some(body)) = (&shared.annotation, datagram.strip_prefix(crate::annotation::INPUT_MAGIC)) {
                             let session = shared.session.lock();
-                            annotations.receive(src, session.peer(), session.session_id(), stream_epoch, body);
+                            annotations.active().receive(src, session.peer(), session.session_id(), stream_epoch, body);
                             continue;
                         }
                         match classify(datagram) {

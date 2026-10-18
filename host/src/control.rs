@@ -11,7 +11,7 @@ pub const DEFAULT_TARGET_FPS: u32 = 60;
 #[derive(Clone)]
 pub struct SharedControl {
     /// DeskInk presentation mode. Remote OS input and virtual displays are not used.
-    pub annotation: Option<Arc<crate::annotation::AnnotationState>>,
+    pub annotation: Option<Arc<crate::annotation::AnnotationWorkspace>>,
     pub running: Arc<AtomicBool>,
     /// The user's MAXIMUM bitrate (the GUI slider) — the ABR ceiling.
     pub bitrate_bps: Arc<AtomicU32>,

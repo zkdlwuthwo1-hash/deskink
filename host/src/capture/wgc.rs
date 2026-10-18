@@ -31,7 +31,11 @@ pub fn run(
         }
     }
     let _apartment = Apartment;
-    let annotations = shared.annotation.as_ref().ok_or("DeskInk state missing")?;
+    let annotations = shared
+        .annotation
+        .as_ref()
+        .ok_or("DeskInk state missing")?
+        .active();
     let output = &annotations.output;
     let monitor = unsafe {
         MonitorFromPoint(

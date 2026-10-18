@@ -20,6 +20,57 @@ fn annotations() -> AnnotationState {
 const START: &[u8] = br#"{"version":1,"session":42,"epoch":3,"seq":1,"command":{"type":"begin","id":7,"brush":{"color":[255,80,40,255],"width":4},"point":{"x":100,"y":200,"pressure":0.4}}}"#;
 
 #[test]
+fn switching_monitors_keeps_each_board_and_retiring_inputs_on_their_original_screen() {
+    use eternal_host::annotation::AnnotationWorkspace;
+    use std::sync::Arc;
+    let first = Arc::new(annotations());
+    let second = Arc::new(annotations());
+    let workspace = AnnotationWorkspace::new(first.clone());
+    let retiring_stream = workspace.snapshot();
+    let peer = PeerId::usb(7);
+    assert!(workspace
+        .active()
+        .receive(peer, Some(peer), Some(42), 3, START));
+    workspace.select(second.clone());
+    let next = br#"{"version":1,"session":42,"epoch":4,"seq":1,"command":{"type":"begin","id":8,"brush":{"color":[35,125,255,255],"width":4},"point":{"x":500,"y":600,"pressure":0.5}}}"#;
+    assert!(workspace
+        .active()
+        .receive(peer, Some(peer), Some(42), 4, next));
+    assert!(!workspace
+        .active()
+        .receive(peer, Some(peer), Some(42), 4, START));
+    let late = br#"{"version":1,"session":42,"epoch":3,"seq":2,"command":{"type":"append","id":7,"point":{"x":110,"y":210,"pressure":0.4}}}"#;
+    assert!(retiring_stream
+        .active()
+        .receive(peer, Some(peer), Some(42), 3, late));
+    workspace.select(first.clone());
+    assert_eq!(
+        workspace.active().ink.lock().board().strokes()[0]
+            .points
+            .len(),
+        2
+    );
+    assert_eq!(
+        workspace.active().ink.lock().board().strokes()[0].points[0].x,
+        100.0
+    );
+    assert_eq!(second.ink.lock().board().strokes().len(), 1);
+    assert_eq!(second.ink.lock().board().strokes()[0].points[0].x, 500.0);
+}
+
+#[test]
+fn retiring_stream_cannot_reset_the_returned_monitors_input_sequence() {
+    let annotations = annotations();
+    let peer = PeerId::usb(7);
+    let fresh = br#"{"version":1,"session":43,"epoch":5,"seq":1,"command":{"type":"begin","id":9,"brush":{"color":[255,80,40,255],"width":4},"point":{"x":100,"y":200,"pressure":0.4}}}"#;
+    assert!(annotations.receive(peer, Some(peer), Some(43), 5, fresh));
+    assert!(!annotations.receive(peer, Some(peer), Some(43), 3, START));
+    let next = br#"{"version":1,"session":43,"epoch":5,"seq":2,"command":{"type":"append","id":9,"point":{"x":120,"y":210,"pressure":0.4}}}"#;
+    assert!(annotations.receive(peer, Some(peer), Some(43), 5, next));
+    assert_eq!(annotations.ink.lock().board().strokes()[0].points.len(), 2);
+}
+
+#[test]
 fn only_the_connected_usb_peer_can_change_the_visible_board() {
     let annotations = annotations();
     let active = PeerId::usb(7);

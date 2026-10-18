@@ -419,8 +419,19 @@ impl InkSession {
         self.session = session;
         self.epoch = epoch;
         self.accepted = 0;
-        for stroke in &mut self.board.strokes {
-            stroke.finished = true;
+        let unfinished: Vec<u64> = self
+            .board
+            .strokes
+            .iter()
+            .filter(|stroke| !stroke.finished)
+            .map(|stroke| stroke.id)
+            .collect();
+        for id in unfinished {
+            // Complete the normal edit so Undo also works after switching
+            // away halfway through a stroke and returning to this monitor.
+            self.board
+                .apply(Command::End { id })
+                .expect("existing unfinished stroke");
         }
         self.board.finish_erase();
         self.board.temporary.clear();

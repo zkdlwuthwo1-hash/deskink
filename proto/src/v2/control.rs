@@ -37,6 +37,8 @@ pub const CAP_DECODE_HEVC_10BIT: u16 = 1 << 2;
 pub const FEATURE_WANTS_INPUT: u16 = 1 << 0;
 pub const FEATURE_WANTS_AUDIO: u16 = 1 << 1;
 pub const FEATURE_SUPPORTS_NACK: u16 = 1 << 2;
+/// Keeps independent local ink documents for authenticated DeskInk monitor labels.
+pub const FEATURE_MONITOR_BOARDS: u16 = 1 << 3;
 pub const HOSTCAP_NACK: u16 = 1 << 0;
 pub const HOSTCAP_AUDIO: u16 = 1 << 1;
 pub const HOSTCAP_USB: u16 = 1 << 2;

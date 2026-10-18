@@ -433,11 +433,17 @@ fn stream_runtime() -> std::io::Result<tokio::runtime::Runtime> {
 fn spawn_generation(
     generation: u64,
     listen_port: u16,
-    shared: SharedControl,
+    mut shared: SharedControl,
     gpu_info: GpuInfo,
     sup_tx: mpsc::Sender<SupMsg>,
     command_tx: mpsc::Sender<SupervisorCommand>,
 ) -> std::thread::JoinHandle<()> {
+    // Capture, metadata and incoming ink must all refer to the same monitor,
+    // including while another selection is queued during a pipeline restart.
+    shared.annotation = shared
+        .annotation
+        .as_ref()
+        .map(|workspace| std::sync::Arc::new(workspace.snapshot()));
     shared.running.store(true, Ordering::SeqCst);
     // Give the new generation a full watchdog window. These atomics carry the
     // PREVIOUS generation's timestamps, so without this the wedge check judges

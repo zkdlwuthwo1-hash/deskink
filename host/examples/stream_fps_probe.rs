@@ -12,7 +12,7 @@ fn main() {
 #[cfg(windows)]
 mod probe {
     use eternal_host::{
-        annotation::AnnotationState,
+        annotation::{AnnotationState, AnnotationWorkspace},
         capture::{self, RawFrame},
         control::SharedControl,
         encoder,
@@ -69,10 +69,9 @@ mod probe {
             output.height,
         )
         .unwrap();
-        shared.annotation = Some(Arc::new(AnnotationState::new(
-            output,
-            overlay.hwnd().0 as usize,
-        )));
+        shared.annotation = Some(Arc::new(AnnotationWorkspace::new(Arc::new(
+            AnnotationState::new(output, overlay.hwnd().0 as usize),
+        ))));
         shared.session.lock().handle_control(
             PeerId::usb(99),
             0,
