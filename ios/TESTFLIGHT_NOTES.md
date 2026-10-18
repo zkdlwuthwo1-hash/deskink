@@ -1,58 +1,29 @@
-# EternalMonitor 0.3.0: What to Test
+# DeskInk beta test notes
 
-v0.3.0 is the current stable release. Install the Windows app with iPad
-v0.3.0, TestFlight build 143. The Windows installer is unchanged from
-v0.3.0-rc.1. It passed the automated tests on the reference PC and a physical
-iPad; the hands-on checks below remain. New users can follow SETUP.md.
+**Status:** DeskInk does not currently have a published TestFlight build. These are preparation notes for a future beta, not an invitation or a release announcement. The current CI creates unsigned development IPAs.
 
-### What changed
+## Publisher preparation
 
-- Lost video fragments can be requested again within a bounded repair window.
-  The window follows real WiFi timing: it waits for late and reordered packets
-  instead of discarding their frames. The quality popover reports repaired
-  fragments, dropped frames and jitter.
-- A USB connection uses Apple's device service on Windows and the same negotiated
-  session as WiFi. The app can take over when a cable connects and reconnect to
-  WiFi when it disconnects. USB needs Apple's Apple Devices app from the
-  Microsoft Store, open while you stream. When an iPad is plugged in and Apple
-  Devices is closed or missing, the host says so and offers to open it or links
-  to the Store. Accept Trust This Computer on the iPad.
-- PC audio uses 48 kHz stereo Opus. The iPad's audio setting mutes playback without
-  disconnecting video. Quiet packets are compact; Opus packet-loss concealment
-  covers missing audio. This version does not provide Opus in-band FEC.
-- Pair with the six-digit host code or its QR code. Remembered hosts use a token
-  stored in the iPad Keychain. Regenerating the host token requires pairing again.
-- Hardware and on-screen keyboards, sticky modifiers, indirect pointer buttons
-  and hover extend the existing touch and Pencil controls.
-- Apple Pencil draws as a Windows Ink pen with pressure and tilt. Drawing mode
-  ignores fingers on the canvas, mutes PC audio and asks for the highest USB
-  frame rate. In Clip Studio Paint, choose the Tablet PC setting.
-- The host offers 30/60/90/120 fps; the iPad requests 30/60/120 fps. The lower limit
-  wins. HEVC remains optional. YUV420 remains the default encoder input because
-  the AMD encoder does not accept BGRA; BGRA input is opt-in.
-- The host shows client, USB and audio status, rotates its session log, and can
-  check for updates. The Windows installer configures its firewall rules and VDD
-  task permissions. Continue checking these Windows behaviors on your hardware.
+- Set up the app in App Store Connect under the publisher's Apple Developer Program membership.
+- Choose an owned bundle identifier, configure distribution signing, and update the toolchain to Apple's current submission requirements.
+- Supply beta review information explaining the Windows companion and USB pairing, with instructions that let reviewers test the app.
+- Prepare a matching Windows runtime package and installation guide; validate on a PC without the development environment.
+- Submit the first external build for review, then share an invitation. Testers need TestFlight, not the publisher's credentials.
 
-### Please exercise on a physical iPad
+See [Apple's TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/). Builds are testable for up to 90 days; publish a replacement before an active beta expires.
 
-Pair on the local network, test H.264 and HEVC, then type and scroll through the
-keyboard and trackpad. Connect, unplug and reconnect USB. Play audio and check
-sync, mute and a Windows output-device change. Walk toward the WiFi edge and
-watch repairs rise without long freezes. On a ProMotion iPad, try 120 fps with
-the virtual display at 120 Hz. Draw in Clip Studio Paint with Drawing mode over
-USB, including pressure, tilt and a resting palm. Report the GPU, codec, host
-log and visible error.
+## Physical-device checks
 
-On the reference PC a physical iPad streamed the 2732×2048 extended desktop over
-USB-C for 30 minutes at 58 FPS with no dropped frames, and 3440×1440 over WiFi
-for 30 minutes with 19 of 105,600 frames dropped. First-install trust, timed
-takeover and WiFi fallback still need the hands-on pass. Pairing controls access but does
-not encrypt video, audio or input, so use a trusted local network.
+1. Fresh Windows setup, Apple Devices recognition, USB trust, and pairing.
+2. Pen, highlighter, stroke eraser, laser, disappearing ink, undo/redo, clear, and hide/show.
+3. Pencil double-tap on supported hardware and return to the previous tool after an eraser stroke.
+4. Pinch zoom and two-finger pan: only the iPad view changes; Windows ink coordinates remain correct.
+5. Pencil toolbar access, portrait/landscape layout, and left/right edges on different iPads.
+6. Monitor shortcuts and Stream Deck: no terminal flash, separate drawings on each monitor.
+7. PC ink responsiveness after a long drawing session, alongside iPad smoothness.
+8. Whole-monitor sharing as received by another Zoom participant.
+9. USB reconnect and app restarts. Windows app exit currently clears drawings; durable recovery is not implemented.
 
-Known issue: on the reference PC (NVIDIA driver 591.86), Windows once stopped
-with an NVIDIA kernel error about two seconds after a USB connection switched a
-running mirror session to the extended display. A bounded retest of the same
-build and driver repeated that switch five times, and later runs repeated it
-again, without a crash. The driver fault is not understood. If it happens,
-report the GPU driver version and the time.
+Reports should include app versions, device/OS versions, GPU, monitor resolution, and reproduction steps. Remove pairing codes, tokens, and personal screen content from attachments.
+
+These notes describe DeskInk, not the upstream EternalMonitor release or its TestFlight builds.
