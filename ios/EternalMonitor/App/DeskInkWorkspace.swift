@@ -20,7 +20,7 @@ struct DeskInkWorkspace<Canvas: View, Header: View>: View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
             canvas
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
@@ -28,9 +28,12 @@ struct DeskInkWorkspace<Canvas: View, Header: View>: View {
                 .accessibilityIdentifier("deskink.toolbar")
                 .disabled(!toolsEnabled)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
                 .frame(maxWidth: .infinity)
         }
+        // Leave room for a full-width 16:9 desktop on the 10.9-inch Air.
+        // Controls keep their own margins; the video reaches the screen edges.
+        .ignoresSafeArea(.container, edges: .horizontal)
         .background(Color.black.ignoresSafeArea())
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
