@@ -21,7 +21,7 @@ Windows를 개발 환경으로 사용하면서 iPad 코드는 GitHub의 macOS �
 1. Apple Devices에서 USB iPad가 인식되는지 확인합니다. 잠금 해제 후 **이 컴퓨터를 신뢰**를 허용합니다.
 2. iPad 설치 도구(개발 과정에서는 iloader 사용)를 공식 배포처에서 준비합니다. 로그인과 이중 인증은 본인이 설치 도구에서 직접 진행합니다.
 3. 연결한 iPad와 내려받은 `DeskInk-unsigned.ipa`를 선택하여 서명·설치합니다.
-4. iPad에서 개발자 앱 신뢰 또는 개발자 모드를 요구하면 설정 안내를 따릅니다. 개발자 모드에는 재시동이 필요할 수 있습니다.
+4. iPad에서 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**를 확인합니다. **설정 → 개인정보 보호 및 보안 → 개발자 모드**를 켜고 재시동합니다. 재시동 후 잠금을 풀고 확인창의 **켜기**를 누릅니다. 메뉴가 없다면 IPA를 먼저 설치하고 실행을 시도한 뒤 설정을 다시 엽니다.
 5. Windows DeskInk와 iPad DeskInk를 열고 Windows에 표시된 페어링 코드를 입력합니다.
 
 설치가 끝나면 설치 도구를 종료할 수 있습니다. 발표 중에는 Windows DeskInk, iPad DeskInk, USB 연결과 Apple 기기 연결 서비스가 필요합니다. Apple Devices는 기기 연결을 제공하며 앱 컴파일러는 아닙니다.
@@ -34,4 +34,4 @@ Windows를 개발 환경으로 사용하면서 iPad 코드는 GitHub의 macOS �
 
 서버 HTTP 502/503만으로 비밀번호 오류라고 단정하지 않습니다. 공개 문제 제보에는 앱 버전과 오류 문구를 우선 첨부하고 계정 정보·페어링 코드·토큰을 제거합니다.
 
-친구들이 초대 링크로 설치·업데이트하게 하려면 TestFlight를 별도로 구성해야 합니다. 비용·유효기간·준비 상태는 [한국어 README](../README.ko.md)에 정리했습니다.
+친구들은 직접 빌드할 필요 없이 [GitHub Release](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.3.0-lab.1)의 Windows ZIP·IPA를 사용하면 됩니다. [캡처 포함 설치 안내](https://zkdlwuthwo1-hash.github.io/deskink/README.html)에 iloader 설치, 개발자 모드, 도구 사용법과 갱신 방법을 정리했습니다.

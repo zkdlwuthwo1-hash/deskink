@@ -1,0 +1,7 @@
+[
+  {
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/v3.26.0/text/MIT.txt",
+    "package_declaration": "https://github.com/pdf-rs/fax",
+    "license": "MIT"
+  }
+]

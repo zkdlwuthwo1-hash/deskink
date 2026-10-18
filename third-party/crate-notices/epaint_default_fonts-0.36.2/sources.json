@@ -1,0 +1,14 @@
+[
+  {
+    "file": "LICENSE-APACHE",
+    "source": "https://raw.githubusercontent.com/emilk/egui/49682f8baa058bf49e011035cfbd6e825f88a5ef/LICENSE-APACHE"
+  },
+  {
+    "file": "LICENSE-MIT",
+    "source": "https://raw.githubusercontent.com/emilk/egui/49682f8baa058bf49e011035cfbd6e825f88a5ef/LICENSE-MIT"
+  },
+  {
+    "file": "crates/epaint_default_fonts/fonts/emoji-icon-font-mit-license.txt",
+    "source": "https://raw.githubusercontent.com/emilk/egui/49682f8baa058bf49e011035cfbd6e825f88a5ef/crates/epaint_default_fonts/fonts/emoji-icon-font-mit-license.txt"
+  }
+]

@@ -1,0 +1,31 @@
+DeskInk Windows portable distribution
+
+EternalMonitor's MIT copyright and permission notice is included in
+EternalMonitor-MIT.txt. Geist fonts use the SIL Open Font License in
+Geist-OFL.txt. Rust dependency notices are in rust/, indexed by rust/index.json.
+These licenses apply to their respective components.
+
+Microsoft Visual C++ Runtime
+The unmodified x64 vcruntime140.dll is redistributed from the Visual Studio
+2022 VC/Redist/MSVC directory, in accordance with the Visual Studio license.
+Copyright Microsoft Corporation. All rights reserved.
+Redistributable list:
+https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution
+License terms:
+https://visualstudio.microsoft.com/license-terms/vs2022-ga-diagnosticbuildtools/
+
+FFmpeg runtime (downloaded separately on first launch)
+This ZIP does not include FFmpeg binaries. The first-run helper downloads the
+unchanged LGPL shared runtime from BtbN/FFmpeg-Builds and verifies SHA-256 before
+extracting DLLs. Its original license is retained as runtime/LICENSE.txt.
+Build: ffmpeg-n7.1.5-12-g1fdbca85aa-win64-lgpl-shared-7.1
+Publisher archive:
+https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-31-14-10/ffmpeg-n7.1.5-12-g1fdbca85aa-win64-lgpl-shared-7.1.zip
+SHA256: 0f376f96fb38554ccefb1b2ae9c7c6a7b351f0e60a372b38262c320e8392c5d0
+Build scripts and configuration: https://github.com/BtbN/FFmpeg-Builds
+FFmpeg source: https://git.ffmpeg.org/ffmpeg.git
+License information: https://ffmpeg.org/legal.html
+
+Apple Devices and iloader are installed separately from their publishers.
+No Apple credentials, provisioning profiles or signing certificates are
+included in this distribution. Every iPad user signs with their own account.

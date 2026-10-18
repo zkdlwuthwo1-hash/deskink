@@ -1,136 +1,69 @@
 # DeskInk
 
-**Turn your Windows screen into a whiteboard with an iPad and Apple Pencil.**
+**Turn your Windows screen into a whiteboard with iPad and Apple Pencil.**
 
-**English** · [한국어](README.ko.md)
+**English** · [한국어](README.ko.md) · [Illustrated setup guide (한국어)](https://zkdlwuthwo1-hash.github.io/deskink/README.html)
 
-DeskInk mirrors a Windows monitor to your iPad over USB. Draw on the iPad and your strokes appear in a transparent overlay on the PC. Use it to explain slides, papers, code, and diagrams while controlling the PC with your normal mouse and keyboard.
+Mirror a Windows monitor to iPad over USB, then annotate it with pen, highlighter, eraser and laser. Pinch and pan on iPad without changing the Windows view. Use your normal mouse and keyboard to control the PC.
 
-> **Development preview.** This repository contains source and build instructions. A ready-to-install Windows release and a DeskInk TestFlight invitation have not been published yet. The current iPad build requires personal signing before installation.
+## Download
 
-## Features
+[**Download the lab preview**](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.3.0-lab.1)
 
-| Feature | Current behavior |
+| File | What to do |
 | --- | --- |
-| Drawing tools | Pen, highlighter, stroke eraser, laser pointer, and disappearing ink |
-| Editing | Color and width selection, undo/redo, clear current screen, and hide/show ink |
-| Pencil shortcuts | Double-tap on supported models; lifting the eraser returns to the previous tool |
-| iPad view | Pinch to zoom from 1× to 4× and pan with two fingers; Windows keeps its original scale |
-| Toolbar | Separate control area below the video so tools do not cover the writing surface |
-| Multiple monitors | Switch from Windows controls, desktop shortcuts, or Stream Deck; separate ink and undo history for each monitor |
-| Presentations | Overlay intended for full-monitor sharing in Zoom or similar apps; select screen sharing yourself |
+| `DeskInk-Windows-x64.zip` | Extract the entire ZIP on Windows; run `DeskInk.exe`. |
+| `DeskInk-iPad-unsigned.ipa` | Install on iPad using iloader and your own Apple account. |
+| `README.html` | Download and open in a browser for instructions with UI captures. |
+| `SHA256SUMS.txt` | Checksums of the download files. |
 
-The overlay passes mouse input through to the application beneath it. Finger drawing is off by default; two-finger gestures move the iPad view. Pencil hover depends on the iPad and Pencil hardware.
+No development tools or Mac are needed to use these downloads. This is an early preview. Windows 11 build 26200, Radeon 740M and two 1080p displays were tested; other Windows versions/GPUs need verification. The capture API used to keep ink out of the video stream requires a recent Windows version.
 
-## Requirements and limitations
+## Install once
 
-- **Windows x64:** validated on Windows 11 build 26200 with a Radeon 740M and two 1920×1080 monitors. Other PCs and GPU families still need testing. Capture requires Windows support for excluding the ink overlay from this app's own capture session; older Windows versions are not guaranteed to work.
-- **iPadOS 17 or newer**, a compatible Pencil, a USB data cable, and Apple's **Apple Devices** software on Windows. Accept **Trust This Computer** on the iPad.
-- The DeskInk annotation workflow currently uses **USB**. Bluetooth, Wi-Fi, and Ethernet annotation are not implemented.
-- Switching monitors briefly restarts the stream. It preserves each monitor's ink while the Windows app remains open.
-- Ink is stored in memory. **Closing the Windows app clears it.** Durable drawings, saved selection between separate PCs, and restoration after the iPad app terminates are not implemented.
-- USB pairing uses the code displayed by the Windows host. Restarting the host requires pairing again.
-- Actual Pencil-to-PC latency, compatibility across iPads, and the picture received by a Zoom participant still require physical-device testing. FPS and internal render timings are not end-to-end latency measurements.
+1. **Prepare the PC and iPad.** You need a Windows x64 PC, iPadOS 17+, a compatible Pencil and a data-capable USB cable. Install **Apple Devices** from the Microsoft Store, open it, connect the unlocked iPad and accept **Trust This Computer**. Keep Apple Devices open while using DeskInk.
+2. **Install DeskInk on Windows.** Extract the ZIP into a writable folder such as Documents. Run `DeskInk.exe` inside the extracted folder. The first launch downloads about 60 MB of video components from their publisher and verifies the checksum; Internet is required for this step. Later launches reuse them. Keep all files together.
+3. **Install DeskInk on iPad.** Download the Windows version of [iloader from its official site](https://iloader.app/). Its Windows instructions require iTunes; follow its prerequisite prompts if Apple components are missing. Select your connected iPad, sign in with **your own Apple account**, and complete two-factor authentication. Use **Import IPA**, select `DeskInk-iPad-unsigned.ipa`, then **Sign & Install App**. Wait for completion. Button labels can vary by iloader version/language.
+4. **Trust the developer if asked.** On iPad, open **Settings → General → VPN & Device Management → Developer App → your Apple account → Trust**. Follow any confirmation or restart prompt. Never use the author's Apple account.
+5. **Enable Developer Mode — required.** Open **Settings → Privacy & Security → Developer Mode**, turn it on, and tap **Restart**. After restarting, unlock iPad, tap **Turn On** in the confirmation, and enter the device passcode if requested. Then open DeskInk. If the menu is missing, install the IPA with iloader first, try opening DeskInk once, then reopen Settings. A school/work-managed device may restrict this setting. [Apple's instructions](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
 
-## Build the Windows host
+## Use each time
 
-Clone the repository and run commands from its root:
+1. Connect iPad by **USB**, unlock it, and open Apple Devices and Windows DeskInk.
+2. Choose **Screen 1 / Screen 2** in the Windows DeskInk window. Open DeskInk on iPad and enter the pairing code displayed on the PC. Restarting the Windows host requires pairing again.
+3. Draw with Pencil. Choose tools from the **bottom toolbar**:
 
-```powershell
-git clone https://github.com/zkdlwuthwo1-hash/deskink.git
-cd deskink
-```
-
-Install the Rust MSVC toolchain pinned in [rust-toolchain.toml](rust-toolchain.toml), Visual Studio C++ Build Tools with a Windows SDK, FFmpeg 7.1 **LGPL shared** headers/import libraries/runtime DLLs, and libclang. The scripts currently expect these local paths:
-
-```text
-.tools/
-  ffmpeg/ffmpeg-n7.1.5-12-g1fdbca85aa-win64-lgpl-shared-7.1/
-    include/  lib/  bin/
-  libclang/clang/native/libclang.dll
-```
-
-These dependencies are **not included in Git**, and there is no automatic dependency installer yet. The FFmpeg SDK used for development comes from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds). Check [scripts/windows-env.ps1](scripts/windows-env.ps1) when preparing the environment. The build/run/launcher scripts use the same fixed FFmpeg directory.
-
-```powershell
-./scripts/build-windows.ps1 -Release
-./scripts/run-windows.ps1 -Release -Monitor 0
-```
-
-The output is `target/monitor-switch/release/deskink.exe`, with a companion `deskink-launcher.exe`. Run **deskink**, the annotation entry point; the retained upstream `eternal-host` application has a different feature set.
-
-For two-monitor desktop shortcuts:
-
-```powershell
-./scripts/install-desktop-shortcuts.ps1
-```
-
-This creates `DeskInk - 화면 1` and `DeskInk - 화면 2` on the current user's Desktop. Add those shortcuts to Stream Deck's Open action. They select a monitor in the running app without opening a terminal. Monitor arguments are zero-based (`0`, `1`); confirm the selected display on your PC.
-
-## Build and install the iPad app
-
-**With a Mac:** install Xcode, an iPad simulator runtime, and XcodeGen, then run:
-
-```bash
-brew install xcodegen
-bash scripts/build-ipad.sh
-bash scripts/test-ipad.sh
-```
-
-Open the generated `ios/DeskInk.xcodeproj`, select the `EternalMonitor` target, and choose your own Team under Signing & Capabilities. Use a bundle identifier available to your account, then run on your connected iPad. The displayed app name is **DeskInk**; some internal target names are retained from the upstream project.
-
-**Without a local Mac:** fork the repository and manually run **Actions → Build iPad app → Run workflow**. The macOS job tests the app and produces an **unsigned** `DeskInk-unsigned.ipa` in the `DeskInk-iPad-…` artifact. Sign and install it locally with your own account using an iPad sideloading tool. Downloading the IPA alone does not install it. Artifacts are retained for three days. The workflow does not require Apple credentials.
-
-The current workflow was validated with Xcode 16.4. It is for development builds, not a configured TestFlight upload pipeline. For Korean walkthroughs, see [Windows-only setup](docs/windows-only-ipad.md) and [Mac setup](docs/mac-build.md).
-
-## First connection
-
-1. Open Apple Devices on Windows, connect the unlocked iPad with a USB data cable, and accept device trust if prompted.
-2. Start the Windows host and choose the monitor you want to annotate.
-3. Open DeskInk on the iPad and enter the pairing code from the Windows host.
-4. Draw a short line, erase it, and try undo. Pinch to zoom and check that the Windows view does not zoom.
-5. For a presentation, share the intended **whole monitor** and check from another participant's view that both ink and pointer are visible.
-
-## Sharing with a lab or team
-
-The intended release arrangement is a **Windows ZIP on GitHub Releases plus an iPad TestFlight invitation**. The Windows package still needs to bundle its runtime dependencies and notices and be checked on a PC without development tools.
-
-For an initial hands-on test, each tester can sign the unsigned IPA with their own Apple account. Free Personal Team provisioning expires after **7 days** and requires renewal. [Apple account limitations](https://developer.apple.com/help/account/basics/about-your-developer-account)
-
-For a smoother beta, the publisher can use **TestFlight**. Friends install the free TestFlight app and accept an invitation; they do not need your signing credentials. The first external build needs Apple's beta review, and each build is available for up to **90 days**. This requires App Store Connect, distribution signing, and a toolchain meeting Apple's current submission requirements. [TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/)
-
-Apple Developer Program membership for the publisher is **US$99 per year**, with local pricing varying by region. TestFlight is a beta channel; App Store distribution is the later route for ongoing general use. [Membership information](https://developer.apple.com/help/account/membership/program-enrollment/)
-
-## Tests and project structure
-
-```powershell
-# Windows: core/protocol, annotation, USB, and host tests
-./scripts/test-windows.ps1
-```
-
-```bash
-# Mac: unit tests and the self-contained viewport UI tests
-DESKINK_TEST_FILTER=EternalMonitorTests,EternalMonitorUITests/DeskInkViewportUITests \
-  bash scripts/test-ipad.sh
-```
-
-The [build 12 validation run](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39118670760) passed 164 iPad unit tests, two UI tests, and an unsigned device build. Windows regression checks cover ink editing, overlay pixels, monitor switching, and input contention. Physical-device checks remain separate from automated results.
-
-| Path | Purpose |
+| Tool / gesture | Action |
 | --- | --- |
-| `crates/ink-core/` | Stroke state, tools, undo/redo, and input protocol |
-| `crates/windows-platform/` | Windows overlay, capture, monitor control, and launcher |
-| `host/` | Rust streaming host and the DeskInk entry point |
-| `ios/` | Swift/SwiftUI iPad app, Pencil input, and Metal renderer |
-| `proto/` | Shared streaming protocol and fixtures |
-| `scripts/` | Build, test, run, and shortcut helpers |
+| Pen / highlighter | Persistent ink; choose color and width. |
+| Eraser | Erase whole strokes. Lift Pencil to return to the previous tool. Supported Pencil double-tap also toggles eraser. |
+| Laser / disappearing pen | Point without permanent ink / leave ink that fades after about two seconds. Hover requires compatible iPad and Pencil hardware. |
+| Undo / redo | Correct recent changes on the current monitor. |
+| Eye / trash | Hide/show ink / clear the current monitor's ink. Clear can be undone. |
+| Two-finger pinch / drag | Zoom (1–4×) / pan **on iPad only**. Tap **화면 맞춤** (Fit) to reset. Fingers do not draw by default. |
 
-[Requirements](docs/requirements.md) · [Verification plan](docs/verification-plan.md) · [Development history](docs/first-stroke-status.md) · [Issues](https://github.com/zkdlwuthwo1-hash/deskink/issues)
+To switch monitors from the desktop or Stream Deck, run **`DeskInk-Shortcuts.exe` once**. It creates **DeskInk - Screen 1 / Screen 2** desktop shortcuts. Add those shortcuts to Stream Deck's Open action. They switch the running host without a terminal window; the video reconnects briefly. Keep the extracted folder in the same location.
 
-Most detailed development notes are in Korean and include dated results from the original development machine. For bug reports, include app versions, Windows/iPadOS versions, GPU, monitor resolution, and reproduction steps. Remove pairing codes, tokens, and personal screen content from attachments.
+Ink stays separate for each monitor while the Windows host runs. **Closing Windows DeskInk clears all ink; there is no permanent save.** You can close iloader after installation. Keep DeskInk running and the USB cable connected while presenting.
 
-## Attribution and licenses
+In Zoom, manually share the **entire monitor** you annotate and verify ink/pointers from another participant's view. Individual-window sharing may omit the overlay.
 
-DeskInk builds on [EternalMonitor](https://github.com/sidebandstudio/EternalMonitor), imported at commit `9888f37a5a457c76ec1d960dc9d9f1115304e6a9`. Its [MIT copyright and license](third-party/EternalMonitor-LICENSE) are preserved. See [third-party notes](third-party/README.md), the [Geist font license](host/assets/fonts/OFL.txt), and [iPad dependency notices](ios/EternalMonitor/Resources/ThirdPartyNotices.txt).
+## Renew the iPad installation
 
-Dependencies retain their respective licenses; the upstream MIT notice does not cover every bundled component. A repository-wide reuse license for the DeskInk-specific additions has not yet been selected.
+A free Apple account signs development apps for **7 days**. Your Apple account does not expire and this is not an iloader trial. Before expiry, connect iPad to Windows and use iloader with **the same account and IPA** to **Sign & Install App** again. This renews the installation without a subscription. [Apple's free-account limits](https://developer.apple.com/help/account/basics/about-your-developer-account)
+
+## If something does not work
+
+- **iPad is not detected:** unlock it, confirm Trust, open Apple Devices, and try a data cable/another USB port.
+- **Developer cannot be trusted / Developer Mode required:** complete steps 4 and 5, including the confirmation after restart.
+- **App stopped opening after a week:** renew it with iloader as described above.
+- **Wrong monitor:** select Screen 1/2 and verify the actual screen. DeskInk numbering may differ from Windows Display Settings.
+- **Windows fails to start:** keep the entire extracted folder together and allow the first-run download. Logs are at `%LOCALAPPDATA%/DeskInk/logs`. Do not publish pairing codes or private screen contents when reporting errors.
+
+Bluetooth, Wi-Fi and Ethernet pen connections are not implemented in this preview. End-to-end latency, every iPad model and the remote Zoom view are not covered by automated tests.
+
+[Report an issue](https://github.com/zkdlwuthwo1-hash/deskink/issues) · [Build and test from source](docs/development.md) · [iPad cloud build](docs/windows-only-ipad.md)
+
+## Credits and licenses
+
+Based on [EternalMonitor](https://github.com/sidebandstudio/EternalMonitor), commit `9888f37a5a457c76ec1d960dc9d9f1115304e6a9`. Its [MIT notice](third-party/EternalMonitor-LICENSE) is preserved. The ZIP includes dependency notices under `licenses/`; iPad notices are [here](ios/EternalMonitor/Resources/ThirdPartyNotices.txt). Video components are downloaded separately from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) on first launch. Each third-party component retains its own license. A repository-wide license for newly added DeskInk code has not yet been assigned.

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="DeskInk 설치와 사용: Windows 화면을 iPad와 Pencil로 필기하기. iloader, 개발자 모드, 도구막대, 두 손가락 확대 안내.">
+<title>DeskInk · 설치와 사용</title>
+<style>
+:root{color-scheme:light;--ink:#172836;--muted:#566675;--line:#dbe3e8;--green:#126453;--paper:#fafbf9}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.75 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
+a{color:var(--green);text-underline-offset:4px}a:hover{text-decoration-thickness:2px}button,a{touch-action:manipulation}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #bd7b14;outline-offset:4px}
+header,main,footer{width:min(100% - 48px,960px);margin:auto}header{padding:58px 0 34px;border-bottom:1px solid var(--line)}.brand{font-size:15px;letter-spacing:.12em;color:var(--green);font-weight:750}.version{font-weight:500;color:var(--muted);letter-spacing:0;margin-left:12px}
+h1{font-size:clamp(32px,5vw,50px);line-height:1.25;letter-spacing:-.045em;margin:18px 0}h2{font-size:27px;line-height:1.4;letter-spacing:-.025em;margin:0 0 18px}h3{font-size:19px;line-height:1.5;margin:0 0 8px}p{margin:10px 0 16px}.lead{font-size:20px;max-width:760px;color:var(--muted)}.links{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 18px}.button{display:inline-block;border:1px solid var(--green);border-radius:8px;padding:10px 17px;text-decoration:none;font-weight:650}.primary{background:var(--green);color:#fff}.small,figcaption{font-size:14px;color:var(--muted);line-height:1.65}.nav{display:flex;gap:20px;flex-wrap:wrap;margin-top:26px;font-size:15px}
+section{padding:36px 0;border-bottom:1px solid var(--line)}.step{display:grid;grid-template-columns:42px 1fr;gap:16px;margin:25px 0}.number{width:34px;height:34px;display:grid;place-items:center;background:#e4eee9;color:var(--green);border-radius:50%;font-weight:750}.step p:last-child{margin-bottom:0}.note{border-left:3px solid var(--green);padding:12px 18px;background:#edf4f0;margin:18px 0}.path{font-weight:700;line-height:1.9}.restart{color:#914700;font-weight:750}code{font: .9em ui-monospace,Consolas,monospace;background:#eaf0ee;border-radius:4px;padding:2px 5px;word-break:break-word}ol,ul{padding-left:24px}li{margin:8px 0}
+figure{margin:24px 0}figure button{background:#101820;border:0;border-radius:12px;overflow:hidden;padding:0;display:block;width:100%;cursor:zoom-in}figure img{display:block;width:100%;height:auto}figcaption{margin-top:10px}.tools{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:18px}.tool{padding:16px 0;border-bottom:1px solid var(--line)}.tool>b{display:block}.tool p{margin:5px 0 0}.tool:last-child,.tool:nth-last-child(2){border:0}details{border-top:1px solid var(--line);padding:14px 0}summary{cursor:pointer;font-weight:650}details p{padding-left:4px}.flow{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:15px;font-weight:650}.flow span{background:#eaf0ee;padding:9px 14px;border-radius:6px}.flow i{font-style:normal;color:var(--muted)}
+footer{padding:30px 0 46px;font-size:14px;color:var(--muted)}dialog{border:0;padding:16px;background:#13212b;color:#fff;width:min(96vw,1500px);max-height:95vh;border-radius:10px}dialog::backdrop{background:#06131be6}dialog img{display:block;max-width:100%;max-height:80vh;width:auto;height:auto;margin:auto}dialog button{display:block;margin:0 0 12px auto;background:white;color:#172836;border:0;border-radius:6px;padding:10px 18px;font-size:16px;cursor:pointer}
+@media(max-width:640px){body{font-size:16px}header,main,footer{width:calc(100% - 32px)}header{padding:32px 0 25px}.lead{font-size:18px}h2{font-size:24px}.step{grid-template-columns:30px 1fr;gap:12px}.number{width:29px;height:29px}.tools{grid-template-columns:1fr}.tool:nth-last-child(2){border-bottom:1px solid var(--line)}section{padding:28px 0}.flow{gap:7px;font-size:13px}.flow span{padding:8px}.nav{gap:12px 18px}.note{padding:10px 14px}}
+@media print{body{background:#fff;font-size:11pt}header,main,footer{width:100%}.links,.nav,dialog{display:none}section,figure,.step{break-inside:avoid}figure img{max-height:350px;object-fit:contain}}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">DESKINK <span class="version">연구실 공유용 · v0.3.0-lab.1</span></div>
+<h1>Windows 화면에<br>아이패드로 필기하기</h1>
+<p class="lead">논문, 슬라이드, 코드를 띄운 화면이 그대로 칠판이 됩니다. USB로 연결하고 Pencil로 쓰세요. PC 조작은 평소처럼 마우스로 합니다.</p>
+<div class="links"><a class="button primary" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.3.0-lab.1">설치 파일 받기 ↗</a><a class="button" href="https://github.com/zkdlwuthwo1-hash/deskink">GitHub</a><a class="button" href="https://github.com/zkdlwuthwo1-hash/deskink/blob/main/README.md" lang="en">English README</a></div>
+<p class="small">준비물: Windows x64 PC · iPadOS 17 이상 · 호환 Pencil · 데이터 전송용 USB 케이블<br>개발 도구나 Mac은 필요 없습니다. Windows 11 빌드 26200에서 검증한 미리보기 버전입니다.</p>
+<nav class="nav" aria-label="안내 목차"><a href="#install">① 설치</a><a href="#developer">② 개발자 모드</a><a href="#use">③ 사용법</a><a href="#renew">④ 7일 갱신</a><a href="#help">막힐 때</a></nav>
+</header>
+<main>
+<section id="install"><h2>1. PC와 아이패드에 설치하기</h2>
+<div class="flow" aria-label="Windows에서 USB를 통해 iPad와 연결"><span>Windows + DeskInk</span><i>↔ USB ↔</i><span>iPad + DeskInk</span></div>
+<div class="step"><div class="number">1</div><div><h3>Apple Devices로 USB 연결 준비</h3><p>Microsoft Store에서 <b>Apple Devices</b>를 설치하고 엽니다. 아이패드를 USB로 연결한 뒤 잠금을 풀고 <b>이 컴퓨터를 신뢰</b>를 누르세요. DeskInk를 사용하는 동안 Apple Devices를 열어 둡니다.</p></div></div>
+<div class="step"><div class="number">2</div><div><h3>Windows ZIP을 풀고 실행</h3><p>다운로드 페이지에서 <code>DeskInk-Windows-x64.zip</code>을 받습니다. 문서 폴더 등 쓰기 가능한 위치에 <b>전체 압축 해제</b>하고 <code>DeskInk.exe</code>를 엽니다.</p><p class="small">첫 실행에서 영상 구성요소 약 60MB를 배포처에서 내려받아 검사합니다. 이때 인터넷이 필요하며, 다음 실행부터는 재사용합니다. 폴더 안의 파일들은 함께 보관하세요.</p></div></div>
+<div class="step"><div class="number">3</div><div><h3>iloader에서 iPad IPA 설치</h3><p><code>DeskInk-iPad-unsigned.ipa</code>도 PC에 받습니다. <a href="https://iloader.app/">iloader 공식 사이트</a>에서 Windows용 iloader를 설치하고, 연결된 아이패드를 선택합니다.</p><ol><li><b>본인 Apple 계정</b>으로 로그인하고 이중 인증을 완료합니다.</li><li><b>Import IPA / IPA 가져오기</b>에서 내려받은 IPA를 고릅니다.</li><li><b>Sign &amp; Install App</b>을 누르고 설치 완료를 기다립니다.</li></ol><p class="small">iloader는 무료입니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 메시지가 나오면 해당 안내에 따라 설치하세요. 버튼 이름은 iloader 버전·언어에 따라 조금 다를 수 있습니다. 제작자의 계정은 필요 없습니다.</p></div></div>
+</section>
+<section id="developer"><h2>2. 아이패드에서 실행 허용하기</h2>
+<p>IPA 설치가 끝나도 처음에는 실행이 막힐 수 있습니다. <b>개발자 신뢰</b>와 <b>개발자 모드</b>를 아래 순서로 확인하세요.</p>
+<div class="step"><div class="number">1</div><div><h3>“개발자를 신뢰할 수 없음”이 나오면</h3><p class="path">설정 → 일반 → VPN 및 기기 관리<br>→ 개발자 앱 → 본인 Apple 계정 → 신뢰</p><p>추가 확인이나 재시동 안내가 나오면 따릅니다.</p></div></div>
+<div class="step"><div class="number">2</div><div><h3>개발자 모드 켜기</h3><p class="path">설정 → 개인정보 보호 및 보안<br>→ 개발자 모드 → 켜기 → 재시동</p><p class="restart">재시동 후 잠금을 풀고, 확인창의 ‘켜기’를 한 번 더 누르세요.</p><p>기기 암호를 요청하면 입력합니다. 이제 홈 화면에서 DeskInk를 엽니다.</p></div></div>
+<div class="note"><b>‘개발자 모드’ 메뉴가 안 보인다면</b><br>iloader로 IPA를 먼저 설치하고 DeskInk 실행을 한 번 시도한 뒤 설정을 다시 여세요. 학교·회사 관리 기기에서는 이 설정이 제한될 수 있습니다.</div>
+<p class="small">설정 화면의 표현은 iPadOS 버전에 따라 조금 다를 수 있습니다. <a href="https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device">Apple 개발자 모드 안내</a></p>
+</section>
+<section id="use"><h2>3. 연결하고 필기하기</h2>
+<p>USB 연결을 유지한 채 PC에서 Apple Devices와 DeskInk를 엽니다. PC의 <b>Screen 1 / Screen 2</b>를 고른 뒤, 아이패드 DeskInk에 <b>PC에 표시된 페어링 코드</b>를 입력합니다. PC DeskInk를 재시작하면 다시 페어링합니다.</p>
+<figure><button type="button" class="enlarge" aria-label="iPad 작업 화면 캡처 확대"><img src="{{WORKSPACE}}" width="2420" height="1668" alt="iPad 가로 화면: 중앙의 파란 테스트 화면 아래 검은 영역에 펜·형광펜·지우개·레이저 등 도구막대가 있고 위에는 화면 맞춤 버튼이 있습니다."></button><figcaption>iPad 앱 시뮬레이터 캡처. 파란 화면과 노란 표시는 테스트용 배경이고, 위의 ‘필기 이벤트’는 검사 표시입니다. 실제 연결 시에는 PC 화면이 표시됩니다. 아래 도구막대는 필기 화면 밖에 있습니다. 이미지를 누르면 확대됩니다.</figcaption></figure>
+<div class="tools">
+<div class="tool"><b>펜 · 형광펜</b><p>Pencil로 필기를 남깁니다. <b>색상</b>과 <b>굵기</b>에서 원하는 모양을 고릅니다.</p></div>
+<div class="tool"><b>지우개</b><p>닿은 선을 통째로 지웁니다. <b>펜을 떼면 이전 도구로 복귀</b>합니다. 지원 Pencil은 두 번 탭으로도 전환합니다.</p></div>
+<div class="tool"><b>레이저 · 사라지는 펜</b><p>위치를 가리키거나 약 2초 뒤 사라지는 선을 남깁니다. 화면에 대기 전 포인터 표시는 호버 지원 기기가 필요합니다.</p></div>
+<div class="tool"><b>취소 · 다시 · 눈 · 휴지통</b><p>실행 취소/다시 실행, 필기 숨기기/보이기, 현재 모니터 전체 지우기입니다. 전체 지우기도 취소할 수 있습니다.</p></div>
+</div>
+<figure><button type="button" class="enlarge" aria-label="도구막대 테스트 캡처 확대"><img src="{{TOOLS}}" width="2048" height="1536" alt="도구막대 구성 테스트 캡처: 펜, 형광펜, 지우개, 레이저, 사라지는 펜, 색상, 굵기, 취소, 다시, 숨기기, 지우기 순서입니다." loading="lazy"></button><figcaption>실제 SwiftUI 도구막대를 렌더링한 구성 테스트 캡처입니다. 배경 창은 예시이며, 전체 앱의 화면 배치는 위 첫 번째 캡처를 참고하세요.</figcaption></figure>
+<h3>아이패드에서만 확대·이동</h3><p><b>두 손가락을 벌리면 1~4배 확대</b>되고, 두 손가락으로 끌면 화면이 이동합니다. <b>화면 맞춤</b>을 누르면 돌아옵니다. Windows 화면의 배율은 그대로이며, 손가락으로는 기본적으로 필기되지 않습니다.</p>
+<h3>바탕화면·Stream Deck에서 화면 전환</h3><p>압축을 푼 폴더의 <code>DeskInk-Shortcuts.exe</code>를 한 번 실행하면 바탕화면에 <b>DeskInk - Screen 1 / Screen 2</b>가 생깁니다. Stream Deck의 <b>열기</b> 동작에 이 바로가기를 등록하세요. 실행 중인 DeskInk의 화면이 터미널 창 없이 바뀝니다. 영상은 잠시 다시 연결됩니다.</p><p class="small">DeskInk 번호는 Windows 디스플레이 설정의 번호와 다를 수 있습니다. 바로가기를 만든 후에는 압축을 푼 폴더를 같은 위치에 두세요.</p>
+<h3>Zoom 발표와 종료</h3><p>Zoom에서는 직접 <b>필기하는 모니터 전체</b>를 공유하고 상대방에게 필기·포인터가 보이는지 확인하세요. 특정 앱 창만 공유하면 필기가 빠질 수 있습니다.</p><p>iloader는 설치 후 꺼도 됩니다. 사용 중에는 DeskInk를 켜 두고 USB를 연결해 두세요. 화면별 필기는 실행 중에 따로 유지되지만, <b>Windows DeskInk를 종료하면 모두 지워집니다.</b> 영구 저장 기능은 없습니다.</p>
+</section>
+<section id="renew"><h2>4. 7일마다 설치 갱신하기</h2><p>무료 Apple 계정으로 설치한 개발용 앱의 서명은 <b>7일 후 만료</b>됩니다. Apple 계정이 만료되거나 iloader 유료 체험이 끝나는 것은 아닙니다.</p><p><b>USB 연결 → iloader 로그인 → 같은 IPA 선택 → Sign &amp; Install App</b>을 같은 Apple 계정으로 다시 진행하세요. 기존 앱 위에 다시 설치하며, 구독 없이 갱신합니다.</p><p class="small"><a href="https://developer.apple.com/help/account/basics/about-your-developer-account">Apple 무료 계정 제한 안내</a></p></section>
+<section id="help"><h2>막힐 때 확인하기</h2>
+<details><summary>아이패드가 PC에 나타나지 않아요</summary><p>아이패드 잠금을 풀고 컴퓨터 신뢰를 확인하세요. Apple Devices를 열고, 충전 전용이 아닌 데이터 케이블과 다른 USB 포트를 시험하세요.</p></details>
+<details><summary>개발자 앱을 사용할 수 없거나 개발자 모드가 필요하대요</summary><p><a href="#developer">실행 허용하기</a>를 따라 개발자 신뢰와 개발자 모드를 확인하세요. 재시동 후 <b>켜기</b> 확인을 마쳐야 합니다. 일주일 뒤부터 안 열린다면 iloader로 다시 서명·설치하세요.</p></details>
+<details><summary>Windows DeskInk가 실행되지 않아요</summary><p>ZIP 안에서 바로 실행하지 말고 전체 압축을 푸세요. 첫 실행에는 인터넷과 폴더 쓰기 권한이 필요합니다. 오류 로그는 <code>%LOCALAPPDATA%/DeskInk/logs</code>에 있습니다. <a href="https://github.com/zkdlwuthwo1-hash/deskink/issues">문제 제보</a> 시 페어링 코드와 개인 화면 내용은 제외하세요.</p></details>
+<p class="small">이 버전은 USB 연결용입니다. Bluetooth·Wi-Fi·이더넷 필기 연결은 구현되어 있지 않습니다. Windows 11 빌드 26200 / Radeon 740M / 1080p 모니터 두 대에서 검증했으며 다른 PC·iPad와 Zoom 수신 화면은 추가 확인이 필요합니다.</p>
+</section>
+</main>
+<footer>DeskInk · 2026-10-18 · <a href="https://github.com/zkdlwuthwo1-hash/deskink/blob/main/README.ko.md">한국어 README</a> · <a href="https://github.com/zkdlwuthwo1-hash/deskink/blob/main/docs/development.md">개발·테스트 안내</a><br>UI 캡처: DeskInk build 12 자동 검사 · <a href="https://github.com/zkdlwuthwo1-hash/deskink/blob/main/docs/images/README.md">캡처 출처</a>. 이 HTML은 그림을 내장하여 내려받은 파일 하나로도 볼 수 있습니다.</footer>
+<dialog id="viewer" aria-label="캡처 확대"><button type="button" id="close-viewer">닫기 · Esc</button><img alt=""></dialog>
+<script>
+const viewer=document.getElementById('viewer');
+document.querySelectorAll('.enlarge').forEach(button=>button.addEventListener('click',()=>{const img=button.querySelector('img');const full=viewer.querySelector('img');full.src=img.src;full.alt=img.alt;viewer.showModal();}));
+document.getElementById('close-viewer').addEventListener('click',()=>viewer.close());
+viewer.addEventListener('click',event=>{if(event.target===viewer)viewer.close();});
+</script>
+</body></html>
