@@ -125,6 +125,15 @@ final class DeskInkDocument {
     var canRedo: Bool { !redoStack.isEmpty }
     var renderStrokes: [DeskInkStroke] { visible ? strokes + temporary : [] }
 
+    /// Mirror the host's reconnect rule. An interrupted stroke remains an
+    /// ordinary undoable edit; a stale laser or temporary stroke is not revived.
+    func suspend() {
+        for id in strokes.filter({ !$0.finished }).map(\.id) { apply(.end(id: id)) }
+        if let eraser { apply(.eraseEnd(id: eraser.id)) }
+        temporary.removeAll()
+        pointer = nil
+    }
+
     @discardableResult
     func apply(_ command: DeskInkCommand) -> Bool {
         switch command {

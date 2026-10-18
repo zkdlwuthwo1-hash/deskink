@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DeskInkDisplay: View {
     @EnvironmentObject private var connection: ConnectionManager
-    @State private var tools = DeskInkTools()
+    private var tools: DeskInkTools { connection.deskInkTools }
 
     private var toolsSupported: Bool { (connection.hostInfo?.hostCaps ?? 0) & 0x2000 != 0 }
 
@@ -12,7 +12,8 @@ struct DeskInkDisplay: View {
                           enabled: !connection.signalLost && connection.transportMode == "USB" && toolsSupported,
                           connectionKey: "\(connection.hostInfo?.sessionId ?? 0):\(connection.hostStreamConfig?.streamEpoch ?? 0)",
                           tools: tools,
-                          send: connection.sendInk)
+                          send: connection.sendInk,
+                          document: connection.deskInkDocuments.current)
         } header: {
             HStack {
                 Label(connection.signalLost ? "연결 복구 중" : toolsSupported ? "DeskInk · USB" : "Windows DeskInk를 업데이트하세요", systemImage: "cable.connector")

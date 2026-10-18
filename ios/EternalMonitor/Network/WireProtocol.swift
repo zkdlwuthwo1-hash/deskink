@@ -253,6 +253,7 @@ struct Hello2: Equatable {
     static let featureWantsInput: UInt16 = 1 << 0
     static let featureWantsAudio: UInt16 = 1 << 1
     static let featureSupportsNack: UInt16 = 1 << 2
+    static let featureMonitorBoards: UInt16 = 1 << 3
     static let maxNameLength = 64
 
     var protoMin: UInt8 = 2

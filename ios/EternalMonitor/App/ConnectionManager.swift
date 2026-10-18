@@ -68,6 +68,8 @@ private struct ConnectionDebugState {
 
 @MainActor
 final class ConnectionManager: ObservableObject {
+    let deskInkDocuments = DeskInkMonitorDocuments()
+    let deskInkTools = DeskInkTools()
     @Published var state: ConnectionState = .disconnected
     @Published var fps: Double = 0
     @Published var transportMode: String = "WiFi"
@@ -436,6 +438,11 @@ final class ConnectionManager: ObservableObject {
                 guard let self, self.currentAttempt.withLock({ $0 == connectionID }) else { return }
                 self.livenessTimeoutUs = UInt64(info.livenessTimeoutMs) * 1000
                 self.reconnectAttempt = 0
+                if info.hostCaps & 0x1000 != 0 {
+                    self.deskInkTools.canvas?.finish(sendEnd: false)
+                    self.deskInkDocuments.select(hostToken: info.authToken,
+                        monitor: info.hostCaps & 0x4000 != 0 ? info.hostName : "default")
+                }
                 self.hostInfo = info
                 if self.awaitingPairing {
                     self.awaitingPairing = false
@@ -540,7 +547,8 @@ final class ConnectionManager: ObservableObject {
             refreshHz: UInt8(clamping: screen.maximumFramesPerSecond),
             decoderCaps: Hello2.capDecodeH264 | Hello2.capDecodeHEVC,
             featureCaps: (wantsInput ? Hello2.featureWantsInput : 0)
-                | (wantsAudio ? Hello2.featureWantsAudio : 0) | (isUSB ? 0 : Hello2.featureSupportsNack),
+                | (wantsAudio ? Hello2.featureWantsAudio : 0) | (isUSB ? 0 : Hello2.featureSupportsNack)
+                | Hello2.featureMonitorBoards,
             deviceId: DeviceIdentity.load(),
             preferredFPS: drawing.preferredFPS(UserDefaults.standard.frameRatePreference(), maximum: screen.maximumFramesPerSecond),
             authToken: pairingToken

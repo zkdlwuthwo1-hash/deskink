@@ -5,7 +5,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     var send: ([DeskInkCommand]) -> Void = { _ in }
     var onPencilActive: (Bool) -> Void = { _ in }
     weak var tools: DeskInkTools?
-    let document = DeskInkDocument()
+    private(set) var document = DeskInkDocument()
     private var videoSize = CGSize.zero
     private var enabled = false
     private var connectionKey = ""
@@ -47,6 +47,18 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         } else { finish() }
     }
     private static var nowMs: UInt64 { UInt64(ProcessInfo.processInfo.systemUptime * 1000) }
+
+    func useDocument(_ document: DeskInkDocument) {
+        guard self.document !== document else { return }
+        finish(sendEnd: false)
+        self.document.suspend()
+        self.document = document
+        // Remove old layers even if two restored boards contain the same ID.
+        for stroke in rendered.values { stroke.layer.removeFromSuperlayer() }
+        rendered.removeAll()
+        synchronizeLayers()
+        updateControls()
+    }
 
     func configure(videoSize: CGSize, enabled: Bool, connectionKey: String) {
         if self.connectionKey != connectionKey || self.videoSize != videoSize {

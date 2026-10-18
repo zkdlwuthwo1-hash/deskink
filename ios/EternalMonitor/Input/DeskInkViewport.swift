@@ -10,6 +10,7 @@ struct DeskInkViewport: UIViewRepresentable {
     let connectionKey: String
     let tools: DeskInkTools
     let send: ([DeskInkCommand]) -> Void
+    var document: DeskInkDocument? = nil
 
     func makeCoordinator() -> MetalView.Coordinator { MetalView.Coordinator() }
     func makeUIView(context: Context) -> DeskInkViewportView {
@@ -18,6 +19,7 @@ struct DeskInkViewport: UIViewRepresentable {
     }
     func updateUIView(_ view: DeskInkViewportView, context: Context) {
         view.configure(videoSize: videoSize, enabled: enabled, connectionKey: connectionKey, tools: tools, send: send)
+        if let document { view.canvas.useDocument(document) }
     }
     static func dismantleUIView(_ view: DeskInkViewportView, coordinator: MetalView.Coordinator) {
         view.canvas.finish()
