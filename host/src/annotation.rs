@@ -1,6 +1,6 @@
 use crate::{
     capture::OutputInfo,
-    transport::link::{LinkId, PeerId},
+    transport::link::PeerId,
 };
 use deskink_core::InkSession;
 use parking_lot::Mutex;
@@ -69,7 +69,7 @@ impl AnnotationState {
         epoch: u32,
         bytes: &[u8],
     ) -> bool {
-        if active_peer != Some(peer) || !matches!(peer.link, LinkId::Usb { .. }) {
+        if active_peer != Some(peer) || !peer.link.is_usb() {
             return false;
         }
         let Some(session) = session.filter(|id| *id != 0) else {

@@ -29,7 +29,7 @@ use crate::capture::{enumerate_outputs, OutputInfo};
 use crate::control::{CaptureTarget, GuiControl};
 use crate::settings::SettingsFile;
 use crate::stats::PIPELINE_STATS;
-use crate::transport::link::{LinkId, PeerId};
+use crate::transport::link::PeerId;
 use crate::transport::session::ClientInfo;
 use eternal_wire::v2::control::ReceiverReport;
 
@@ -139,7 +139,7 @@ impl ClientSnapshot {
     fn link_name(&self) -> &'static str {
         if self
             .peer
-            .is_some_and(|p| matches!(p.link, LinkId::Usb { .. }))
+            .is_some_and(|p| p.link.is_usb())
         {
             "USB"
         } else {

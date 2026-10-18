@@ -87,6 +87,16 @@ try {
         Write-Output 'DeskInk runtime check passed.'
         exit 0
     }
+    $shortcutMarker = Join-Path $runtimeDir 'desktop-shortcuts-created'
+    if (-not (Test-Path -LiteralPath $shortcutMarker)) {
+        try {
+            & (Join-Path $PSScriptRoot 'create-shortcuts.ps1') -Quiet
+            Set-Content -LiteralPath $shortcutMarker -Value '1' -Encoding ASCII
+        } catch {
+            # A redirected or read-only Desktop must not prevent presentation.
+            Add-Content -LiteralPath $errorLog -Value "Could not create desktop shortcuts: $($_.Exception.Message)"
+        }
+    }
     $running = Get-Process deskink -ErrorAction SilentlyContinue
     $arguments = if ($running) { "--monitor $Monitor --switch-only" } else { "--monitor $Monitor" }
     $process = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory $packageRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errorLog

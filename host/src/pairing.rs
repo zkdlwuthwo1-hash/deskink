@@ -8,7 +8,7 @@ use eternal_wire::v2::control::{Hello2, HelloStatus};
 use subtle::ConstantTimeEq;
 use tracing::{info, warn};
 
-use crate::transport::link::{LinkId, PeerId};
+use crate::transport::link::PeerId;
 
 const WINDOW: Duration = Duration::from_secs(60);
 const MAX_IPS: usize = 64;
@@ -138,7 +138,7 @@ impl Pairing {
                 used_code: false,
             });
         }
-        let usb = matches!(peer.link, LinkId::Usb { .. });
+        let usb = peer.link.is_usb();
         if usb && self.require_usb_code && self.usb_limiter.blocked((), now) {
             return Err(HelloStatus::RateLimited);
         }

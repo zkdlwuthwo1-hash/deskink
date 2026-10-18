@@ -14,6 +14,11 @@ artifacts/local/
 .env
 .env.*
 !.env.example
+*.jks
+*.keystore
+android/.gradle/
+android/**/build/
+android/local.properties
 
 # Editor and OS state
 .DS_Store

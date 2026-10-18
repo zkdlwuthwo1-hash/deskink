@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">DeskInk</string>
+    <string name="pen">Pen</string><string name="highlighter">Highlight</string><string name="eraser">Eraser</string><string name="laser">Laser</string><string name="vanishing">Fade</string>
+    <string name="undo">Undo</string><string name="redo">Redo</string><string name="clear">Clear all</string><string name="hide">Show / hide</string><string name="fit">Fit</string>
+    <string name="color">Color</string><string name="width">Width</string><string name="pair">Pair PC</string><string name="help">USB help</string>
+    <string name="waiting">Waiting for your PC · USB</string>
+    <string name="welcome">Your Windows screen, ready for your pen.</string>
+    <string name="connect_hint">Connect a USB data cable and open DeskInk on your PC.\nTwo fingers to zoom and move. Hold the S Pen button to erase.</string>
+    <string name="usb_help">1. Install the APK on your tablet.\n2. Settings → About tablet → Software information → tap Build number 7 times.\n3. Developer options → USB debugging: on.\n4. Connect a USB data cable and allow this PC on the tablet.\n5. Run DeskInk-Android.exe on Windows, then enter the PC’s six-digit code here.\n\nOnly authorize computers you trust. Turn off USB debugging when you no longer use the USB connection.</string>
+    <string name="pair_hint">Enter the six-digit code displayed in the Windows DeskInk window.</string>
+    <string name="connect">Connect</string><string name="cancel">Cancel</string>
+    <string name="pair_required">Enter your PC’s pairing code</string><string name="rate_limited">Too many attempts. Wait one minute, then enter the code.</string>
+    <string name="busy">This PC is connected to another tablet.</string><string name="incompatible">Update the Windows DeskInk app to connect.</string>
+    <string name="not_connected">Connect the USB cable and open DeskInk on Windows first.</string>
+    <string name="invalid_code">Enter six digits.</string><string name="connected">%1$s · USB · %2$d × %3$d</string>
+    <string name="thin">Thin</string><string name="medium">Medium</string><string name="thick">Thick</string>
+    <string-array name="colors"><item>Orange</item><item>Red</item><item>Yellow</item><item>Green</item><item>Blue</item><item>White</item><item>Black</item></string-array>
+</resources>

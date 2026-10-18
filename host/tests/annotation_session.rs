@@ -20,6 +20,18 @@ fn annotations() -> AnnotationState {
 const START: &[u8] = br#"{"version":1,"session":42,"epoch":3,"seq":1,"command":{"type":"begin","id":7,"brush":{"color":[255,80,40,255],"width":4},"point":{"x":100,"y":200,"pressure":0.4}}}"#;
 
 #[test]
+fn android_usb_can_draw_only_in_its_authenticated_session() {
+    let annotations = annotations();
+    let android = PeerId::android_usb();
+    let ipad = PeerId::usb(0);
+    assert_ne!(android, ipad);
+    assert!(!annotations.receive(android, Some(ipad), Some(42), 3, START));
+    assert!(!annotations.receive(android, Some(android), Some(99), 3, START));
+    assert!(annotations.receive(android, Some(android), Some(42), 3, START));
+    assert_eq!(annotations.ink.lock().board().strokes().len(), 1);
+}
+
+#[test]
 fn switching_monitors_keeps_each_board_and_retiring_inputs_on_their_original_screen() {
     use eternal_host::annotation::AnnotationWorkspace;
     use std::sync::Arc;

@@ -1,0 +1,17 @@
+<resources>
+    <string name="pen">펜</string><string name="highlighter">형광펜</string><string name="eraser">지우개</string><string name="laser">레이저</string><string name="vanishing">사라지는 펜</string>
+    <string name="undo">실행 취소</string><string name="redo">다시 실행</string><string name="clear">전체 지우기</string><string name="hide">필기 숨기기</string><string name="fit">화면 맞춤</string>
+    <string name="color">색상</string><string name="width">굵기</string><string name="pair">PC 연결</string><string name="help">USB 연결 도움말</string>
+    <string name="waiting">PC 연결 대기 중 · USB</string>
+    <string name="welcome">Windows 화면을 펜으로 설명하세요.</string>
+    <string name="connect_hint">USB 데이터 케이블로 연결하고 PC에서 DeskInk를 실행하세요.\n두 손가락으로 확대·이동하고, S펜 버튼을 누르는 동안 지울 수 있습니다.</string>
+    <string name="usb_help">1. 태블릿에 APK를 설치하세요.\n2. 설정 → 태블릿 정보 → 소프트웨어 정보 → 빌드번호를 7번 누르세요.\n3. 개발자 옵션 → USB 디버깅을 켜세요.\n4. USB 데이터 케이블로 연결하고 태블릿에서 이 PC를 허용하세요.\n5. Windows에서 DeskInk-Android.exe를 실행한 뒤 PC에 표시된 6자리 코드를 입력하세요.\n\n신뢰하는 PC만 허용하세요. USB 연결을 더 이상 사용하지 않을 때는 USB 디버깅을 끌 수 있습니다.</string>
+    <string name="pair_hint">Windows DeskInk 창에 표시된 6자리 코드를 입력하세요.</string>
+    <string name="connect">연결</string><string name="cancel">취소</string>
+    <string name="pair_required">PC의 페어링 코드를 입력하세요</string><string name="rate_limited">시도 횟수가 많습니다. 1분 후 코드를 다시 입력하세요.</string>
+    <string name="busy">이 PC가 다른 태블릿과 연결되어 있습니다.</string><string name="incompatible">Windows DeskInk를 최신 버전으로 업데이트하세요.</string>
+    <string name="not_connected">USB를 연결하고 Windows에서 DeskInk를 먼저 실행하세요.</string>
+    <string name="invalid_code">6자리 숫자를 입력하세요.</string><string name="connected">%1$s · USB · %2$d × %3$d</string>
+    <string name="thin">얇게</string><string name="medium">보통</string><string name="thick">굵게</string>
+    <string-array name="colors"><item>주황</item><item>빨강</item><item>노랑</item><item>초록</item><item>파랑</item><item>흰색</item><item>검정</item></string-array>
+</resources>

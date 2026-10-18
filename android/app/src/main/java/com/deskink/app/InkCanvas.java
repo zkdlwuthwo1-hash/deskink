@@ -1,0 +1,198 @@
+package com.deskink.app;
+
+import android.content.Context;
+import android.graphics.*;
+import android.os.SystemClock;
+import android.view.MotionEvent;
+import android.view.View;
+import com.deskink.core.*;
+import org.json.*;
+import java.util.function.Predicate;
+import java.util.*;
+
+/** Native stylus input; fingers never generate Windows ink or mouse events. */
+public final class InkCanvas extends View {
+    private final PenInput pen=new PenInput();
+    public final Viewport viewport=new Viewport();
+    private InkDocument document=new InkDocument();
+    private Predicate<JSONObject> sender;
+    private int desktopWidth=1920,desktopHeight=1080;
+    private long nextId=System.currentTimeMillis(),gestureId;
+    private PenInput.Tool activeTool;
+    private int pointerId=-1;
+    private int[] color={255,80,40,255};
+    private float width=4;
+    private float fingerX,fingerY,fingerSpan;
+    private int fingerA=-1,fingerB=-1;
+    public Runnable stateChanged=() -> {};
+    public Runnable transformChanged=() -> {};
+    private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Map<InkDocument.Stroke,StrokePath> paths=new IdentityHashMap<>();
+    private Bitmap completedInk;
+    private long cachedRevision=-1;
+    private float cachedScale,cachedX,cachedY;
+    private static final class StrokePath { final Path path=new Path(); int count; }
+    public InkCanvas(Context context) { super(context); setFocusable(true); setContentDescription("DeskInk drawing surface"); }
+    public void bind(InkDocument document,Predicate<JSONObject> sender,int w,int h) {
+        disconnect(); this.document=document; this.sender=sender; desktopWidth=w; desktopHeight=h;
+        paths.clear(); cachedRevision=-1;
+        viewport.resize(getWidth(),getHeight(),w,h); transformChanged.run(); invalidate();
+    }
+    public void disconnect() { finish(true); pen.cancel(); pointerId=-1; sender=null; document.suspend(); invalidate(); }
+    public PenInput.Tool tool() { return pen.tool(); }
+    public void select(PenInput.Tool tool) { finish(true); pen.select(tool); stateChanged.run(); }
+    public void color(int[] rgba) { color=rgba.clone(); }
+    public void width(float value) { width=value; }
+    public void command(String type) { finish(true); emit(Ink.command(type)); }
+    public void visible(boolean visible) { finish(true); emit(Ink.object("type","set_visible","visible",visible)); }
+    private void emit(JSONObject command) {
+        if(sender==null) return;
+        if(!sender.test(command)) { sender=null; document.suspend(); return; }
+        document.advanceTime(SystemClock.uptimeMillis()); document.apply(command); invalidate();
+    }
+    @Override protected void onSizeChanged(int w,int h,int oldW,int oldH) {
+        viewport.resize(w,h,desktopWidth,desktopHeight);
+        transformChanged.run();
+    }
+    public void resetZoom() { viewport.reset(); transformChanged.run(); invalidate(); }
+    private void fingers(MotionEvent e) {
+        int a=-1,b=-1;
+        for(int i=0;i<e.getPointerCount();i++) if(e.getToolType(i)==MotionEvent.TOOL_TYPE_FINGER) {
+            if(a<0) a=i; else if(b<0) b=i;
+        }
+        int action=e.getActionMasked();
+        if(a<0||b<0||pointerId>=0||action==MotionEvent.ACTION_POINTER_UP||action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL) {
+            fingerA=fingerB=-1; return;
+        }
+        float x=(e.getX(a)+e.getX(b))/2,y=(e.getY(a)+e.getY(b))/2;
+        float span=(float)Math.hypot(e.getX(a)-e.getX(b),e.getY(a)-e.getY(b));
+        if(fingerA==e.getPointerId(a)&&fingerB==e.getPointerId(b)&&action==MotionEvent.ACTION_MOVE&&fingerSpan>1) {
+            viewport.gesture(span/fingerSpan,fingerX,fingerY,x,y); transformChanged.run(); invalidate();
+        }
+        fingerA=e.getPointerId(a); fingerB=e.getPointerId(b); fingerX=x; fingerY=y; fingerSpan=span;
+    }
+    private JSONObject point(float x,float y,float pressure) {
+        float[] p=viewport.desktop(x,y);
+        return Ink.point(Math.max(0,Math.min(desktopWidth,p[0])),Math.max(0,Math.min(desktopHeight,p[1])),pressure);
+    }
+    private void begin(PenInput.Tool tool,JSONObject p) {
+        activeTool=tool; gestureId=++nextId;
+        if(!document.visible) emit(Ink.object("type","set_visible","visible",true));
+        if(tool==PenInput.Tool.ERASER) emit(Ink.object("type","erase_begin","id",gestureId,"point",p,"radius",Math.max(12,width*3)));
+        else if(tool!=PenInput.Tool.LASER) {
+            int[] rgba=color.clone(); if(tool==PenInput.Tool.HIGHLIGHTER) rgba[3]=80;
+            emit(Ink.begin(gestureId,p,rgba,tool==PenInput.Tool.HIGHLIGHTER?width*5:width,tool==PenInput.Tool.VANISHING));
+        }
+    }
+    private void move(JSONObject p) {
+        if(activeTool==PenInput.Tool.ERASER) emit(Ink.at("erase_to",gestureId,p));
+        else if(activeTool!=PenInput.Tool.LASER) emit(Ink.at("append",gestureId,p));
+    }
+    private void finish(boolean lift) {
+        if(activeTool!=null) {
+            if(activeTool==PenInput.Tool.ERASER) emit(Ink.id("erase_end",gestureId));
+            else if(activeTool!=PenInput.Tool.LASER) emit(Ink.id("end",gestureId));
+            activeTool=null;
+        }
+        if(lift) { pen.contactEnded(); stateChanged.run(); }
+    }
+    private void cursor(JSONObject p,boolean laser) {
+        emit(Ink.object("type","pointer","point",p==null?JSONObject.NULL:p,"color",Ink.color(color),
+            "radius",laser?10:Math.max(2,width/2),"laser",laser));
+    }
+    private void buttons(MotionEvent e) {
+        pen.button((e.getButtonState()&(MotionEvent.BUTTON_STYLUS_PRIMARY|MotionEvent.BUTTON_STYLUS_SECONDARY))!=0);
+        stateChanged.run();
+    }
+    private static boolean stylus(MotionEvent e,int i) {
+        return e.getToolType(i)==MotionEvent.TOOL_TYPE_STYLUS||e.getToolType(i)==MotionEvent.TOOL_TYPE_ERASER;
+    }
+    @Override public boolean onTouchEvent(MotionEvent e) {
+        int action=e.getActionMasked();
+        if(action==MotionEvent.ACTION_CANCEL) { finish(true); pen.cancel(); pointerId=-1; cursor(null,false); return true; }
+        int i=pointerId<0?e.getActionIndex():e.findPointerIndex(pointerId);
+        if(i<0||!stylus(e,i)) { fingers(e); return true; }
+        buttons(e); if(sender==null) return true;
+        PenInput.Tool tool=e.getToolType(i)==MotionEvent.TOOL_TYPE_ERASER?PenInput.Tool.ERASER:pen.tool();
+        JSONObject p=point(e.getX(i),e.getY(i),e.getPressure(i));
+        if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN) {
+            if(!viewport.contains(e.getX(i),e.getY(i))) return true;
+            pointerId=e.getPointerId(i); begin(tool,p);
+        } else if(pointerId>=0&&(action==MotionEvent.ACTION_MOVE||action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_POINTER_UP)) {
+            if(activeTool!=tool) { finish(false); begin(tool,p); }
+            else {
+                for(int h=0;h<e.getHistorySize();h++) move(point(e.getHistoricalX(i,h),e.getHistoricalY(i,h),e.getHistoricalPressure(i,h)));
+                move(p);
+            }
+        }
+        cursor(p,tool==PenInput.Tool.LASER);
+        if(action==MotionEvent.ACTION_UP||(action==MotionEvent.ACTION_POINTER_UP&&e.getActionIndex()==i)) { finish(true); pointerId=-1; }
+        return true;
+    }
+    @Override public boolean onGenericMotionEvent(MotionEvent e) {
+        if(!stylus(e,e.getActionIndex())) return super.onGenericMotionEvent(e);
+        buttons(e);
+        if(e.getActionMasked()==MotionEvent.ACTION_HOVER_EXIT) cursor(null,false);
+        else cursor(point(e.getX(),e.getY(),0),pen.tool()==PenInput.Tool.LASER);
+        return true;
+    }
+    @Override public void onWindowFocusChanged(boolean focused) {
+        super.onWindowFocusChanged(focused);
+        if(!focused) { finish(true); pen.cancel(); pointerId=-1; cursor(null,false); }
+    }
+    @Override protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas); document.advanceTime(SystemClock.uptimeMillis());
+        if(document.visible) {
+            if(completedInk==null||completedInk.getWidth()!=getWidth()||completedInk.getHeight()!=getHeight()) {
+                if(completedInk!=null) completedInk.recycle();
+                completedInk=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);
+                cachedRevision=-1;
+            }
+            if(cachedRevision!=document.staticRevision||cachedScale!=viewport.scale()||cachedX!=viewport.x()||cachedY!=viewport.y()) {
+                completedInk.eraseColor(Color.TRANSPARENT);
+                Canvas cache=new Canvas(completedInk); transform(cache);
+                for(InkDocument.Stroke s:document.strokes()) if(s.finished) stroke(cache,s);
+                cachedRevision=document.staticRevision; cachedScale=viewport.scale(); cachedX=viewport.x(); cachedY=viewport.y();
+                paths.keySet().removeIf(s -> !document.strokes().contains(s)&&!document.temporary().contains(s));
+            }
+            canvas.drawBitmap(completedInk,0,0,null);
+        }
+        canvas.save(); transform(canvas);
+        if(document.visible) {
+            for(InkDocument.Stroke s:document.strokes()) if(!s.finished) stroke(canvas,s);
+            for(InkDocument.Stroke s:document.temporary()) stroke(canvas,s);
+        }
+        JSONObject cursor=document.pointer;
+        if(cursor!=null) {
+            JSONObject p=cursor.optJSONObject("point");
+            if(p!=null) {
+                float x=(float)p.optDouble("x"),y=(float)p.optDouble("y"),r=(float)cursor.optDouble("radius",3);
+                paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.5f/viewport.scale()); paint.setColor(Color.WHITE);
+                canvas.drawCircle(x,y,Math.max(r,4/viewport.scale()),paint);
+                paint.setStyle(Paint.Style.FILL); paint.setColor(Color.rgb(color[0],color[1],color[2]));
+                if(cursor.optBoolean("laser")) { paint.setAlpha(70); canvas.drawCircle(x,y,r*1.8f,paint); paint.setAlpha(255); }
+                canvas.drawCircle(x,y,r,paint);
+            }
+        }
+        canvas.restore();
+        if(document.pointer!=null||!document.temporary().isEmpty()) postInvalidateDelayed(32);
+    }
+    private void transform(Canvas canvas) {
+        canvas.translate(viewport.x(),viewport.y()); canvas.scale(viewport.scale(),viewport.scale());
+        canvas.clipRect(0,0,desktopWidth,desktopHeight);
+    }
+    private void stroke(Canvas canvas,InkDocument.Stroke stroke) {
+        StrokePath shape=paths.computeIfAbsent(stroke,ignored -> new StrokePath());
+        for(;shape.count<stroke.points.size();shape.count++) {
+            InkDocument.Point p=stroke.points.get(shape.count);
+            if(shape.count==0) shape.path.moveTo(p.x,p.y); else shape.path.lineTo(p.x,p.y);
+        }
+        paint.setColor(stroke.color); paint.setStrokeWidth(stroke.width); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeJoin(Paint.Join.ROUND);
+        if(stroke.points.size()==1) {
+            InkDocument.Point p=stroke.points.get(0); paint.setStyle(Paint.Style.FILL); canvas.drawCircle(p.x,p.y,stroke.width/2,paint);
+        } else { paint.setStyle(Paint.Style.STROKE); canvas.drawPath(shape.path,paint); }
+    }
+    @Override protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow(); if(completedInk!=null) { completedInk.recycle(); completedInk=null; }
+    }
+}

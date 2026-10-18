@@ -339,7 +339,7 @@ impl Session {
 
         if let Some(session) = self.active.as_ref() {
             if session.same_device(source, hello.device_id) {
-                if matches!(session.peer.link, LinkId::Usb { .. }) && source.link == LinkId::Udp {
+                if session.peer.link.is_usb() && source.link == LinkId::Udp {
                     let ack = self.make_ack(HelloStatus::Busy, hello.client_nonce, 0, config);
                     actions.replies.push((source, ack));
                     return actions;

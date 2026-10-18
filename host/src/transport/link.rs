@@ -29,6 +29,13 @@ const CONTROL_LIMIT: usize = 64;
 pub enum LinkId {
     Udp,
     Usb { device_id: u32 },
+    AndroidUsb,
+}
+
+impl LinkId {
+    pub fn is_usb(self) -> bool {
+        matches!(self, Self::Usb { .. } | Self::AndroidUsb)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -38,6 +45,9 @@ pub struct PeerId {
 }
 
 impl PeerId {
+    pub fn android_usb() -> Self {
+        Self { link: LinkId::AndroidUsb, addr: None }
+    }
     pub fn udp(addr: SocketAddr) -> Self {
         Self {
             link: LinkId::Udp,
@@ -59,6 +69,7 @@ impl std::fmt::Display for PeerId {
             (LinkId::Udp, Some(addr)) => addr.fmt(f),
             (LinkId::Udp, None) => f.write_str("waiting for client"),
             (LinkId::Usb { device_id }, _) => write!(f, "USB {device_id}"),
+            (LinkId::AndroidUsb, _) => f.write_str("Android USB"),
         }
     }
 }

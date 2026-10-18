@@ -1,0 +1,58 @@
+name: Build and test Android app
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/android-usb]
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Unit and native-input tests
+        working-directory: android
+        run: ./gradlew :core:test :app:testDebugUnitTest --console=plain
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Real Android video and input integration
+        uses: ReactiveCircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_c
+          ram-size: 2048M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: cd android && ./gradlew :app:connectedDebugAndroidTest :app:assembleRelease --console=plain
+      - name: Collect emulator screenshots and diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/local/android-cloud
+          adb pull /sdcard/Android/data/com.deskink.android/files/previews artifacts/local/android-cloud/ || true
+          adb logcat -d > artifacts/local/android-cloud/logcat.txt || true
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: DeskInk-Android-${{ github.run_number }}
+          path: |
+            android/app/build/outputs/apk/
+            android/app/build/outputs/androidTest-results/
+            android/app/build/reports/
+            android/core/build/reports/
+            artifacts/local/android-cloud/
+          retention-days: 3
