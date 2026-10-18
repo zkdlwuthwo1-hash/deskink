@@ -34,4 +34,4 @@ Windows를 개발 환경으로 사용하면서 iPad 코드는 GitHub의 macOS �
 
 서버 HTTP 502/503만으로 비밀번호 오류라고 단정하지 않습니다. 공개 문제 제보에는 앱 버전과 오류 문구를 우선 첨부하고 계정 정보·페어링 코드·토큰을 제거합니다.
 
-친구들은 직접 빌드할 필요 없이 [GitHub Release](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.3.0-lab.1)의 Windows ZIP·IPA를 사용하면 됩니다. [캡처 포함 설치 안내](https://zkdlwuthwo1-hash.github.io/deskink/README.html)에 iloader 설치, 개발자 모드, 도구 사용법과 갱신 방법을 정리했습니다.
+직접 빌드하지 않고 설치하려면 [설치·사용 안내](https://zkdlwuthwo1-hash.github.io/deskink/README.html)에서 Windows ZIP·iPad IPA·iloader를 내려받으세요. 개발자 모드, 도구 사용법과 갱신 방법도 캡처와 함께 안내합니다.

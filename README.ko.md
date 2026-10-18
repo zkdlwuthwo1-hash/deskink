@@ -6,39 +6,44 @@
 
 USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC 화면 위에도 필기가 나타납니다. 태블릿에서만 확대할 수 있으며, PC 조작은 평소처럼 마우스와 키보드로 합니다.
 
+## 주요 기능
+
+- Windows 화면 위에 펜·형광펜으로 쓰고, 지우개·레이저·사라지는 펜으로 설명합니다.
+- 태블릿에서만 두 손가락으로 확대·이동합니다. PC 화면의 배율은 그대로입니다.
+- 바탕화면 아이콘으로 모니터를 전환하고, 실행 중에는 화면마다 필기를 따로 유지합니다.
+- S펜은 버튼을 누르는 동안 지우개로 바뀌며, 지원 Apple Pencil은 두 번 탭으로 전환합니다.
+
 ## 다운로드
 
-[**연구실 공유용 미리보기 버전 받기**](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1)
+아래 링크를 누르면 파일을 바로 받습니다. **Windows ZIP·iPad IPA·iloader는 PC에서, Android APK는 태블릿에서** 받으세요.
 
-| 파일 | 사용 방법 |
+| 다운로드 | 사용 방법 |
 | --- | --- |
-| `DeskInk-Windows-x64.zip` | Windows에서 전체 압축을 풀고 `DeskInk.exe` 실행 |
-| `DeskInk-iPad-unsigned.ipa` | iloader에서 본인 Apple 계정으로 아이패드에 설치 |
-| `DeskInk-Android.apk` | 갤럭시탭 등 Android 8 이상 태블릿에서 열어 설치 |
-| `README.html` | 내려받아 브라우저로 여는 캡처 포함 안내서 |
-| `SHA256SUMS.txt` | 다운로드 파일의 무결성 확인값 |
+| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
+| [**Android 앱 APK 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk) | 갤럭시탭 등 Android 8 이상 태블릿에서 파일을 열고 **설치** |
+| [**iPad 앱 IPA 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa) | PC의 iloader에서 불러와 아이패드에 설치 |
+| [**iloader Windows 설치 파일 다운로드**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | iPad 앱 설치용 도구. 공식 배포처의 EXE를 받아 PC에서 실행 |
+| [**설치·사용 안내 HTML 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | 캡처가 포함된 안내서를 브라우저에서 열기 |
 
-**사용자는 개발 도구나 Mac이 필요 없습니다.** 아직 미리보기 버전입니다. Windows 11 빌드 26200·Radeon 740M·1080p 모니터 두 대에서 검증했으며, 다른 PC/GPU는 추가 확인이 필요합니다. 필기가 영상에 중복되지 않도록 사용하는 캡처 기능 때문에 최신 Windows가 필요합니다.
+준비물: 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜, 데이터 USB 케이블. **Mac이나 개발 도구 없이 설치할 수 있습니다.** 첫 PC 설정에는 인터넷이 필요합니다. [전체 다운로드 파일](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1) · [iloader 공식 안내](https://iloader.app/)
 
 ## 아이패드에 처음 설치하기
 
 1. **PC와 아이패드를 준비합니다.** Windows x64 PC, iPadOS 17 이상, 호환되는 Pencil, 데이터 전송용 USB 케이블을 준비합니다. Microsoft Store에서 **Apple Devices**를 설치하고 엽니다. 아이패드의 잠금을 풀어 USB로 연결하고 **이 컴퓨터를 신뢰**를 누릅니다. DeskInk를 사용하는 동안 Apple Devices를 열어 두세요.
 2. **Windows DeskInk를 실행합니다.** ZIP을 문서 폴더 등 쓰기 가능한 위치에 **전체 압축 해제**하고 그 안의 `DeskInk.exe`를 엽니다. 첫 실행에서 영상 구성요소 약 60MB를 공식 배포처에서 받아 검사하므로 인터넷이 필요합니다. 이후에는 내려받은 파일을 재사용합니다. 폴더 안의 파일을 따로 옮기지 마세요.
-3. **iloader로 아이패드에 설치합니다.** [iloader 공식 사이트](https://iloader.app/)에서 Windows 버전을 받습니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 안내가 나오면 해당 설치 안내를 따릅니다. 연결한 아이패드를 선택하고 **본인 Apple 계정**으로 로그인·이중 인증합니다. **Import IPA / IPA 가져오기**에서 `DeskInk-iPad-unsigned.ipa`를 선택하고 **Sign & Install App**을 눌러 완료될 때까지 기다립니다. 버튼 이름은 버전·언어에 따라 조금 다를 수 있습니다.
+3. **iloader로 아이패드에 설치합니다.** [iloader Windows 설치 파일](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe)을 받아 실행합니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 안내가 나오면 [공식 설치 안내](https://iloader.app/)를 따릅니다. 연결한 아이패드를 선택하고 **본인 Apple 계정**으로 로그인·이중 인증합니다. **Import IPA / IPA 가져오기**에서 내려받은 `DeskInk-iPad-unsigned.ipa`를 선택하고 **Sign & Install App**을 눌러 완료될 때까지 기다립니다. 버튼 이름은 버전·언어에 따라 조금 다를 수 있습니다.
 4. **개발자를 신뢰합니다.** 아이패드에서 신뢰되지 않은 개발자라고 나오면 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**로 이동합니다. 추가 확인이나 재시동 안내가 나오면 따릅니다. 제작자의 계정이나 비밀번호를 공유받을 필요는 없습니다.
 5. **개발자 모드를 켭니다 — 필수입니다.** **설정 → 개인정보 보호 및 보안 → 개발자 모드 → 켜기 → 재시동** 순서로 진행합니다. 재시동 후 잠금을 풀고, 확인창에서 **켜기**를 한 번 더 누릅니다. 기기 암호를 요청하면 입력하고 DeskInk를 엽니다. 메뉴가 없다면 **iloader로 IPA를 먼저 설치하고 DeskInk 실행을 한 번 시도한 뒤 설정을 다시 여세요.** 학교·회사에서 관리하는 기기는 설정이 제한될 수 있습니다. [Apple 공식 안내](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
 
 ## 갤럭시탭·Android에 처음 설치하기
 
-1. **태블릿에서 `DeskInk-Android.apk`를 열어 설치**합니다. 설치에 사용한 브라우저나 내 파일 앱의 **이 출처 허용**을 요청하면 해당 앱에 허용합니다. Apple 계정이나 iloader는 필요 없으며, 7일마다 재설치할 필요도 없습니다.
+1. **태블릿에서 [Android APK 다운로드](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk)를 누릅니다.** 내려받은 `DeskInk-Android.apk`를 열고 **설치**를 누르세요. 설치에 사용한 브라우저나 내 파일 앱의 **이 출처 허용**을 요청하면 해당 앱에 허용합니다. Apple 계정이나 iloader는 필요 없으며, 7일마다 재설치할 필요도 없습니다.
 2. **설정 → 태블릿 정보 → 소프트웨어 정보 → 빌드번호를 7번 탭**하고 기기 암호를 입력합니다. 설정에 생긴 **개발자 옵션 → USB 디버깅**을 켭니다. 메뉴 이름은 기종에 따라 다를 수 있습니다. [삼성 공식 안내](https://www.samsung.com/uk/support/mobile-devices/how-do-i-turn-on-the-developer-options-menu-on-my-samsung-galaxy-device/)
 3. PC에 Windows ZIP을 **전체 압축 해제**한 뒤 **`DeskInk-Android.exe`를 처음 한 번 실행**합니다. Google 공식 Android USB 구성요소 약 8MB와 영상 구성요소 약 60MB를 받아 검사합니다. 이때 인터넷이 필요합니다.
 4. 데이터 USB 케이블로 연결하고, 태블릿의 **USB 디버깅 허용** 창에서 본인 PC를 허용합니다. 태블릿 DeskInk를 열어 PC에 표시된 6자리 코드를 입력합니다. Android 태블릿은 한 번에 한 대만 USB로 연결하세요.
 5. **S펜 버튼을 누르는 동안 지우개, 놓으면 이전 도구**로 돌아옵니다. 버튼 없는 펜은 도구막대의 지우개를 사용합니다. 기기가 인식되지 않으면 [삼성 공식 Windows USB 드라이버](https://developer.samsung.com/android-usb-driver)를 확인하세요.
 
 이후에는 바탕화면의 **DeskInk - Screen 1 / Screen 2** 중 하나를 열면 됩니다. Android용은 Apple Devices를 사용하지 않습니다. USB 디버깅에는 신뢰하는 PC만 허용하고, 더 이상 사용하지 않을 때는 끌 수 있습니다. 업데이트는 같은 서명의 새 APK를 기존 앱 위에 설치합니다.
-
-Android판은 자동 검사와 에뮬레이터로 검증하며, **실제 갤럭시탭의 S펜 버튼 전달·필기 감각·전체 지연은 실기기 확인이 필요**합니다.
 
 ## 매번 사용하기
 
@@ -74,9 +79,7 @@ Zoom에서는 직접 **필기하는 모니터 전체**를 공유하고 다른 �
 - **다른 화면이 나옴:** PC의 Screen 1/2를 바꿉니다. DeskInk 번호는 Windows 디스플레이 설정 번호와 다를 수 있습니다.
 - **Windows 실행 실패:** 전체 압축 해제 여부와 첫 실행 인터넷 연결을 확인합니다. 로그는 `%LOCALAPPDATA%/DeskInk/logs`에 있습니다. 오류를 공유할 때 페어링 코드와 개인 화면 내용은 빼 주세요.
 
-현재 Bluetooth·Wi-Fi·이더넷 필기 연결은 구현되어 있지 않습니다. 실제 전체 입력 지연, 모든 태블릿 모델, Zoom 상대방 화면은 자동 검사만으로 검증되지 않습니다.
-
-[문제 제보](https://github.com/zkdlwuthwo1-hash/deskink/issues) · [소스 빌드·테스트](docs/development.md) · [iPad 클라우드 빌드](docs/windows-only-ipad.md)
+현재 연결 방식은 **USB**입니다. [문제 제보](https://github.com/zkdlwuthwo1-hash/deskink/issues) · [지원·검증 범위](docs/android-verification.md) · [개발 안내](docs/development.md)
 
 ## 기반 프로젝트와 라이선스
 
