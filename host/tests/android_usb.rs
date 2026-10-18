@@ -3,6 +3,28 @@ use eternal_host::transport::android_usb::Adb;
 use std::{fs, sync::atomic::{AtomicU64, Ordering}, time::Duration};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpListener};
 
+#[test]
+fn owned_forward_is_removed_even_after_the_async_runtime_has_stopped() {
+    let folder = std::env::temp_dir().join(format!("deskink-adb-runtime-{}", std::process::id()));
+    fs::create_dir(&folder).unwrap();
+    let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = server.local_addr().unwrap().port();
+    let removed = folder.join("removed.txt");
+    let script = folder.join("adb.cmd");
+    fs::write(&script, format!("@echo off\r\nif \"%1\"==\"-d\" (\r\necho ANDROID-TEST\r\nexit /b 0\r\n)\r\nif \"%4\"==\"--remove\" (\r\necho %5>\"{}\"\r\nexit /b 0\r\n)\r\necho {}\r\n", removed.display(), port)).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let tunnel = runtime.block_on(Adb::new(script.clone()).connect()).unwrap();
+    drop(runtime);
+    drop(tunnel);
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !removed.is_file() && std::time::Instant::now() < deadline { std::thread::sleep(Duration::from_millis(20)); }
+    let result = fs::read_to_string(&removed);
+    fs::remove_file(script).unwrap();
+    if removed.is_file() { fs::remove_file(removed).unwrap(); }
+    fs::remove_dir(folder).unwrap();
+    assert_eq!(result.unwrap().trim(), format!("tcp:{port}"));
+}
+
 /// Only the external ADB executable is substituted; the tunnel uses real TCP.
 #[tokio::test]
 async fn usb_forward_connects_loopback_and_removes_only_its_owned_port() {

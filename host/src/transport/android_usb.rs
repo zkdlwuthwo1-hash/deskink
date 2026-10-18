@@ -62,11 +62,24 @@ impl Adb {
 struct Forward { adb: Adb, serial: String, port: u16 }
 impl Drop for Forward {
     fn drop(&mut self) {
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            let adb = self.adb.clone(); let serial = self.serial.clone(); let port = self.port;
-            runtime.spawn(async move {
-                let _ = adb.run(&["-s", &serial, "forward", "--remove", &format!("tcp:{port}")]).await;
-            });
+        // Drop also runs while Tokio is shutting down. Complete this bounded
+        // disconnect-only cleanup without scheduling work on that runtime.
+        let mut command = std::process::Command::new(&self.adb.executable);
+        command.args(["-s", &self.serial, "forward", "--remove", &format!("tcp:{}", self.port)])
+            .stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+        #[cfg(windows)] {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        if let Ok(mut child) = command.spawn() {
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => break,
+                    Ok(None) if std::time::Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+                    _ => { let _ = child.kill(); let _ = child.wait(); break; }
+                }
+            }
         }
     }
 }

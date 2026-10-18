@@ -28,7 +28,7 @@ public final class FrameAssembler {
         boolean incomingKey=(packet.flags&1)!=0;
         if(total==0 || total>3066 || index>=total) { dropped++; recover(); return null; }
         if(index==0) {
-            if(next!=0) { dropped++; waiting=true; }
+            if(next!=0||(seq>=0&&incoming!=((seq+1)&0xffffffffL))) { dropped++; waiting=true; }
             data.reset(); next=0; seq=incoming; count=total; capture=b.getLong(24); key=incomingKey;
         }
         if(seq!=incoming || next!=index || count!=total || key!=incomingKey || (waiting&&!key)) {
