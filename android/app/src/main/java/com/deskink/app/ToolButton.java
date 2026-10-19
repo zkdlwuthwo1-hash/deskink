@@ -28,6 +28,7 @@ final class ToolButton extends LinearLayout {
         describe(description); setOnClickListener(v -> action.run());
     }
     void describe(int description) { setContentDescription(getContext().getString(description)); setTooltipText(getContentDescription()); }
+    void compact() { caption.setVisibility(GONE); setMinimumHeight(ui.dp(48)); }
     void label(int label,int description,int icon) {
         caption.setText(label); image.setImageResource(icon); describe(description);
     }

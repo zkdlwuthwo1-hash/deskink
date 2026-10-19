@@ -151,7 +151,7 @@ public final class MainActivity extends Activity {
             public void onTextChanged(CharSequence s,int start,int before,int count) { error.setVisibility(View.GONE); }
             public void afterTextChanged(Editable text) { }
         });
-        pairingDialog=new AlertDialog.Builder(this).setView(content)
+        pairingDialog=new AlertDialog.Builder(this).setView(ui.scroll(content))
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.connect,null).create();
         pairingDialog.setOnShowListener(ignored -> pairingDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String value=code.getText().toString();

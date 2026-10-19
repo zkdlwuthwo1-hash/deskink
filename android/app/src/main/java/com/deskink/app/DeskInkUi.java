@@ -46,6 +46,9 @@ final class DeskInkUi {
     }
     LinearLayout column() { LinearLayout layout=new LinearLayout(context); layout.setOrientation(LinearLayout.VERTICAL); return layout; }
     LinearLayout row() { LinearLayout layout=new LinearLayout(context); layout.setGravity(Gravity.CENTER_VERTICAL); return layout; }
+    ScrollView scroll(View content) {
+        ScrollView scroll=new ScrollView(context); scroll.setClipToPadding(false); scroll.addView(content); return scroll;
+    }
     View space(int height) { View view=new View(context); view.setLayoutParams(new LinearLayout.LayoutParams(1,dp(height))); return view; }
     Button action(int label,boolean primary,Runnable action) {
         Button button=new Button(context); button.setText(label); button.setTextSize(14); button.setAllCaps(false);

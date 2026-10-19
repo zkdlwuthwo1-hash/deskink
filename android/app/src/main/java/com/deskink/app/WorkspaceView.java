@@ -44,11 +44,15 @@ final class WorkspaceView extends LinearLayout {
         detail=ui.text(R.string.waiting,11,DeskInkUi.MUTED,false);
         for(TextView text:new TextView[]{status,detail}) { text.setSingleLine(); text.setEllipsize(TextUtils.TruncateAt.END); labels.addView(text); }
         LayoutParams labelsParams=new LayoutParams(0,-2,1); labelsParams.setMarginStart(ui.dp(10)); connection.addView(labels,labelsParams);
-        header.addView(connection,new LayoutParams(0,-2,1));
+        FrameLayout connectionArea=new FrameLayout(activity);
+        connectionArea.addView(ui.limited(connection,300),new FrameLayout.LayoutParams(-1,-2));
+        header.addView(connectionArea,new LayoutParams(0,-2,1));
         ink=new InkCanvas(activity); ink.setTag("ink");
         fit=new ToolButton(activity,R.string.fit_short,R.string.fit,R.drawable.ic_fit,"fit",ink::resetZoom);
+        fit.compact();
         header.addView(fit,new LayoutParams(ui.dp(56),ui.dp(48)));
         ToolButton help=new ToolButton(activity,R.string.help_short,R.string.help,R.drawable.ic_help,"help",this::help);
+        help.compact();
         header.addView(help,new LayoutParams(ui.dp(56),ui.dp(48)));
         addView(header,new LayoutParams(-1,-2));
 
@@ -97,7 +101,7 @@ final class WorkspaceView extends LinearLayout {
     }
     private ToolButton tool(LinearLayout dock,int label,int description,int icon,String tag,Runnable action) {
         ToolButton button=new ToolButton(activity,label,description,icon,tag,action);
-        controls.add(button); dock.addView(button,new LayoutParams(-2,ui.dp(58))); return button;
+        controls.add(button); dock.addView(button,new LayoutParams(-2,-2)); return button;
     }
     private void divider(LinearLayout dock) {
         View line=new View(activity); line.setBackgroundColor(DeskInkUi.BORDER);
@@ -169,7 +173,7 @@ final class WorkspaceView extends LinearLayout {
                 choice.setContentDescription(names[i]); choice.setBackground(ui.controlBackground(Color.TRANSPARENT,14));
                 FrameLayout swatch=new FrameLayout(activity); GradientDrawable circle=ui.surface(colorValue(i),16,0xffa6acb9); swatch.setBackground(circle);
                 if(i==selectedColor) { ImageView check=ui.icon(R.drawable.ic_check,i==5||i==2?DeskInkUi.CANVAS:Color.WHITE,20); swatch.addView(check,new FrameLayout.LayoutParams(ui.dp(20),ui.dp(20),Gravity.CENTER)); }
-                choice.addView(swatch,new LayoutParams(ui.dp(30),ui.dp(30))); TextView name=ui.text(names[i],11,DeskInkUi.TEXT,false); name.setPadding(0,ui.dp(6),0,0); name.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO); choice.addView(name);
+                choice.addView(swatch,new LayoutParams(ui.dp(30),ui.dp(30))); TextView name=ui.text(names[i],11,DeskInkUi.TEXT,false); name.setGravity(Gravity.CENTER); name.setPadding(0,ui.dp(6),0,0); name.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO); choice.addView(name);
                 choice.setOnClickListener(v -> { selectedColor=index; ink.color(COLORS[index]); color.swatch(colorValue(index)); refreshControls(); closeSheet(); });
                 row.addView(choice,new LayoutParams(0,-2,1));
             }
@@ -194,10 +198,10 @@ final class WorkspaceView extends LinearLayout {
     }
     private void help() {
         LinearLayout content=ui.sheetContent(R.string.help,R.drawable.ic_usb); TextView text=ui.text(R.string.usb_help,14,DeskInkUi.MUTED,false); text.setLineSpacing(ui.dp(5),1);
-        ScrollView scroll=new ScrollView(activity); scroll.addView(text); content.addView(scroll); showSheet(content);
+        content.addView(text); showSheet(content);
     }
     private void showSheet(View content) {
-        closeSheet(); sheet=new AlertDialog.Builder(activity).setView(content).setNegativeButton(android.R.string.ok,null).create(); sheet.show(); ui.finishSheet(sheet);
+        closeSheet(); sheet=new AlertDialog.Builder(activity).setView(ui.scroll(content)).setNegativeButton(android.R.string.ok,null).create(); sheet.show(); ui.finishSheet(sheet);
     }
     void closeSheet() { if(sheet!=null) { sheet.dismiss(); sheet=null; } }
 }

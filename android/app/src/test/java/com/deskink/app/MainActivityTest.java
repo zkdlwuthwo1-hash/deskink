@@ -9,6 +9,25 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class MainActivityTest {
+    @Test @Config(qualifiers="mdpi")
+    public void pairingErrorCanBeBroughtIntoViewInAShortWindow() {
+        try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
+            controller.get().getWindow().getDecorView().findViewWithTag("pair").performClick();
+            android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            View root=dialog.getWindow().getDecorView();
+            android.widget.EditText code=root.findViewWithTag("pair.code"); code.setText("25");
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+            root.measure(View.MeasureSpec.makeMeasureSpec(380,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(260,View.MeasureSpec.EXACTLY));
+            root.layout(0,0,380,260);
+            View error=root.findViewWithTag("pair.error");
+            error.requestRectangleOnScreen(new android.graphics.Rect(0,0,error.getWidth(),error.getHeight()),true);
+            android.graphics.Rect visible=new android.graphics.Rect();
+            assertTrue("Pairing validation must remain reachable above the keyboard",error.getGlobalVisibleRect(visible));
+            assertEquals("The full error needs to be readable",error.getHeight(),visible.height());
+            dialog.dismiss();
+        }
+    }
     @Test public void historyButtonsReflectTheAvailableUndoAndRedoActions() {
         try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
             View root=controller.get().getWindow().getDecorView();

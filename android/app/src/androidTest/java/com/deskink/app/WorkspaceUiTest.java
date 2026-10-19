@@ -15,6 +15,7 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class WorkspaceUiTest {
     static void capture(String name) throws Exception {
+        name+=InstrumentationRegistry.getArguments().getString("captureSuffix","");
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         Thread.sleep(250); // Let the surface compositor present the completed layout.
         try(android.os.ParcelFileDescriptor capture=InstrumentationRegistry.getInstrumentation().getUiAutomation()
@@ -53,6 +54,17 @@ public class WorkspaceUiTest {
             Thread.sleep(600);
             activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("pair").performClick());
             capture("pairing");
+            activity.onActivity(a -> {
+                for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                    android.widget.EditText code=window.findViewWithTag("pair.code");
+                    if(code!=null) {
+                        code.requestFocus(); code.setText("482691"); // Explicitly illustrative; never submitted.
+                        a.getSystemService(android.view.inputmethod.InputMethodManager.class).showSoftInput(code,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                    }
+                }
+            });
+            Thread.sleep(500);
+            capture("pairing-keyboard");
         }
     }
 }

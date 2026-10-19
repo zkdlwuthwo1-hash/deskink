@@ -8,4 +8,20 @@ collect() {
 }
 trap collect EXIT
 cd "$root/android"
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  adb shell settings put secure immersive_mode_confirmations confirmed
+fi
 ./gradlew :app:connectedDebugAndroidTest :app:assembleRelease --console=plain
+# The Actions runner owns this disposable emulator. Also exercise a small
+# landscape window, a large system font and the software keyboard.
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  mkdir -p "$root/artifacts/local/android-cloud/tablet-results"
+  cp -a app/build/outputs/androidTest-results/. "$root/artifacts/local/android-cloud/tablet-results/"
+  adb shell wm size 960x600
+  adb shell wm density 240
+  adb shell settings put system font_scale 1.5
+  adb shell settings put secure show_ime_with_hard_keyboard 1
+  ./gradlew :app:connectedDebugAndroidTest --console=plain \
+    -Pandroid.testInstrumentationRunnerArguments.class=com.deskink.app.WorkspaceUiTest \
+    -Pandroid.testInstrumentationRunnerArguments.captureSuffix=-compact
+fi
