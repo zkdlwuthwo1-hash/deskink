@@ -89,7 +89,7 @@ public final class MainActivity extends Activity {
                 VideoDecoder d=decoder; if(d!=null) d.configure(next.config);
                 runOnUiThread(() -> {
                     if(generation!=runId) return;
-                    binding=next; String token=hex(next.token); rememberToken(token);
+                    binding=next; String token=hex(next.token); rememberPairings();
                     InkDocument document=documents.select(token,next.host);
                     UsbClient owner=client; ink.bind(document,c -> owner!=null&&owner.ink(next,c),next.config.width,next.config.height);
                     workspace.showConnection(next.host,getString(R.string.usb_details,next.config.width,next.config.height),true);
@@ -111,10 +111,11 @@ public final class MainActivity extends Activity {
         char[] alphabet="0123456789abcdef".toCharArray(); StringBuilder text=new StringBuilder(32);
         for(byte b:token) text.append(alphabet[(b&255)>>4]).append(alphabet[b&15]); return text.toString();
     }
-    private void rememberToken(String token) {
-        List<String> saved=new ArrayList<>(Arrays.asList(preferences.getString("tokens","").split(",")));
-        saved.removeIf(s -> s.equals(token)||s.isEmpty()); saved.add(0,token);
-        while(saved.size()>2) saved.remove(saved.size()-1); preferences.edit().putString("tokens",String.join(",",saved)).apply();
+    private void rememberPairings() {
+        UsbClient owner=client; if(owner==null) return;
+        List<String> saved=new ArrayList<>();
+        for(byte[] token:owner.savedTokens()) saved.add(hex(token));
+        preferences.edit().putString("tokens",String.join(",",saved)).apply();
     }
     private void showState(UsbClient.State state) {
         if(state==UsbClient.State.CONNECTED) return;

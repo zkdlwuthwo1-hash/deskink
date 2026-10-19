@@ -8,6 +8,46 @@ import java.util.concurrent.*;
 import static org.junit.Assert.*;
 
 public class UsbClientTest {
+    @Test public void rotatingOnePcCredentialKeepsTheOtherPcForAutomaticReconnect() throws Exception {
+        reconnectOtherPcAfterRotation(4);
+    }
+    @Test public void aRegisteredPcIsTriedBeforeRequestingACodeEvenWhenTheFirstCandidateIsRateLimited() throws Exception {
+        reconnectOtherPcAfterRotation(5);
+    }
+    private void reconnectOtherPcAfterRotation(int rejectedStatus) throws Exception {
+        byte[] first=new byte[16],second=new byte[16]; Arrays.fill(first,(byte)1); Arrays.fill(second,(byte)2);
+        BlockingQueue<UsbClient.Binding> bindings=new LinkedBlockingQueue<>();
+        UsbClient.Listener listener=new UsbClient.Listener() {
+            public void state(UsbClient.State state) { }
+            public void stream(UsbClient.Binding binding) { bindings.add(binding); }
+            public void frame(FrameAssembler.Frame frame) { }
+        };
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Arrays.asList(first,second),listener)) {
+            int port=client.start();
+            try(Socket host=new Socket("127.0.0.1",port)) {
+                host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                byte[] hello=read(host.getInputStream());
+                assertArrayEquals(first,Arrays.copyOfRange(hello,hello.length-20,hello.length-4));
+                send(host.getOutputStream(),ack(hello,true));
+                assertNotNull(bindings.poll(2,TimeUnit.SECONDS));
+            }
+            // Recreate the app from its durable snapshot, then switch PCs.
+            List<byte[]> saved=client.savedTokens(); client.close();
+            try(UsbClient reopened=new UsbClient(0,123,1920,1080,saved,listener);
+                    Socket host=new Socket("127.0.0.1",reopened.start())) {
+                host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                byte[] hello=read(host.getInputStream());
+                byte[] rejection=ack(hello,false); rejection[16]=(byte)rejectedStatus;
+                send(host.getOutputStream(),rejection);
+                hello=read(host.getInputStream());
+                assertArrayEquals("The second PC must survive the first PC's restart",second,
+                    Arrays.copyOfRange(hello,hello.length-20,hello.length-4));
+                send(host.getOutputStream(),ack(hello,true));
+                assertNotNull(bindings.poll(2,TimeUnit.SECONDS));
+            }
+        }
+    }
+
     @Test public void receiverReportDoesNotClaimFramesWereDecodedWhenNoVideoWasShown() throws Exception {
         UsbClient.Listener listener=new UsbClient.Listener() {
             public void state(UsbClient.State state) { }
