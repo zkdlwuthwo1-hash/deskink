@@ -23,4 +23,4 @@ done
 xcodebuild -project DeskInk.xcodeproj -scheme EternalMonitor \
   -configuration "${DESKINK_TEST_CONFIGURATION:-Debug}" -destination "$destination" \
   -derivedDataPath "$project_root/DerivedData" \
-  "${test_arguments[@]}" CODE_SIGNING_ALLOWED=NO test
+  "${test_arguments[@]}" ENABLE_TESTABILITY=YES CODE_SIGNING_ALLOWED=NO test
