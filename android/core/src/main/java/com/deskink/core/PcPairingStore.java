@@ -20,7 +20,7 @@ public final class PcPairingStore {
         } catch(NoSuchFileException missing) { contents=legacy; migrating=true; }
         List<PcRegistration> saved=new ArrayList<>();
         if(contents.isEmpty()) return saved;
-        for(String entry:contents.split(",")) {
+        for(String entry:contents.split(",",-1)) {
             PcRegistration pc=PcRegistration.decode(entry);
             if(!migrating&&(pc==null||saved.size()>=2)) throw new IOException("Invalid saved PC registrations");
             if(pc!=null&&saved.size()<2) saved.add(pc);
