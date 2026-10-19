@@ -2,10 +2,12 @@
 //! autostart registration or upstream auto-updater.
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
 use deskink_windows::monitor_control::{request_monitor, MonitorControl};
+#[cfg(test)]
 use deskink_windows::overlay::Overlay;
 use eframe::egui;
 use eternal_host::{
     annotation::{AnnotationState, AnnotationWorkspace},
+    annotation_surface::AnnotationSurface,
     capture,
     control::{SharedControl, SupervisorCommand},
     gpu::GpuInfo,
@@ -63,8 +65,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get(selected)
         .ok_or("Selected monitor is unavailable")?
         .clone();
-    let overlay = Overlay::new(output.left, output.top, output.width, output.height)?;
-    let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
+    let overlay = AnnotationSurface::new(output)?;
+    let annotation = overlay.state.clone();
     let mut shared = SharedControl::new(9876, 15_000_000);
     shared.annotation = Some(Arc::new(AnnotationWorkspace::new(annotation.clone())));
     shared.audio_enabled.store(false, Ordering::SeqCst);
@@ -102,7 +104,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 shared: controller,
                 annotation,
                 overlay,
-                shown_revision: 0,
                 error: None,
                 outputs,
                 other_monitors: HashMap::new(),
@@ -126,11 +127,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct DeskInk {
     shared: SharedControl,
     annotation: Arc<AnnotationState>,
-    overlay: Overlay,
-    shown_revision: u64,
+    overlay: AnnotationSurface,
     error: Option<String>,
     outputs: Vec<capture::OutputInfo>,
-    other_monitors: HashMap<String, (Arc<AnnotationState>, Overlay, u64)>,
+    other_monitors: HashMap<String, (Arc<AnnotationState>, AnnotationSurface)>,
     supervisor_tx: mpsc::Sender<SupervisorCommand>,
     selection_rx: mpsc::Receiver<usize>,
     _monitor_control: Option<MonitorControl>,
@@ -176,10 +176,10 @@ impl DeskInk {
         let next = if let Some(surface) = self.other_monitors.remove(&output.device_name) {
             surface
         } else {
-            let overlay = Overlay::new(output.left, output.top, output.width, output.height)?;
-            let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
+            let overlay = AnnotationSurface::new(output)?;
+            let annotation = overlay.state.clone();
             *annotation.repaint.lock() = self.annotation.repaint.lock().clone();
-            (annotation, overlay, u64::MAX)
+            (annotation, overlay)
         };
         let workspace = self
             .shared
@@ -197,7 +197,6 @@ impl DeskInk {
         let old = (
             std::mem::replace(&mut self.annotation, next.0),
             std::mem::replace(&mut self.overlay, next.1),
-            std::mem::replace(&mut self.shown_revision, next.2),
         );
         self.other_monitors.insert(old_name, old);
         tracing::info!(monitor = index, display = %self.annotation.output.device_name, "DeskInk monitor selected");
@@ -214,45 +213,17 @@ impl eframe::App for DeskInk {
                 self.error = Some(error.to_string());
             }
         }
-        // Keep permanent ink visible on both physical monitors, but let old
-        // laser pointers and temporary ink expire on an inactive monitor too.
-        for (annotation, overlay, shown) in self.other_monitors.values_mut() {
-            let mut ink = annotation.ink.lock();
-            if ink.advance_time(eternal_host::clock::host_now_us() / 1000) {
-                annotation.revision.fetch_add(1, Ordering::Release);
-            }
-            let revision = annotation.revision.load(Ordering::Acquire);
-            if revision != *shown {
-                let board = ink.board().snapshot_for_display();
-                drop(ink);
-                if let Err(error) = overlay.present(&board) {
-                    self.error = Some(error.to_string());
-                }
-                *shown = revision;
+        // Ink and temporary-content expiry run on their owning presentation
+        // threads, even while eframe throttles this minimized settings window.
+        for (_, surface) in self.other_monitors.values() {
+            if let Some(error) = surface.take_error() {
+                self.error = Some(error);
             }
         }
-        let (has_temporary, revision, board) = {
-            let mut ink = self.annotation.ink.lock();
-            if ink.advance_time(eternal_host::clock::host_now_us() / 1000) {
-                self.annotation.revision.fetch_add(1, Ordering::Release);
-            }
-            let revision = self.annotation.revision.load(Ordering::Acquire);
-            let board =
-                (revision != self.shown_revision).then(|| ink.board().snapshot_for_display());
-            (ink.board().has_temporary_content(), revision, board)
-        };
-        // eframe calls logic even while the controller is minimized/occluded.
-        if let Some(board) = board {
-            if let Err(error) = self.overlay.present(&board) {
-                self.error = Some(error.to_string());
-            }
-            self.shown_revision = revision;
+        if let Some(error) = self.overlay.take_error() {
+            self.error = Some(error);
         }
-        ctx.request_repaint_after(if has_temporary {
-            Duration::from_millis(50)
-        } else {
-            Duration::from_millis(250)
-        });
+        ctx.request_repaint_after(Duration::from_millis(250));
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
@@ -328,6 +299,170 @@ mod tests {
     use super::*;
     use deskink_core::{Board, Brush, Command, Point};
     use eframe::App;
+
+    #[test]
+    #[ignore = "interactive desktop diagnostic; briefly shows a 64px synthetic ink marker"]
+    fn real_controller_window_keeps_ink_fresh_when_minimized() {
+        use std::{
+            sync::{atomic::AtomicBool, Mutex},
+            time::Instant,
+        };
+        use windows::Win32::Graphics::Gdi::{GetDC, GetPixel, ReleaseDC};
+        use winit::platform::windows::EventLoopBuilderExtWindows;
+
+        struct Probe {
+            app: DeskInk,
+            start: Instant,
+            minimized: bool,
+        }
+        impl eframe::App for Probe {
+            fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+                self.app.logic(ctx, frame);
+                if !self.minimized && self.start.elapsed() >= Duration::from_secs(3) {
+                    self.minimized = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                }
+                if self.start.elapsed() >= Duration::from_secs(6) {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            }
+            fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+                self.app.ui(ui, frame);
+            }
+        }
+
+        let timings = Arc::new(Mutex::new([Vec::<f64>::new(), Vec::new()]));
+        let times = Arc::new(Mutex::new(vec![None::<Instant>; 400]));
+        let stop = Arc::new(AtomicBool::new(false));
+        let handles = Arc::new(Mutex::new(Vec::new()));
+        let task_timings = timings.clone();
+        let task_stop = stop.clone();
+        let task_handles = handles.clone();
+        let result = eframe::run_native(
+            "DeskInk controller timing diagnostic",
+            eframe::NativeOptions {
+                viewport: egui::ViewportBuilder::default()
+                    .with_inner_size([520.0, 420.0])
+                    .with_position([600.0, 300.0]),
+                event_loop_builder: Some(Box::new(|builder| {
+                    builder.with_any_thread(true);
+                })),
+                ..Default::default()
+            },
+            Box::new(move |cc| {
+                eternal_host::clock::init();
+                let start = Instant::now();
+                let output = capture::OutputInfo {
+                    adapter_index: 0,
+                    output_index: 0,
+                    device_name: "diagnostic".into(),
+                    width: 64,
+                    height: 64,
+                    left: 0,
+                    top: 0,
+                    is_primary: true,
+                    adapter_name: "synthetic".into(),
+                };
+                let overlay = AnnotationSurface::new(output).unwrap();
+                let annotation = overlay.state.clone();
+                *annotation.repaint.lock() = Some(cc.egui_ctx.clone());
+                let app = DeskInk {
+                    shared: SharedControl::new(0, 15_000_000),
+                    annotation: annotation.clone(),
+                    overlay,
+                    error: None,
+                    outputs: Vec::new(),
+                    other_monitors: HashMap::new(),
+                    supervisor_tx: mpsc::channel().0,
+                    selection_rx: mpsc::channel().1,
+                    _monitor_control: None,
+                };
+                let writer_times = times.clone();
+                let writer_stop = task_stop.clone();
+                let writer = std::thread::spawn(move || {
+                    let peer = PeerId::usb(99);
+                    let mut sequence = 0;
+                    for sample in 1u64..=359 {
+                        let deadline = start + Duration::from_micros(sample * 16_667);
+                        if let Some(delay) = deadline.checked_duration_since(Instant::now()) {
+                            std::thread::sleep(delay);
+                        }
+                        if writer_stop.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        writer_times.lock().unwrap()[sample as usize] = Some(Instant::now());
+                        for command in [
+                            serde_json::json!({"type":"clear"}),
+                            serde_json::json!({"type":"begin","id":sample,"brush":{"color":[sample & 255,sample >> 8,120,255],"width":20},"point":{"x":32,"y":32,"pressure":0.5}}),
+                            serde_json::json!({"type":"end","id":sample}),
+                        ] {
+                            sequence += 1;
+                            let bytes = serde_json::to_vec(&serde_json::json!({"version":1,"session":42,"epoch":3,"seq":sequence,"command":command})).unwrap();
+                            assert!(annotation.receive(peer, Some(peer), Some(42), 3, &bytes));
+                        }
+                    }
+                });
+                let observer = std::thread::spawn(move || {
+                    while !task_stop.load(Ordering::Relaxed)
+                        && start.elapsed() < Duration::from_secs(7)
+                    {
+                        let elapsed = start.elapsed().as_secs_f64();
+                        let phase = if (1.0..2.8).contains(&elapsed) {
+                            Some(0)
+                        } else if (3.5..5.8).contains(&elapsed) {
+                            Some(1)
+                        } else {
+                            None
+                        };
+                        if let Some(phase) = phase {
+                            let pixel = unsafe {
+                                let dc = GetDC(None);
+                                let pixel = GetPixel(dc, 32, 32).0;
+                                ReleaseDC(None, dc);
+                                pixel
+                            };
+                            if (pixel >> 16) & 255 == 120 {
+                                let sample = (pixel & 65535) as usize;
+                                if let Some(Some(sent)) = times.lock().unwrap().get(sample) {
+                                    task_timings.lock().unwrap()[phase]
+                                        .push(sent.elapsed().as_secs_f64() * 1000.0);
+                                }
+                            }
+                        }
+                        std::thread::sleep(Duration::from_millis(2));
+                    }
+                });
+                task_handles.lock().unwrap().extend([writer, observer]);
+                Ok(Box::new(Probe {
+                    app,
+                    start,
+                    minimized: false,
+                }))
+            }),
+        );
+        stop.store(true, Ordering::Relaxed);
+        for handle in handles.lock().unwrap().drain(..) {
+            handle.join().unwrap();
+        }
+        result.unwrap();
+        let mut measurements = timings.lock().unwrap();
+        for (phase, values) in ["visible", "minimized"].iter().zip(measurements.iter_mut()) {
+            assert!(
+                values.len() >= 20,
+                "No usable desktop ink pixels for {phase}"
+            );
+            values.sort_by(f64::total_cmp);
+            let p95 = values[values.len() * 95 / 100];
+            println!(
+                "Desktop ink freshness {phase}: p95={p95:.1}ms samples={}",
+                values.len()
+            );
+            assert!(
+                p95 < 50.0,
+                "The controller window must not hold desktop ink back: {phase} p95={p95:.1}ms"
+            );
+        }
+    }
     use eternal_host::transport::link::PeerId;
     use windows::Win32::Graphics::Gdi::{GetDC, GetPixel, ReleaseDC};
 
@@ -337,8 +472,8 @@ mod tests {
         use std::time::Instant;
         eternal_host::clock::init();
         let output = capture::enumerate_outputs().remove(0);
-        let overlay = Overlay::new(output.left, output.top, output.width, output.height).unwrap();
-        let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
+        let overlay = AnnotationSurface::new(output).unwrap();
+        let annotation = overlay.state.clone();
         let peer = PeerId::usb(99);
         let mut sequence = 0;
         let mut send = |command| {
@@ -364,7 +499,6 @@ mod tests {
             shared: SharedControl::new(0, 15_000_000),
             annotation: annotation.clone(),
             overlay,
-            shown_revision: 0,
             error: None,
             outputs: Vec::new(),
             other_monitors: HashMap::new(),
@@ -455,8 +589,8 @@ mod tests {
             markers.push(marker);
         }
         let output = outputs[0].clone();
-        let overlay = Overlay::new(output.left, output.top, output.width, output.height).unwrap();
-        let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
+        let overlay = AnnotationSurface::new(output).unwrap();
+        let annotation = overlay.state.clone();
         let mut shared = SharedControl::new(0, 15_000_000);
         shared.annotation = Some(Arc::new(AnnotationWorkspace::new(annotation.clone())));
         struct ProbeConfig;
@@ -511,7 +645,6 @@ mod tests {
             shared,
             annotation,
             overlay,
-            shown_revision: 0,
             error: None,
             outputs: outputs.clone(),
             other_monitors: HashMap::new(),
@@ -607,8 +740,7 @@ mod tests {
 
     #[test]
     fn accepted_ink_reaches_desktop_without_a_controller_ui_pass() {
-        // eframe runs only App::logic when the controller is minimized/occluded.
-        // Exercise that real lifecycle entry point and inspect desktop pixels.
+        // No controller callbacks at all: input must reach real desktop pixels.
         unsafe {
             let _ = windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext(
                 windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
@@ -625,7 +757,7 @@ mod tests {
             is_primary: true,
             adapter_name: "test".into(),
         };
-        let overlay = Overlay::new(0, 0, 64, 64).unwrap();
+        let backdrop = Overlay::new(0, 0, 64, 64).unwrap();
         let mut initial = Board::new();
         initial
             .apply(Command::Begin {
@@ -641,38 +773,32 @@ mod tests {
                 },
             })
             .unwrap();
-        overlay.present(&initial).unwrap();
-        let annotation = Arc::new(AnnotationState::new(output, overlay.hwnd().0 as usize));
-        let mut app = DeskInk {
-            shared: SharedControl::new(9876, 15_000_000),
-            annotation: annotation.clone(),
-            overlay,
-            shown_revision: 0,
-            error: None,
-            outputs: Vec::new(),
-            other_monitors: HashMap::new(),
-            supervisor_tx: mpsc::channel().0,
-            selection_rx: mpsc::channel().1,
-            _monitor_control: None,
+        backdrop.present(&initial).unwrap();
+        let surface = AnnotationSurface::new(output).unwrap();
+        let annotation = surface.state.clone();
+        let expect_red = |expected: bool| {
+            let deadline = std::time::Instant::now() + Duration::from_millis(250);
+            loop {
+                let pixel = unsafe {
+                    let dc = GetDC(None);
+                    let value = GetPixel(dc, 32, 32).0;
+                    ReleaseDC(None, dc);
+                    value & 0x00ff_ffff
+                };
+                if (pixel == (237 | (19 << 8) | (53 << 16))) == expected {
+                    break;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "Ink presentation did not update desktop pixels"
+                );
+                std::thread::sleep(Duration::from_millis(2));
+            }
         };
         let peer = PeerId::usb(7);
         assert!(annotation.receive(peer, Some(peer), Some(42), 3,
             br#"{"version":1,"session":42,"epoch":3,"seq":1,"command":{"type":"begin","id":7,"brush":{"color":[237,19,53,255],"width":20},"point":{"x":32,"y":32,"pressure":0.4}}}"#));
-        app.logic(
-            &egui::Context::default(),
-            &mut eframe::Frame::_new_kittest(),
-        );
-        let rgb = unsafe {
-            let dc = GetDC(None);
-            let rgb = GetPixel(dc, 32, 32).0;
-            ReleaseDC(None, dc);
-            rgb
-        };
-        assert_eq!(
-            rgb & 0x00ff_ffff,
-            237 | (19 << 8) | (53 << 16),
-            "A minimized controller must still display newly accepted ink"
-        );
+        expect_red(true);
         let mut sequence = 1;
         for (command, red_visible) in [
             (serde_json::json!({"type":"end","id":7}), true),
@@ -700,21 +826,7 @@ mod tests {
                 3,
                 &serde_json::to_vec(&message).unwrap()
             ));
-            app.logic(
-                &egui::Context::default(),
-                &mut eframe::Frame::_new_kittest(),
-            );
-            let pixel = unsafe {
-                let dc = GetDC(None);
-                let value = GetPixel(dc, 32, 32).0;
-                ReleaseDC(None, dc);
-                value & 0x00ff_ffff
-            };
-            assert_eq!(
-                pixel == (237 | (19 << 8) | (53 << 16)),
-                red_visible,
-                "command {message} must update actual overlay pixels"
-            );
+            expect_red(red_visible);
         }
     }
 }

@@ -1,7 +1,4 @@
-use crate::{
-    capture::OutputInfo,
-    transport::link::PeerId,
-};
+use crate::{capture::OutputInfo, transport::link::PeerId};
 use deskink_core::InkSession;
 use parking_lot::Mutex;
 use std::sync::{
@@ -43,6 +40,7 @@ pub struct AnnotationState {
     pub ink: Mutex<InkSession>,
     pub revision: AtomicU64,
     binding: Mutex<(u32, u32)>,
+    renderer: Mutex<Option<std::sync::mpsc::SyncSender<()>>>,
     pub repaint: Mutex<Option<eframe::egui::Context>>,
 }
 
@@ -54,7 +52,20 @@ impl AnnotationState {
             overlay_handle,
             revision: AtomicU64::new(0),
             binding: Mutex::new((0, 0)),
+            renderer: Mutex::new(None),
             repaint: Mutex::new(None),
+        }
+    }
+
+    pub(crate) fn attach_renderer(&self, wake: std::sync::mpsc::SyncSender<()>) {
+        *self.renderer.lock() = Some(wake);
+    }
+
+    fn request_presentation(&self) {
+        if let Some(wake) = &*self.renderer.lock() {
+            let _ = wake.try_send(());
+        } else if let Some(context) = &*self.repaint.lock() {
+            context.request_repaint();
         }
     }
 
@@ -111,9 +122,7 @@ impl AnnotationState {
         }
         if ink.accepted_sequence() != previous {
             self.revision.fetch_add(1, Ordering::Release);
-            if let Some(context) = &*self.repaint.lock() {
-                context.request_repaint();
-            }
+            self.request_presentation();
         }
         true
     }
@@ -126,8 +135,6 @@ impl AnnotationState {
         self.ink.lock().reconnect(0, 0);
         *binding = (0, 0);
         self.revision.fetch_add(1, Ordering::Release);
-        if let Some(context) = &*self.repaint.lock() {
-            context.request_repaint();
-        }
+        self.request_presentation();
     }
 }

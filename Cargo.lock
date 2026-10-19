@@ -1212,6 +1212,7 @@ dependencies = [
  "tracing-subscriber",
  "ureq",
  "windows 0.58.0",
+ "winit",
  "winresource",
 ]
 

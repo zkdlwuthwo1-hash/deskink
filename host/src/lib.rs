@@ -3,6 +3,8 @@
 
 pub mod audio;
 pub mod annotation;
+#[cfg(windows)]
+pub mod annotation_surface;
 pub mod autostart;
 pub mod capture;
 pub mod clock;

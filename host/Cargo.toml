@@ -80,3 +80,6 @@ features = [
 
 [target.'cfg(windows)'.dependencies]
 deskink-windows = { path = "../crates/windows-platform" }
+
+[target.'cfg(windows)'.dev-dependencies]
+winit = "0.30"

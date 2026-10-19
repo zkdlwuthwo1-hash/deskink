@@ -362,7 +362,13 @@ pub async fn start_sender(
                                                 dropped = report.frames_dropped, repaired = report.frags_repaired,
                                                 nacks = report.nacks_sent, jitter_us = report.jitter_us,
                                                 decode_fps_x10 = report.decode_fps_x10,
+                                                assembler_depth = report.assembler_depth,
                                                 decode_depth = report.decode_depth,
+                                                // Decode throughput alone cannot reveal a stream
+                                                // that keeps 60fps while delivering old frames.
+                                                // Zero latency is also used before clock sync.
+                                                e2e_latency_ms_x10 = report.e2e_latency_ms_x10,
+                                                rtt_ms_x10 = report.rtt_ms_x10,
                                                 retransmits,
                                                 "Receiver report");
                                             let ceiling =
