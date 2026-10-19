@@ -1,6 +1,6 @@
 # Remember paired PCs
 
-Status: in-progress
+Status: completed (implementation, automated verification and distribution; physical reconnect not observed)
 Blocked by: none
 Review baseline: `a59543395dea7a47035f9a8237b144be8b7d6252`
 
@@ -19,7 +19,9 @@ Initial regression: `cargo test -p eternal-host --test remembered_pairing -- --n
 TDD evidence:
 - Windows: the full HELLO/ACK restart regression failed with Unauthorized, then passed with the DPAPI trust store. Four focused tests and the standard Windows suite pass, including wrong-PC/device rejection, forgetting registration, damaged storage and lost replacement ACKs.
 - Android: the real socket two-PC regression failed because rotating PC A displaced PC B, then passed after replacing only the presented credential. App recreation and rate-limited candidate selection also pass. Core/app tests, lint and release assembly pass locally.
-- iPad: [native red run 39198132471](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39198132471) reproduced one saved PC instead of two. The fix stores both credentials together, migrates the old record and tries both before prompting; full native tests/build are pending in run 39198915553.
-- Native Android integration is pending in run 39198585547. Release packaging/public verification remain pending. Physical tablet reconnection has not been observed.
+- iPad: [native red run 39198132471](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39198132471) reproduced one saved PC instead of two. The fix stores both credentials together, migrates the old record and tries both before prompting. Final [native run 39200563502](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39200563502) passed 171 tests and produced version 0.4.2/build 14.
+- Final Android source passes 26 core tests, 10 app tests and release lint locally. Native [run 39200955715](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39200955715) passes all three tablet tests and the compact-window UI rerun. Windows package manifest/runtime and console-free desktop shortcut checks pass. All six published asset digests and public app/HTML downloads match local files; the previously shared Pages URL returns the new guide. The updated local Windows host is running. Physical tablet reconnection has not been observed.
 
 Independent Standards and Spec review both found the same two edge cases: code re-registration could evict the other PC, and Android could promote a credential before storage succeeded. The real-socket re-registration test reproduced the former, then passed with stable PC identity. Android now atomically writes a private app file on its USB reader thread and promotes candidates only after success; it migrates the old preferences without relying on their in-memory write cache. iPad stores both PC identities and credentials in one Keychain item. The original no-wire-change assumption was revised because a rotating credential cannot identify an explicitly forgotten PC.
+
+Follow-up review closed Android activity save/load races with one storage lock and a generation guard, and preserves corrupt existing storage instead of treating it as first launch. The malformed comma-only/trailing-entry regression was reproduced and fixed. Final independent review: Standards 5 findings resolved / 0 remaining; Spec 3 resolved / 0 remaining. See [verification evidence](../../../docs/remembered-pairing-verification.md).
