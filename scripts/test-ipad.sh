@@ -21,6 +21,6 @@ for test_filter in "${test_filters[@]}"; do
   test_arguments+=("-only-testing:$test_filter")
 done
 xcodebuild -project DeskInk.xcodeproj -scheme EternalMonitor \
-  -configuration Debug -destination "$destination" \
+  -configuration "${DESKINK_TEST_CONFIGURATION:-Debug}" -destination "$destination" \
   -derivedDataPath "$project_root/DerivedData" \
   "${test_arguments[@]}" CODE_SIGNING_ALLOWED=NO test

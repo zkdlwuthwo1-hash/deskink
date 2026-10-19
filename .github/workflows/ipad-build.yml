@@ -9,6 +9,14 @@ on:
         required: false
         default: EternalMonitorTests
         type: string
+      test_configuration:
+        description: Use Release for performance diagnostics
+        required: false
+        default: Debug
+        type: choice
+        options:
+          - Debug
+          - Release
 
 permissions:
   contents: read
@@ -24,6 +32,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       DESKINK_TEST_FILTER: ${{ inputs.test_filter }}
+      DESKINK_TEST_CONFIGURATION: ${{ inputs.test_configuration }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
