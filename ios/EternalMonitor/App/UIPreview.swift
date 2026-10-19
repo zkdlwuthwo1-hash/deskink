@@ -1,4 +1,4 @@
-#if DEBUG
+#if DEBUG || DESKINK_TEST_SUPPORT
 import SwiftUI
 
 /// Debug builds only: put the UI in a state that normally needs a live PC,
