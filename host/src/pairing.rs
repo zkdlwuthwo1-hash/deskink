@@ -95,7 +95,9 @@ impl Pairing {
         Ok(pairing)
     }
 
-    pub fn remembered_count(&self) -> usize { self.trusted.as_ref().map_or(0, |store| store.len()) }
+    pub fn remembered_count(&self) -> usize {
+        self.trusted.as_ref().map_or(0, |store| store.len())
+    }
 
     /// Commit only after the session has accepted the device (not on busy/rejected requests).
     pub fn remember(&mut self, hello: &Hello2, used_code: bool) -> std::io::Result<()> {
@@ -138,7 +140,9 @@ impl Pairing {
     pub fn regenerate_token(&mut self) -> std::io::Result<()> {
         let token = new_token().map_err(std::io::Error::other)?;
         let code = random_code(self.code).map_err(std::io::Error::other)?;
-        if let Some(store) = &mut self.trusted { store.clear()?; }
+        if let Some(store) = &mut self.trusted {
+            store.clear()?;
+        }
         self.code = code;
         self.token = token;
         self.log_code();
@@ -158,7 +162,10 @@ impl Pairing {
             });
         }
         if bool::from(hello.auth_token.ct_eq(&self.token))
-            || self.trusted.as_ref().is_some_and(|store| store.accepts(hello.device_id, &hello.auth_token))
+            || self
+                .trusted
+                .as_ref()
+                .is_some_and(|store| store.accepts(hello.device_id, &hello.auth_token))
         {
             return Ok(Grant {
                 token: self.token,

@@ -68,8 +68,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut shared = SharedControl::new(9876, 15_000_000);
     shared.annotation = Some(Arc::new(AnnotationWorkspace::new(annotation.clone())));
     shared.audio_enabled.store(false, Ordering::SeqCst);
-    let pairing_path = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")
-        .ok_or("Windows local app data folder is unavailable")?).join("DeskInk").join("paired-tablets.bin");
+    let pairing_path = std::path::PathBuf::from(
+        std::env::var_os("LOCALAPPDATA").ok_or("Windows local app data folder is unavailable")?,
+    )
+    .join("DeskInk")
+    .join("paired-tablets.bin");
     *shared.pairing.lock() = eternal_host::pairing::Pairing::remembered(&pairing_path)?;
     let gpu = GpuInfo::detect();
     let (tx, rx) = mpsc::channel();
@@ -83,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = eframe::run_native(
         "DeskInk",
         eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default().with_inner_size([520.0, 380.0]),
+            viewport: egui::ViewportBuilder::default().with_inner_size([520.0, 420.0]),
             ..Default::default()
         },
         Box::new(move |cc| {
@@ -294,7 +297,11 @@ impl eframe::App for DeskInk {
         ));
         ui.small("Enter the code once per PC. Registered tablets reconnect automatically.");
         let remembered = self.shared.pairing.lock().remembered_count();
-        if remembered > 0 && ui.button(format!("Forget paired tablets ({remembered})")).clicked() {
+        if remembered > 0
+            && ui
+                .button(format!("Forget paired tablets ({remembered})"))
+                .clicked()
+        {
             if let Err(error) = self.shared.pairing.lock().regenerate_token() {
                 self.error = Some(error.to_string());
             }
