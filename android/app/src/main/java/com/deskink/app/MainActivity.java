@@ -18,6 +18,9 @@ import java.util.*;
 import java.security.SecureRandom;
 
 public final class MainActivity extends Activity {
+    // A lifecycle restart must load after an older reader's durable save, or
+    // reject that reader before it writes. Shared across Activity instances.
+    private static final Object pairingStorageLock=new Object();
     private InkCanvas ink;
     private TextureView video;
     private WorkspaceView workspace;
@@ -77,19 +80,23 @@ public final class MainActivity extends Activity {
         if(device==0) { device=new SecureRandom().nextLong()&Long.MAX_VALUE; if(device==0) device=1; preferences.edit().putLong("device",device).apply(); }
         PcPairingStore pairingStore=new PcPairingStore(new java.io.File(getFilesDir(),"pc-registrations").toPath());
         List<PcRegistration> tokens;
-        try { tokens=pairingStore.load(preferences.getString("tokens","")); }
-        catch(java.io.IOException error) { tokens=new ArrayList<>(); }
+        synchronized(pairingStorageLock) {
+            try { tokens=pairingStore.load(preferences.getString("tokens","")); }
+            catch(java.io.IOException error) { tokens=new ArrayList<>(); }
+        }
         decoder=new VideoDecoder(() -> { UsbClient c=client; if(c!=null) c.requestKeyframe(); },() -> { });
         if(video.isAvailable()) attachSurface(video.getSurfaceTexture());
         UsbClient session=new UsbClient(9877,device,getResources().getDisplayMetrics().widthPixels,getResources().getDisplayMetrics().heightPixels,tokens,new UsbClient.Listener() {
             public boolean savePairings(List<PcRegistration> saved) {
-                if(generation!=runId) return false;
-                // USB reader thread: disk durability never blocks pen/UI input.
-                try { pairingStore.save(saved); return true; }
-                catch(java.io.IOException error) {
-                    runOnUiThread(() -> { if(generation==runId) Toast.makeText(MainActivity.this,
-                        getString(R.string.registration_save_failed),Toast.LENGTH_LONG).show(); });
-                    return false;
+                synchronized(pairingStorageLock) {
+                    if(generation!=runId) return false;
+                    // USB reader thread; no pen writer lock is held during disk I/O.
+                    try { pairingStore.save(saved); return true; }
+                    catch(java.io.IOException error) {
+                        runOnUiThread(() -> { if(generation==runId) Toast.makeText(MainActivity.this,
+                            getString(R.string.registration_save_failed),Toast.LENGTH_LONG).show(); });
+                        return false;
+                    }
                 }
             }
             public void state(UsbClient.State state) { runOnUiThread(() -> { if(generation==runId) showState(state); }); }
