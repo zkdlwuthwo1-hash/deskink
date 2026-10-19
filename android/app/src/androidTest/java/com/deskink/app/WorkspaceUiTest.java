@@ -63,7 +63,32 @@ public class WorkspaceUiTest {
                     }
                 }
             });
-            Thread.sleep(500);
+            java.util.concurrent.atomic.AtomicBoolean keyboardShown=new java.util.concurrent.atomic.AtomicBoolean();
+            long deadline=android.os.SystemClock.uptimeMillis()+10000;
+            while(!keyboardShown.get()&&android.os.SystemClock.uptimeMillis()<deadline) {
+                activity.onActivity(a -> {
+                    for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                        if(window.findViewWithTag("pair.code")==null) continue;
+                        android.view.WindowInsets insets=window.getRootWindowInsets();
+                        keyboardShown.set(insets!=null&&insets.isVisible(android.view.WindowInsets.Type.ime()));
+                    }
+                });
+                Thread.sleep(100);
+            }
+            assertTrue("Capture must wait until the software keyboard is actually visible",keyboardShown.get());
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            activity.onActivity(a -> {
+                for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                    View code=window.findViewWithTag("pair.code"); if(code==null) continue;
+                    Rect input=new Rect(),action=new Rect(),available=new Rect();
+                    window.getWindowVisibleDisplayFrame(available);
+                    assertTrue("Pairing input stays reachable with the keyboard open",code.getGlobalVisibleRect(input));
+                    View connect=window.findViewById(android.R.id.button1);
+                    assertTrue(connect.getGlobalVisibleRect(action));
+                    assertTrue("Connect must remain above the keyboard",available.contains(action));
+                    assertEquals("Connect must remain fully visible",connect.getHeight(),action.height());
+                }
+            });
             capture("pairing-keyboard");
         }
     }

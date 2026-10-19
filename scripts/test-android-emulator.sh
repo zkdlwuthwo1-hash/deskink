@@ -10,6 +10,7 @@ trap collect EXIT
 cd "$root/android"
 if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
   adb shell settings put secure immersive_mode_confirmations confirmed
+  adb shell settings put secure show_ime_with_hard_keyboard 1
 fi
 ./gradlew :app:connectedDebugAndroidTest :app:assembleRelease --console=plain
 # The Actions runner owns this disposable emulator. Also exercise a small
@@ -20,7 +21,6 @@ if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
   adb shell wm size 960x600
   adb shell wm density 240
   adb shell settings put system font_scale 1.5
-  adb shell settings put secure show_ime_with_hard_keyboard 1
   ./gradlew :app:connectedDebugAndroidTest --console=plain \
     -Pandroid.testInstrumentationRunnerArguments.class=com.deskink.app.WorkspaceUiTest \
     -Pandroid.testInstrumentationRunnerArguments.captureSuffix=-compact
