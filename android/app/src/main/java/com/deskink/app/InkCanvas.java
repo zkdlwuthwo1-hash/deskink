@@ -36,10 +36,14 @@ public final class InkCanvas extends View {
     public void bind(InkDocument document,Predicate<JSONObject> sender,int w,int h) {
         disconnect(); this.document=document; this.sender=sender; desktopWidth=w; desktopHeight=h;
         paths.clear(); cachedRevision=-1;
-        viewport.resize(getWidth(),getHeight(),w,h); transformChanged.run(); invalidate();
+        viewport.resize(getWidth(),getHeight(),w,h); transformChanged.run(); stateChanged.run(); invalidate();
     }
-    public void disconnect() { finish(true); pen.cancel(); pointerId=-1; sender=null; document.suspend(); invalidate(); }
+    public void disconnect() { finish(true); pen.cancel(); pointerId=-1; sender=null; document.suspend(); stateChanged.run(); invalidate(); }
     public PenInput.Tool tool() { return pen.tool(); }
+    public boolean inkVisible() { return document.visible; }
+    public boolean connected() { return sender!=null; }
+    public boolean canUndo() { return document.canUndo(); }
+    public boolean canRedo() { return document.canRedo(); }
     public void select(PenInput.Tool tool) { finish(true); pen.select(tool); stateChanged.run(); }
     public void color(int[] rgba) { color=rgba.clone(); }
     public void width(float value) { width=value; }
@@ -47,8 +51,10 @@ public final class InkCanvas extends View {
     public void visible(boolean visible) { finish(true); emit(Ink.object("type","set_visible","visible",visible)); }
     private void emit(JSONObject command) {
         if(sender==null) return;
-        if(!sender.test(command)) { sender=null; document.suspend(); return; }
+        if(!sender.test(command)) { sender=null; document.suspend(); stateChanged.run(); return; }
         document.advanceTime(SystemClock.uptimeMillis()); document.apply(command); invalidate();
+        String type=command.optString("type");
+        if(!type.equals("append")&&!type.equals("pointer")&&!type.equals("erase_to")) stateChanged.run();
     }
     @Override protected void onSizeChanged(int w,int h,int oldW,int oldH) {
         viewport.resize(w,h,desktopWidth,desktopHeight);
@@ -101,8 +107,9 @@ public final class InkCanvas extends View {
             "radius",laser?10:Math.max(2,width/2),"laser",laser));
     }
     private void buttons(MotionEvent e) {
+        PenInput.Tool before=pen.tool();
         pen.button((e.getButtonState()&(MotionEvent.BUTTON_STYLUS_PRIMARY|MotionEvent.BUTTON_STYLUS_SECONDARY))!=0);
-        stateChanged.run();
+        if(before!=pen.tool()) stateChanged.run();
     }
     private static boolean stylus(MotionEvent e,int i) {
         return e.getToolType(i)==MotionEvent.TOOL_TYPE_STYLUS||e.getToolType(i)==MotionEvent.TOOL_TYPE_ERASER;
@@ -112,7 +119,7 @@ public final class InkCanvas extends View {
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     @Override public boolean onTouchEvent(MotionEvent e) {
         int action=e.getActionMasked();
-        if(action==MotionEvent.ACTION_CANCEL) { finish(true); pen.cancel(); pointerId=-1; cursor(null,false); return true; }
+        if(action==MotionEvent.ACTION_CANCEL) { finish(true); pen.cancel(); stateChanged.run(); pointerId=-1; cursor(null,false); return true; }
         // Pointer transitions belong to the pointer that changed, not the pen
         // still present in the same event. A palm must never open a new stroke.
         if((action==MotionEvent.ACTION_POINTER_DOWN||action==MotionEvent.ACTION_POINTER_UP)
@@ -145,7 +152,7 @@ public final class InkCanvas extends View {
     }
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
-        if(!focused) { finish(true); pen.cancel(); pointerId=-1; cursor(null,false); }
+        if(!focused) { finish(true); pen.cancel(); stateChanged.run(); pointerId=-1; cursor(null,false); }
     }
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas); document.advanceTime(SystemClock.uptimeMillis());

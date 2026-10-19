@@ -3,15 +3,30 @@
     <string name="undo">실행 취소</string><string name="redo">다시 실행</string><string name="clear">전체 지우기</string><string name="hide">필기 숨기기</string><string name="fit">화면 맞춤</string>
     <string name="color">색상</string><string name="width">굵기</string><string name="pair">PC 연결</string><string name="help">USB 연결 도움말</string>
     <string name="waiting">PC 연결 대기 중 · USB</string>
-    <string name="welcome">Windows 화면을 펜으로 설명하세요.</string>
-    <string name="connect_hint">USB 데이터 케이블로 연결하고 PC에서 DeskInk를 실행하세요.\n두 손가락으로 확대·이동하고, S펜 버튼을 누르는 동안 지울 수 있습니다.</string>
+
     <string name="usb_help">1. 태블릿에 APK를 설치하세요.\n2. 설정 → 태블릿 정보 → 소프트웨어 정보 → 빌드번호를 7번 누르세요.\n3. 개발자 옵션 → USB 디버깅을 켜세요.\n4. USB 데이터 케이블로 연결하고 태블릿에서 이 PC를 허용하세요.\n5. Windows에서 DeskInk-Android.exe를 실행한 뒤 PC에 표시된 6자리 코드를 입력하세요.\n\n신뢰하는 PC만 허용하세요. USB 연결을 더 이상 사용하지 않을 때는 USB 디버깅을 끌 수 있습니다.</string>
     <string name="pair_hint">Windows DeskInk 창에 표시된 6자리 코드를 입력하세요.</string>
     <string name="connect">연결</string><string name="cancel">취소</string>
     <string name="pair_required">PC의 페어링 코드를 입력하세요</string><string name="rate_limited">시도 횟수가 많습니다. 1분 후 코드를 다시 입력하세요.</string>
     <string name="busy">이 PC가 다른 태블릿과 연결되어 있습니다.</string><string name="incompatible">Windows DeskInk를 최신 버전으로 업데이트하세요.</string>
     <string name="not_connected">USB를 연결하고 Windows에서 DeskInk를 먼저 실행하세요.</string>
-    <string name="invalid_code">6자리 숫자를 입력하세요.</string><string name="connected">%1$s · USB · %2$d × %3$d</string>
+    <string name="invalid_code">6자리 숫자를 입력하세요.</string>
     <string name="thin">얇게</string><string name="medium">보통</string><string name="thick">굵게</string>
     <string-array name="colors"><item>주황</item><item>빨강</item><item>노랑</item><item>초록</item><item>파랑</item><item>흰색</item><item>검정</item></string-array>
+    <string name="help_short">도움말</string>
+    <string name="undo_short">취소</string><string name="redo_short">다시</string><string name="clear_short">지우기</string>
+    <string name="hide_short">숨기기</string><string name="show_short">보이기</string><string name="show">필기 보이기</string>
+    <string name="fade_short">사라짐</string><string name="fit_short">맞춤</string>
+    <string name="welcome_title">PC 화면 위에,\n바로 필기하세요.</string>
+    <string name="welcome_detail">Windows 화면을 나만의 칠판으로.\n연결한 뒤 펜을 들면 바로 시작할 수 있어요.</string>
+    <string name="setup_usb">태블릿을 USB로 연결</string><string name="setup_usb_detail">데이터 케이블을 연결하고 USB 디버깅을 허용하세요.</string>
+    <string name="setup_pc">Windows에서 DeskInk 실행</string><string name="setup_pc_detail">화면을 선택하고 6자리 페어링 코드를 확인하세요.</string>
+    <string name="setup_pair">PC의 코드 입력</string><string name="setup_pair_detail">연결되면 이곳에 PC 화면이 나타납니다.</string>
+    <string name="gesture_zoom">두 손가락으로 확대·이동</string><string name="gesture_erase">S펜 버튼을 누르는 동안 지우기</string>
+    <string name="pair_label">PC 페어링 코드</string><string name="pair_placeholder">6자리 숫자</string>
+    <string name="pair_note">PC의 DeskInk 창에 표시된 코드를 입력하세요.</string>
+    <string name="color_current">색상: %1$s</string><string name="width_current">굵기: %1$s</string>
+    <string name="usb_details">USB · %1$d × %2$d</string><string name="color_hint">다음 필기에 사용할 색상을 선택하세요.</string>
+    <string name="width_hint">다음 필기에 사용할 선의 굵기를 선택하세요.</string>
+    <string name="connected_accessibility">%1$s에 연결됨</string>
 </resources>

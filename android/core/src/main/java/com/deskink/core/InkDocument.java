@@ -35,6 +35,8 @@ public final class InkDocument {
     public long revision,staticRevision;
     public List<Stroke> strokes() { return Collections.unmodifiableList(strokes); }
     public List<Stroke> temporary() { return Collections.unmodifiableList(temporary); }
+    public boolean canUndo() { return !undo.isEmpty(); }
+    public boolean canRedo() { return !redo.isEmpty(); }
     public void advanceTime(long millis) {
         now=Math.max(now,millis);
         if(temporary.removeIf(s -> s.finished&&s.expires<=now)) revision++;

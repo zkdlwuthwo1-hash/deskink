@@ -40,13 +40,13 @@ public class StreamingTest {
                 out.write(new byte[]{'E','M','L','I','N','K',1,0}); out.flush(); byte[] hello=read(in);
                 long nonce=Integer.toUnsignedLong(ByteBuffer.wrap(hello).order(ByteOrder.LITTLE_ENDIAN).getInt(18));
                 ByteBuffer config=ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);
-                config.putInt(1).putShort((short)64).putShort((short)64).putShort((short)60).put((byte)0).put((byte)0).putInt(2000000);
-                byte[] name="Lab PC · Screen 1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                config.putInt(1).putShort((short)1280).putShort((short)720).putShort((short)60).put((byte)0).put((byte)0).putInt(2000000);
+                byte[] name="DeskInk PC · Screen 1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 ByteBuffer ack=ByteBuffer.allocate(33+name.length+18).order(ByteOrder.LITTLE_ENDIAN);
                 ack.put((byte)0).put((byte)2).putInt((int)nonce).putInt(42).putShort((short)1000).putShort((short)500).putShort((short)3000)
                     .put(config.array()).put((byte)name.length).put(name).put(new byte[]{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}).putShort((short)0x7004);
                 send(out,control(0x11,0,ack.array()));
-                byte[] h264=asset("single_idr_64x64.h264"); int fragments=(h264.length+1367)/1368;
+                byte[] h264=asset("deskink_workspace_1280x720.h264"); int fragments=(h264.length+1367)/1368;
                 AtomicBoolean shown=new AtomicBoolean();
                 for(int attempt=0;attempt<40&&!shown.get();attempt++) {
                     for(int i=0;i<fragments;i++) {
@@ -68,13 +68,22 @@ public class StreamingTest {
                 byte[] command; do { command=read(in); } while(command[0]!='D');
                 String json=new String(command,4,command.length-4,java.nio.charset.StandardCharsets.UTF_8);
                 assertEquals("clear",new org.json.JSONObject(json).getJSONObject("command").getString("type"));
-                // The test runner uninstalls the app afterwards, so preserve the
-                // actual emulator screenshot outside its app-data directory.
-                try(android.os.ParcelFileDescriptor capture=InstrumentationRegistry.getInstrumentation().getUiAutomation()
-                        .executeShellCommand("screencap -p /sdcard/Download/deskink-android-streaming.png");
-                    InputStream captureOutput=new android.os.ParcelFileDescriptor.AutoCloseInputStream(capture)) {
-                    byte[] discard=new byte[1024]; while(captureOutput.read(discard)!=-1) { }
-                }
+                activity.onActivity(a -> {
+                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                    // One real native stylus stroke under the sample amplifier.
+                    for(int i=0;i<=20;i++) {
+                        MotionEvent.PointerProperties pen=new MotionEvent.PointerProperties(); pen.id=0; pen.toolType=MotionEvent.TOOL_TYPE_STYLUS;
+                        MotionEvent.PointerCoords point=new MotionEvent.PointerCoords();
+                        point.x=canvas.viewport.x()+(510+i*13)*canvas.viewport.scale();
+                        point.y=canvas.viewport.y()+(490+(float)Math.sin(i*.3)*3)*canvas.viewport.scale(); point.pressure=1;
+                        int action=i==0?MotionEvent.ACTION_DOWN:i==20?MotionEvent.ACTION_UP:MotionEvent.ACTION_MOVE;
+                        MotionEvent event=MotionEvent.obtain(100,100+i*8,action,1,new MotionEvent.PointerProperties[]{pen},new MotionEvent.PointerCoords[]{point},0,0,1,1,0,0,InputDevice.SOURCE_STYLUS,0);
+                        canvas.dispatchTouchEvent(event); event.recycle();
+                    }
+                });
+                WorkspaceUiTest.capture("streaming");
+                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("color").performClick());
+                WorkspaceUiTest.capture("colors");
             }
         }
     }

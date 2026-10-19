@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- Synthetic slide for native UI/codec verification. No private desktop content. -->
+  <rect width="1280" height="720" fill="#e9ebef"/>
+  <rect x="64" y="38" width="1152" height="644" rx="14" fill="#fafbfc" stroke="#cbd0d8"/>
+  <path d="M78 38H1202Q1216 38 1216 52V82H64V52Q64 38 78 38" fill="#f1f3f6"/>
+  <path d="M64 82H1216" stroke="#d8dde4"/>
+  <g font-family="Arial, sans-serif" fill="#232d3d">
+    <text x="92" y="66" font-size="15">Presentation · Signal flow</text>
+    <text x="1164" y="66" text-anchor="end" font-size="13" fill="#697486">DeskInk UI test</text>
+    <text x="126" y="156" font-size="13" fill="#567b97" letter-spacing="3">01 / EXPLAIN ON SCREEN</text>
+    <text x="124" y="224" font-size="48" font-weight="bold">Follow the signal.</text>
+    <text x="126" y="263" font-size="20" fill="#697486">Use your pen to mark each stage of the circuit.</text>
+    <g stroke="#c7d0dc" fill="#f1f4f8" stroke-width="1.5">
+      <rect x="126" y="336" width="252" height="142" rx="12"/>
+      <rect x="514" y="336" width="252" height="142" rx="12"/>
+      <rect x="902" y="336" width="252" height="142" rx="12"/>
+    </g>
+    <g text-anchor="middle">
+      <text x="252" y="392" font-size="24" font-weight="bold">Input</text>
+      <text x="252" y="432" font-size="18" fill="#697486">Small signal</text>
+      <text x="640" y="392" font-size="24" font-weight="bold">Amplifier</text>
+      <text x="640" y="432" font-size="18" fill="#697486">Gain = 4</text>
+      <text x="1028" y="392" font-size="24" font-weight="bold">Output</text>
+      <text x="1028" y="432" font-size="18" fill="#697486">Larger signal</text>
+    </g>
+    <path d="M398 407H491L481 397M491 407L481 417M786 407H879L869 397M879 407L869 417" stroke="#72849b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M126 551H1154" stroke="#d8dde4"/>
+    <text x="126" y="597" font-size="18" fill="#697486">Circle a component. Highlight a connection. Keep the original screen in view.</text>
+    <text x="126" y="640" font-size="12" fill="#8490a0">Synthetic presentation for screenshot verification</text>
+  </g>
+</svg>

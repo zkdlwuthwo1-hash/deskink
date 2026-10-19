@@ -1,0 +1,20 @@
+<resources>
+    <style name="Theme.DeskInk" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">@font/geist_regular</item>
+        <item name="android:colorAccent">#8AB4FF</item>
+        <item name="android:windowBackground">#0D0F13</item>
+        <item name="android:colorBackground">#0D0F13</item>
+        <item name="android:textColorPrimary">#F3F4F7</item>
+        <item name="android:textColorSecondary">#A6ACB9</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:alertDialogTheme">@style/Theme.DeskInk.Dialog</item>
+    </style>
+    <style name="Theme.DeskInk.Dialog" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:fontFamily">@font/geist_regular</item>
+        <item name="android:colorAccent">#8AB4FF</item>
+        <item name="android:colorBackground">#1B1E25</item>
+        <item name="android:textColorPrimary">#F3F4F7</item>
+        <item name="android:textColorSecondary">#A6ACB9</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

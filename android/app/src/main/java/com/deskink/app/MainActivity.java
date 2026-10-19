@@ -4,12 +4,15 @@ import android.app.*;
 import android.os.*;
 import android.view.*;
 import android.widget.*;
-import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.content.SharedPreferences;
 import android.text.InputFilter;
 import android.text.InputType;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.text.method.DigitsKeyListener;
+import android.view.inputmethod.EditorInfo;
 import com.deskink.core.*;
 import java.util.*;
 import java.security.SecureRandom;
@@ -17,10 +20,7 @@ import java.security.SecureRandom;
 public final class MainActivity extends Activity {
     private InkCanvas ink;
     private TextureView video;
-    private TextView status;
-    private LinearLayout welcome;
-    private final Map<PenInput.Tool,Button> toolButtons=new EnumMap<>(PenInput.Tool.class);
-    private boolean inkVisible=true;
+    private WorkspaceView workspace;
     private final MonitorDocuments documents=new MonitorDocuments();
     private volatile UsbClient client;
     private volatile VideoDecoder decoder;
@@ -33,32 +33,8 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.BLACK);
-        FrameLayout workspace=new FrameLayout(this);
-        video=new TextureView(this); video.setTag("video"); video.setOpaque(false); workspace.addView(video,new FrameLayout.LayoutParams(-1,-1));
-        ink=new InkCanvas(this); ink.setTag("ink"); workspace.addView(ink,new FrameLayout.LayoutParams(-1,-1));
-        welcome=new LinearLayout(this); welcome.setGravity(Gravity.CENTER); welcome.setOrientation(LinearLayout.VERTICAL); welcome.setPadding(dp(24),0,dp(24),0);
-        TextView title=new TextView(this); title.setText(R.string.welcome); title.setTextSize(25); title.setTextColor(Color.WHITE); title.setGravity(Gravity.CENTER); welcome.addView(title);
-        TextView hint=new TextView(this); hint.setText(R.string.connect_hint); hint.setTextSize(15); hint.setTextColor(0xffa9b3c4); hint.setGravity(Gravity.CENTER); hint.setPadding(0,dp(20),0,0); welcome.addView(hint);
-        workspace.addView(welcome,new FrameLayout.LayoutParams(-1,-1)); root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
-        LinearLayout connection=new LinearLayout(this); connection.setGravity(Gravity.CENTER_VERTICAL); connection.setPadding(dp(10),0,dp(8),0);
-        status=new TextView(this); status.setText(R.string.waiting); status.setTextColor(0xffa9b3c4); status.setTextSize(12);
-        connection.addView(status,new LinearLayout.LayoutParams(0,dp(48),1)); status.setGravity(Gravity.CENTER_VERTICAL);
-        connection.addView(button(R.string.pair,"pair",this::pair));
-        connection.addView(button(R.string.help,"help",() -> new AlertDialog.Builder(this).setTitle(R.string.help).setMessage(R.string.usb_help).setPositiveButton(android.R.string.ok,null).show()));
-        root.addView(connection);
-        HorizontalScrollView scroll=new HorizontalScrollView(this); scroll.setHorizontalScrollBarEnabled(false); scroll.setFillViewport(true);
-        LinearLayout toolbar=new LinearLayout(this); toolbar.setGravity(Gravity.CENTER); toolbar.setPadding(dp(6),0,dp(6),dp(4));
-        PenInput.Tool[] tools=PenInput.Tool.values(); int[] names={R.string.pen,R.string.highlighter,R.string.eraser,R.string.laser,R.string.vanishing};
-        for(int i=0;i<tools.length;i++) { PenInput.Tool tool=tools[i]; Button b=button(names[i],"tool."+tool,() -> ink.select(tool)); toolButtons.put(tool,b); toolbar.addView(b); }
-        toolbar.addView(button(R.string.color,"color",this::color)); toolbar.addView(button(R.string.width,"width",this::width));
-        toolbar.addView(button(R.string.undo,"undo",() -> ink.command("undo"))); toolbar.addView(button(R.string.redo,"redo",() -> ink.command("redo")));
-        toolbar.addView(button(R.string.clear,"clear",() -> ink.command("clear")));
-        toolbar.addView(button(R.string.hide,"hide",() -> { inkVisible=!inkVisible; ink.visible(inkVisible); }));
-        toolbar.addView(button(R.string.fit,"fit",ink::resetZoom));
-        scroll.addView(toolbar); root.addView(scroll); setContentView(root);
-        ink.stateChanged=() -> { for(Map.Entry<PenInput.Tool,Button> e:toolButtons.entrySet()) e.getValue().setTextColor(e.getKey()==ink.tool()?0xffff9a64:Color.WHITE); };
-        ink.stateChanged.run();
+        workspace=new WorkspaceView(this,this::pair);
+        video=workspace.video; ink=workspace.ink; setContentView(workspace);
         preferences=getSharedPreferences("usb-pairing",MODE_PRIVATE);
         ink.transformChanged=this::transformVideo;
         video.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
@@ -72,18 +48,6 @@ public final class MainActivity extends Activity {
         });
         immersive();
     }
-    private Button button(int text,String tag,Runnable action) {
-        Button b=new Button(this); b.setText(text); b.setTag(tag); b.setTextSize(12); b.setAllCaps(false);
-        b.setContentDescription(getString(text)); b.setTooltipText(getString(text)); b.setMinWidth(dp(48)); b.setMinimumWidth(dp(48));
-        b.setMinHeight(dp(48)); b.setPadding(dp(9),0,dp(9),0); b.setOnClickListener(v -> action.run()); return b;
-    }
-    private void color() {
-        int[][] colors={{255,80,40,255},{245,45,65,255},{255,210,35,255},{25,190,100,255},{35,125,255,255},{255,255,255,255},{25,30,40,255}};
-        new AlertDialog.Builder(this).setTitle(R.string.color).setItems(R.array.colors,(d,i) -> ink.color(colors[i])).show();
-    }
-    private void width() {
-        new AlertDialog.Builder(this).setTitle(R.string.width).setItems(new String[]{getString(R.string.thin),getString(R.string.medium),getString(R.string.thick)},(d,i) -> ink.width(new float[]{2,4,8}[i])).show();
-    }
     private void immersive() {
         if(Build.VERSION.SDK_INT>=30) {
             getWindow().setDecorFitsSystemWindows(false);
@@ -92,6 +56,10 @@ public final class MainActivity extends Activity {
         } else getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
     @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); if(focused) immersive(); }
+    @Override public void onConfigurationChanged(android.content.res.Configuration config) {
+        super.onConfigurationChanged(config); workspace.closeSheet();
+        if(pairingDialog!=null&&pairingDialog.isShowing()) new DeskInkUi(this).finishSheet(pairingDialog);
+    }
     private void attachSurface(SurfaceTexture texture) {
         if(surface!=null) surface.release(); surface=new Surface(texture);
         VideoDecoder d=decoder; if(d!=null) d.surface(surface);
@@ -104,6 +72,7 @@ public final class MainActivity extends Activity {
     }
     @Override public void onStart() {
         super.onStart(); final int generation=++runId;
+        workspace.showConnection(getString(R.string.app_name),getString(R.string.waiting),false);
         long device=preferences.getLong("device",0);
         if(device==0) { device=new SecureRandom().nextLong()&Long.MAX_VALUE; if(device==0) device=1; preferences.edit().putLong("device",device).apply(); }
         List<byte[]> tokens=new ArrayList<>();
@@ -123,8 +92,7 @@ public final class MainActivity extends Activity {
                     binding=next; String token=hex(next.token); rememberToken(token);
                     InkDocument document=documents.select(token,next.host);
                     UsbClient owner=client; ink.bind(document,c -> owner!=null&&owner.ink(next,c),next.config.width,next.config.height);
-                    inkVisible=document.visible; welcome.setVisibility(View.GONE); video.setVisibility(View.VISIBLE);
-                    status.setText(getString(R.string.connected,next.host,next.config.width,next.config.height));
+                    workspace.showConnection(next.host,getString(R.string.usb_details,next.config.width,next.config.height),true);
                     if(pairingDialog!=null) pairingDialog.dismiss(); transformVideo();
                 });
             }
@@ -136,7 +104,7 @@ public final class MainActivity extends Activity {
         client=session;
         Thread start=new Thread(() -> {
             try { session.start(); }
-            catch(java.io.IOException e) { runOnUiThread(() -> { if(generation==runId) status.setText(R.string.not_connected); }); }
+            catch(java.io.IOException e) { runOnUiThread(() -> { if(generation==runId) workspace.showConnection(getString(R.string.app_name),getString(R.string.not_connected),false); }); }
         },"DeskInk USB start"); start.setDaemon(true); start.start();
     }
     private static String hex(byte[] token) {
@@ -158,27 +126,48 @@ public final class MainActivity extends Activity {
             case INCOMPATIBLE: message=R.string.incompatible; break;
             default: message=R.string.waiting;
         }
-        status.setText(message); binding=null; ink.disconnect(); welcome.setVisibility(View.VISIBLE); video.setVisibility(View.INVISIBLE);
+        binding=null; ink.disconnect(); workspace.showConnection(getString(R.string.app_name),getString(message),false);
         if(state==UsbClient.State.PAIRING) pair();
     }
     private void pair() {
         if(pairingDialog!=null&&pairingDialog.isShowing()) return;
-        EditText code=new EditText(this); code.setInputType(InputType.TYPE_CLASS_NUMBER); code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});
-        code.setHint("000000"); code.setTextSize(28); code.setGravity(Gravity.CENTER); code.setContentDescription(getString(R.string.pair_hint));
-        pairingDialog=new AlertDialog.Builder(this).setTitle(R.string.pair).setMessage(R.string.pair_hint).setView(code)
+        workspace.closeSheet(); DeskInkUi ui=new DeskInkUi(this);
+        LinearLayout content=ui.sheetContent(R.string.pair,R.drawable.ic_monitor);
+        TextView hint=ui.text(R.string.pair_hint,14,DeskInkUi.MUTED,false); hint.setLineSpacing(dp(4),1); content.addView(hint); content.addView(ui.space(22));
+        TextView label=ui.text(R.string.pair_label,12,DeskInkUi.TEXT,true); content.addView(label); content.addView(ui.space(8));
+        EditText code=new EditText(this); code.setTag("pair.code"); code.setId(View.generateViewId()); label.setLabelFor(code.getId());
+        code.setInputType(InputType.TYPE_CLASS_NUMBER); code.setKeyListener(DigitsKeyListener.getInstance("0123456789"));
+        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)}); code.setSingleLine(true); code.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        code.setHint(R.string.pair_placeholder); code.setTextSize(26); code.setGravity(Gravity.CENTER); code.setLetterSpacing(.14f);
+        code.setTypeface(getResources().getFont(R.font.geist_mono)); code.setTextColor(DeskInkUi.TEXT); code.setHintTextColor(DeskInkUi.MUTED);
+        code.setPadding(dp(12),dp(16),dp(12),dp(16)); code.setBackground(ui.surface(DeskInkUi.CANVAS,14,DeskInkUi.BORDER));
+        code.setContentDescription(getString(R.string.pair_label)); code.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        content.addView(code,new LinearLayout.LayoutParams(-1,-2));
+        TextView error=ui.text("",13,DeskInkUi.DANGER,false); error.setTag("pair.error"); error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        error.setPadding(0,dp(8),0,0); error.setVisibility(View.GONE); content.addView(error);
+        content.addView(ui.space(12)); content.addView(ui.text(R.string.pair_note,12,DeskInkUi.MUTED,false));
+        code.addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence s,int start,int count,int after) { }
+            public void onTextChanged(CharSequence s,int start,int before,int count) { error.setVisibility(View.GONE); }
+            public void afterTextChanged(Editable text) { }
+        });
+        pairingDialog=new AlertDialog.Builder(this).setView(content)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.connect,null).create();
         pairingDialog.setOnShowListener(ignored -> pairingDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String value=code.getText().toString();
-            if(!value.matches("[0-9]{6}")||Integer.parseInt(value)==0) { code.setError(getString(R.string.invalid_code)); return; }
-            UsbClient c=client; if(c==null) { code.setError(getString(R.string.not_connected)); return; }
+            if(!value.matches("[0-9]{6}")||Integer.parseInt(value)==0) { error.setText(R.string.invalid_code); error.setVisibility(View.VISIBLE); return; }
+            UsbClient c=client; if(c==null) { error.setText(R.string.not_connected); error.setVisibility(View.VISIBLE); return; }
             c.pair(Integer.parseInt(value)); pairingDialog.dismiss();
-        })); pairingDialog.show();
+        }));
+        code.setOnEditorActionListener((view,action,event) -> { if(action==EditorInfo.IME_ACTION_DONE) { pairingDialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); return true; } return false; });
+        pairingDialog.show(); ui.finishSheet(pairingDialog);
+        pairingDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
     }
     @Override public void onStop() {
         ++runId; ink.disconnect(); UsbClient previous=client; client=null; if(previous!=null) previous.close();
         VideoDecoder d=decoder; decoder=null; if(d!=null) d.close();
         if(surface!=null) { surface.release(); surface=null; }
         if(pairingDialog!=null) pairingDialog.dismiss();
-        binding=null; super.onStop();
+        workspace.closeSheet(); binding=null; super.onStop();
     }
 }

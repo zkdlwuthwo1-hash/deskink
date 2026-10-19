@@ -9,6 +9,55 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class MainActivityTest {
+    @Test public void historyButtonsReflectTheAvailableUndoAndRedoActions() {
+        try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
+            View root=controller.get().getWindow().getDecorView();
+            root.measure(View.MeasureSpec.makeMeasureSpec(1200,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(800,View.MeasureSpec.EXACTLY));
+            root.layout(0,0,1200,800);
+            View undo=root.findViewWithTag("undo"),redo=root.findViewWithTag("redo");
+            assertFalse("No document is connected yet",undo.isEnabled());
+            InkCanvas canvas=root.findViewWithTag("ink"); canvas.bind(new InkDocument(),c -> true,1920,1080);
+            assertFalse(undo.isEnabled()); assertFalse(redo.isEnabled());
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_DOWN,0,400,300);
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_UP,0,500,300);
+            assertTrue(undo.isEnabled()); assertFalse(redo.isEnabled());
+            undo.performClick(); assertFalse(undo.isEnabled()); assertTrue(redo.isEnabled());
+            redo.performClick(); assertTrue(undo.isEnabled()); assertFalse(redo.isEnabled());
+        }
+    }
+    @Test public void visibilityControlFollowsDrawingThatAutomaticallyShowsHiddenInk() {
+        try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
+            View root=controller.get().getWindow().getDecorView();
+            root.measure(View.MeasureSpec.makeMeasureSpec(1200,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(800,View.MeasureSpec.EXACTLY));
+            root.layout(0,0,1200,800);
+            InkCanvas canvas=root.findViewWithTag("ink"); InkDocument document=new InkDocument();
+            canvas.bind(document,c -> true,1920,1080);
+            View visibility=root.findViewWithTag("hide"); visibility.performClick();
+            assertFalse(document.visible);
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_DOWN,0,400,300);
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_UP,0,500,300);
+            assertTrue(document.visible);
+            visibility.performClick();
+            assertFalse("The next tap must hide the ink that drawing made visible again",document.visible);
+        }
+    }
+    @Test public void selectedToolTracksTheSPenButtonAndReturnsToThePreviousTool() {
+        try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
+            View root=controller.get().getWindow().getDecorView();
+            root.measure(View.MeasureSpec.makeMeasureSpec(1200,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(800,View.MeasureSpec.EXACTLY));
+            root.layout(0,0,1200,800);
+            InkCanvas canvas=root.findViewWithTag("ink"); canvas.bind(new InkDocument(),c -> true,1920,1080);
+            View highlighter=root.findViewWithTag("tool.HIGHLIGHTER"),eraser=root.findViewWithTag("tool.ERASER");
+            highlighter.performClick();
+            assertTrue("The selected tool must be exposed to accessibility and visible feedback",highlighter.isSelected());
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_DOWN,0,400,300);
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_MOVE,MotionEvent.BUTTON_STYLUS_PRIMARY,450,300);
+            assertTrue(eraser.isSelected()); assertFalse(highlighter.isSelected());
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_MOVE,0,500,300);
+            assertTrue(highlighter.isSelected()); assertFalse(eraser.isSelected());
+            InkCanvasTest.touch(canvas,MotionEvent.ACTION_UP,0,500,300);
+        }
+    }
     @Test public void foregroundActivityStartsUsbAndClosingItReleasesThePort() throws Exception {
         try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create().start()) {
             java.net.Socket socket=null;
