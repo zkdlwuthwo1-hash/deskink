@@ -11,7 +11,7 @@ public class PcPairingStoreTest {
         try {
             byte[] first=new byte[16],second=new byte[16]; Arrays.fill(first,(byte)1); Arrays.fill(second,(byte)2);
             PcPairingStore store=new PcPairingStore(file);
-            List<PcRegistration> migrated=store.load("01010101010101010101010101010101ff");
+            List<PcRegistration> migrated=store.load("0102030405060708090a0b0c0d0e0f10");
             assertEquals(1,migrated.size());
             List<PcRegistration> saved=Arrays.asList(new PcRegistration(first,first),new PcRegistration(second,second));
             store.save(saved);
