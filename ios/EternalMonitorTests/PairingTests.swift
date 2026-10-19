@@ -11,6 +11,19 @@ private final class MemoryPairingStorage: PairingStorage {
 }
 
 final class PairingTests: XCTestCase {
+    @MainActor func testUSBRemembersBothPCsAcrossStoreRecreation() async throws {
+        let backend = MemoryPairingStorage()
+        let store = PairingStore(storage: backend)
+        let first = Data(1...16), second = Data(17...32)
+        try store.save(token: first, hostName: "First PC", address: "USB")
+        try store.save(token: second, hostName: "Second PC", address: "USB")
+        let reopened = PairingStore(storage: backend)
+        let saved = try reopened.tokens(address: "USB")
+        XCTAssertEqual(saved.count, 2)
+        XCTAssertTrue(saved.contains(first))
+        XCTAssertTrue(saved.contains(second))
+    }
+
     @MainActor func testStoreUsesHostNameAndAddressAndPromotesQRIdentity() async throws {
         let backend = MemoryPairingStorage()
         let store = PairingStore(storage: backend)

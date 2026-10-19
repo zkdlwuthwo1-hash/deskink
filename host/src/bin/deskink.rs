@@ -68,9 +68,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut shared = SharedControl::new(9876, 15_000_000);
     shared.annotation = Some(Arc::new(AnnotationWorkspace::new(annotation.clone())));
     shared.audio_enabled.store(false, Ordering::SeqCst);
-    shared.pairing.lock().require_usb_code = true;
-    // Pairing is required on USB too. Token currently belongs to this run;
-    // per-PC durable pairing is part of the later persistence task.
+    let pairing_path = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")
+        .ok_or("Windows local app data folder is unavailable")?).join("DeskInk").join("paired-tablets.bin");
+    *shared.pairing.lock() = eternal_host::pairing::Pairing::remembered(&pairing_path)?;
     let gpu = GpuInfo::detect();
     let (tx, rx) = mpsc::channel();
     let worker_shared = shared.clone();
@@ -292,6 +292,13 @@ impl eframe::App for DeskInk {
             "Pairing code: {:06}",
             self.shared.pairing.lock().code()
         ));
+        ui.small("Enter the code once per PC. Registered tablets reconnect automatically.");
+        let remembered = self.shared.pairing.lock().remembered_count();
+        if remembered > 0 && ui.button(format!("Forget paired tablets ({remembered})")).clicked() {
+            if let Err(error) = self.shared.pairing.lock().regenerate_token() {
+                self.error = Some(error.to_string());
+            }
+        }
         let stats = PIPELINE_STATS.lock();
         ui.label(format!(
             "Capture {:.0} fps   Encode {:.0} fps",

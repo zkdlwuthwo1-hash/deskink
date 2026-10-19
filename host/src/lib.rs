@@ -13,6 +13,7 @@ pub mod gui;
 pub mod input;
 pub mod logging;
 pub mod pairing;
+mod trusted_devices;
 pub mod pipeline;
 pub mod settings;
 pub mod stats;

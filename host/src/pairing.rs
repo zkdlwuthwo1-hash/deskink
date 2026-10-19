@@ -63,6 +63,7 @@ pub struct Pairing {
     // All USB attempts share a bounded bucket: reconnecting changes device_id
     // and must not reset the limit for the six-digit pairing code.
     usb_limiter: RateLimiter<()>,
+    trusted: Option<crate::trusted_devices::TrustedDevices>,
 }
 
 pub struct Grant {
@@ -80,7 +81,28 @@ impl Pairing {
             code: random_code(0)?,
             limiter: RateLimiter::default(),
             usb_limiter: RateLimiter::default(),
+            trusted: None,
         })
+    }
+
+    /// DeskInk startup: a fresh drawing-session identity plus durable tablet trust.
+    pub fn remembered(path: &std::path::Path) -> std::io::Result<Self> {
+        let trusted = crate::trusted_devices::TrustedDevices::open(path)?;
+        let mut pairing = Self::new(true, new_token().map_err(std::io::Error::other)?)
+            .map_err(std::io::Error::other)?;
+        pairing.require_usb_code = true;
+        pairing.trusted = Some(trusted);
+        Ok(pairing)
+    }
+
+    pub fn remembered_count(&self) -> usize { self.trusted.as_ref().map_or(0, |store| store.len()) }
+
+    /// Commit only after the session has accepted the device (not on busy/rejected requests).
+    pub fn remember(&mut self, hello: &Hello2, used_code: bool) -> std::io::Result<()> {
+        if let Some(store) = &mut self.trusted {
+            store.remember(hello.device_id, hello.auth_token, self.token, used_code)?;
+        }
+        Ok(())
     }
 
     pub fn configure(&mut self, required: bool, token: [u8; 16]) {
@@ -113,10 +135,13 @@ impl Pairing {
         Ok(())
     }
 
-    pub fn regenerate_token(&mut self) -> Result<(), getrandom::Error> {
-        let token = new_token()?;
-        self.rotate_code()?;
+    pub fn regenerate_token(&mut self) -> std::io::Result<()> {
+        let token = new_token().map_err(std::io::Error::other)?;
+        let code = random_code(self.code).map_err(std::io::Error::other)?;
+        if let Some(store) = &mut self.trusted { store.clear()?; }
+        self.code = code;
         self.token = token;
+        self.log_code();
         Ok(())
     }
 
@@ -132,7 +157,9 @@ impl Pairing {
                 used_code: false,
             });
         }
-        if bool::from(hello.auth_token.ct_eq(&self.token)) {
+        if bool::from(hello.auth_token.ct_eq(&self.token))
+            || self.trusted.as_ref().is_some_and(|store| store.accepts(hello.device_id, &hello.auth_token))
+        {
             return Ok(Grant {
                 token: self.token,
                 used_code: false,

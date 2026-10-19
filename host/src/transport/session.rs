@@ -355,6 +355,14 @@ impl Session {
             }
         }
 
+        if let Some(state) = pairing.as_mut() {
+            if let Err(error) = state.remember(&hello, grant.used_code) {
+                warn!(%error, "Could not save tablet registration");
+                let ack = self.make_ack(HelloStatus::Error, hello.client_nonce, 0, config);
+                actions.replies.push((source, ack));
+                return actions;
+            }
+        }
         if grant.used_code {
             if let Err(error) = pairing
                 .as_mut()
