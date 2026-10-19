@@ -13,7 +13,7 @@
     panels.forEach(panel => { panel.hidden = panel.dataset.devicePanel !== device; });
   }
   function revealDestination(hash) {
-    if (['#install', '#iloader', '#developer', '#renew'].includes(hash)) selectDevice('ipad');
+    if (['#install', '#apple-devices', '#iloader', '#developer', '#renew'].includes(hash)) selectDevice('ipad');
     if (hash === '#android') selectDevice('android');
   }
   if (controls) {

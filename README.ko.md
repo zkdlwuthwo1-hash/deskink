@@ -15,7 +15,7 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 ## 다운로드
 
-아래 링크를 누르면 파일을 바로 받습니다. **Windows ZIP·iPad IPA·iloader는 PC에서, Android APK는 태블릿에서** 받으세요.
+아래에서 설치 파일과 공식 설치 페이지를 엽니다. **Windows ZIP·iPad IPA·iloader·Apple 기기는 PC에서, Android APK는 태블릿에서** 받으세요.
 
 | 다운로드 | 사용 방법 |
 | --- | --- |
@@ -23,6 +23,7 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 | [**Android 앱 APK 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2) | 갤럭시탭 등 Android 8 이상 태블릿에서 파일을 열고 **설치** |
 | [**iPad 앱 IPA 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2) | PC의 iloader에서 불러와 아이패드에 설치 |
 | [**iloader Windows 설치 파일 다운로드**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | iPad 앱 설치용 도구. 공식 배포처의 EXE를 받아 PC에서 실행 |
+| [**Apple 기기 설치 · Microsoft Store**](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR) | iPad 첫 USB 연결 준비·기기 인식 확인. 이미 정상 인식되는 PC는 생략 가능 |
 | [**설치·사용 안내 HTML 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | 캡처가 포함된 안내서를 브라우저에서 열기 |
 
 **Windows 0.4.3:** 설정 창을 최소화했을 때 PC 필기가 느려지는 문제를 수정했습니다. Windows DeskInk를 종료하고 새 ZIP의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. iPad·Android 앱이 0.4.2라면 이번 수정 때문에 다시 설치할 필요는 없습니다. 양쪽 기기가 함께 느려지는 장시간 사용 문제는 별도로 조사 중입니다.
@@ -31,7 +32,7 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 ## 아이패드에 처음 설치하기
 
-1. **PC와 아이패드를 준비합니다.** Windows x64 PC, iPadOS 17 이상, 호환되는 Pencil, 데이터 전송용 USB 케이블을 준비합니다. 아이패드의 잠금을 풀어 USB로 연결하고, **이 컴퓨터를 신뢰**가 나오면 허용합니다. **Apple Devices 앱 자체는 필수가 아닙니다.** 이미 DeskInk가 아이패드를 인식하면 추가 설치·실행 없이 진행합니다. 연결되지 않을 때만 iTunes 또는 Apple Devices의 Apple USB 드라이버·연결 서비스를 확인하세요.
+1. **Apple 기기에서 iPad 연결을 확인합니다.** 처음 설정하는 Windows PC는 [Apple 기기(Apple Devices)](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR)를 설치하고 실행하세요. 아이패드를 데이터 USB 케이블로 연결하고 잠금을 풉니다. **이 컴퓨터를 신뢰**를 허용하고 기기 암호를 입력한 뒤, **Apple 기기 왼쪽 목록에 iPad가 나타나는지** 확인합니다. [사진으로 연결 확인 위치 보기](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). 이미 iloader와 DeskInk에서 iPad를 정상 인식하는 PC는 추가 설치 없이 진행해도 됩니다. iTunes 등으로 Apple USB 연결 구성요소가 준비된 경우도 있습니다. [Apple 공식 안내](https://support.apple.com/ko-kr/108643)
 2. **Windows DeskInk를 실행합니다.** ZIP을 문서 폴더 등 쓰기 가능한 위치에 **전체 압축 해제**하고 그 안의 `DeskInk.exe`를 엽니다. 첫 실행에서 영상 구성요소 약 60MB를 공식 배포처에서 받아 검사하므로 인터넷이 필요합니다. 이후에는 내려받은 파일을 재사용합니다. 폴더 안의 파일을 따로 옮기지 마세요.
 3. **iloader로 아이패드에 설치합니다.** [iloader Windows 설치 파일](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe)을 받아 실행합니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 안내가 나오면 [공식 설치 안내](https://iloader.app/)를 따릅니다. 연결한 아이패드를 선택합니다. 처음 로그인할 때의 서버 설정 예시는 **Anisette Server → Jkcoxson (Windows)**입니다. 이미 정상 로그인됐다면 서버를 바꿀 필요는 없습니다. **본인 Apple 계정**으로 로그인·이중 인증한 뒤 **Import IPA / IPA 가져오기**에서 내려받은 `DeskInk-iPad-unsigned.ipa`를 선택하고 **Sign & Install App**을 눌러 완료될 때까지 기다립니다. [사진에 표시된 설정·설치 위치 보기](https://zkdlwuthwo1-hash.github.io/deskink/README.html#iloader). 버튼 이름은 버전·언어에 따라 조금 다를 수 있습니다.
 4. **개발자를 신뢰합니다.** 아이패드에서 신뢰되지 않은 개발자라고 나오면 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**로 이동합니다. 추가 확인이나 재시동 안내가 나오면 따릅니다. 제작자의 계정이나 비밀번호를 공유받을 필요는 없습니다.
@@ -85,7 +86,7 @@ Zoom에서는 직접 **필기하는 모니터 전체**를 공유하고 다른 �
 
 ## 막힐 때
 
-- **iPad가 안 보임:** 잠금 해제 → 컴퓨터 신뢰 → 데이터 케이블·다른 USB 포트를 확인합니다. 계속 인식되지 않으면 iTunes 또는 Apple Devices의 Apple USB 연결 구성요소를 확인하세요. [Apple 연결 서비스 점검](https://support.apple.com/ko-kr/102347)
+- **iPad가 PC·iloader에 안 보임:** [Apple 기기 앱에서 먼저 확인](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices)합니다. 왼쪽 목록에도 안 보이면 iPad 잠금 해제 → 컴퓨터 신뢰 → 데이터 케이블·다른 USB 포트를 확인하세요. Apple 기기에는 보이면 iloader에서 **Refresh Devices / 기기 새로고침(Ctrl+R)**을 누르고, 계속 없으면 iloader를 다시 실행합니다. Apple 구성요소가 없다는 오류는 [iloader 공식 설치 안내](https://iloader.app/)를 따르세요.
 - **Apple Devices 상시 실행 여부:** 앱을 열지 않아도 연결된다면 그대로 사용합니다. 해당 앱을 닫으면 연결이 끊기는 PC에서만 사용 중 최소화해 두세요.
 - **Android가 안 보임:** `DeskInk-Android.exe` 실행 → USB 디버깅 켜기 → 태블릿에서 PC 허용 → 데이터 케이블·삼성 USB 드라이버를 확인합니다. 앱을 태블릿 화면에 열어 두세요.
 - **개발자 앱을 사용할 수 없음:** 위 4·5단계를 확인합니다. 개발자 모드는 재시동 후 **켜기** 확인까지 필요합니다.

@@ -26,3 +26,24 @@ The same artifact contains welcome screens in both orientations, the color picke
 The image-edit prompt requested: preserve the supplied dark UI and exact labels, exclude all account and device information, outline Anisette Server / Jkcoxson (Windows) and Import IPA in green with numbered markers, and add the Korean captions “로그인 후 Import IPA 클릭” and “이미 Jkcoxson (Windows)이면 그대로 진행하세요.” The generated image was copied into `docs/images/`; HTML embeds these reviewed bytes and supports enlargement.
 
 The [official server list](https://github.com/nab138/iloader/blob/main/src/pages/Settings.tsx) offers Mac and Windows server types without filtering them to the client PC's operating system. The guide presents the user's successful Jkcoxson (Windows) configuration as an example, not a universal OS requirement. A normally working login does not require changing the server. The [official site](https://iloader.app/) describes IPA import and the authentication process.
+
+## Apple Devices connection guide
+
+`apple-devices-annotated.png` is an explanatory image edited with the built-in imagegen tool from the user's Apple Devices screenshot on 2026-10-19. It is not an unmodified screenshot. The device owner's name was replaced with the generic Korean label “내 iPad” in both visible locations, storage statistics were removed, and the lower backup/restore controls were excluded. The original private screenshot is not committed or embedded. The device entry, model header and annotation labels were visually checked against the supplied image. Korean instructions also appear as accessible HTML text.
+
+The public asset is saved at `docs/images/apple-devices-annotated.png`; the standalone HTML embeds the reviewed bytes and supports enlargement. [Apple's connection instructions](https://support.apple.com/ko-kr/108643) support opening Apple Devices, connecting by USB, accepting Trust and checking the sidebar. The guide uses this as the first-time setup path while allowing PCs with working Apple USB components to skip additional installation. [iloader's official Windows instructions](https://iloader.app/) still list iTunes; a successful detection screenshot does not establish that Apple Devices replaces every iloader dependency.
+
+Final edit prompt (built-in tool, no CLI fallback):
+
+```text
+Use case: precise-object-edit.
+Asset type: explanatory image for a Korean Windows-to-iPad installation guide.
+Input image 1 is the edit target: a real Apple Devices Windows screenshot supplied by the user.
+Crop to the upper-left portion showing the title "Apple 기기", the sidebar device entry, and the top main device header with its iPad model. Exclude everything below the first small "소프트웨어" heading, including all backup, restore, update and synchronization controls. Exclude the far right empty area.
+Privacy edit: replace the personal owner's device name in BOTH the left sidebar and the top header with the exact generic text "내 iPad". No original owner name may remain, and do not include storage statistics. Keep the recognizable Apple Devices UI, icons, light gray surfaces, layout, and existing app title and model label faithful to the original.
+Add a green outline and a green numbered badge "1" around the sidebar iPad entry, and a green outline and badge "2" around the main device header. Do not cover the labels.
+Below this cropped UI, add a clean white caption strip as an editorial annotation separate from the application, with two readable Korean lines:
+"① 왼쪽 목록에 iPad가 보이면 연결 확인 완료"
+"② 다음: iloader → Refresh Devices"
+The output is a clear wide instructional screenshot edit, not a redesigned app or invented UI. No email, owner name, credentials, extra UI buttons, phone, or decoration. Opaque background.
+```
