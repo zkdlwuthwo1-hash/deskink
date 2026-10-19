@@ -1,12 +1,12 @@
 //! DeskInk's entry point: no virtual-display changes, remote OS input, audio,
 //! autostart registration or upstream auto-updater.
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
-use deskink_windows::monitor_control::{request_monitor, MonitorControl};
+use deskink_windows::monitor_control::{MonitorControl, request_monitor};
 #[cfg(test)]
 use deskink_windows::overlay::Overlay;
 use eframe::egui;
 use eternal_host::{
-    annotation::{AnnotationState, AnnotationWorkspace},
+    annotation::AnnotationWorkspace,
     annotation_surface::AnnotationSurface,
     capture,
     control::{SharedControl, SupervisorCommand},
@@ -15,7 +15,7 @@ use eternal_host::{
 };
 use std::{
     collections::HashMap,
-    sync::{atomic::Ordering, mpsc, Arc},
+    sync::{Arc, atomic::Ordering, mpsc},
     time::Duration,
 };
 
@@ -102,7 +102,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })?;
             Ok(Box::new(DeskInk {
                 shared: controller,
-                annotation,
                 overlay,
                 error: None,
                 outputs,
@@ -126,11 +125,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 struct DeskInk {
     shared: SharedControl,
-    annotation: Arc<AnnotationState>,
     overlay: AnnotationSurface,
     error: Option<String>,
     outputs: Vec<capture::OutputInfo>,
-    other_monitors: HashMap<String, (Arc<AnnotationState>, AnnotationSurface)>,
+    other_monitors: HashMap<String, AnnotationSurface>,
     supervisor_tx: mpsc::Sender<SupervisorCommand>,
     selection_rx: mpsc::Receiver<usize>,
     _monitor_control: Option<MonitorControl>,
@@ -139,7 +137,7 @@ struct DeskInk {
 impl DeskInk {
     fn select_monitor(&mut self, index: usize) -> Result<(), Box<dyn std::error::Error>> {
         let requested = self.outputs.get(index).ok_or("Monitor is unavailable")?;
-        if requested.device_name == self.annotation.output.device_name {
+        if requested.device_name == self.overlay.state.output.device_name {
             return Ok(());
         }
         if self
@@ -177,29 +175,25 @@ impl DeskInk {
             surface
         } else {
             let overlay = AnnotationSurface::new(output)?;
-            let annotation = overlay.state.clone();
-            *annotation.repaint.lock() = self.annotation.repaint.lock().clone();
-            (annotation, overlay)
+            *overlay.state.repaint.lock() = self.overlay.state.repaint.lock().clone();
+            overlay
         };
         let workspace = self
             .shared
             .annotation
             .as_ref()
             .ok_or("DeskInk workspace is unavailable")?;
-        workspace.select(next.0.clone());
+        workspace.select(next.state.clone());
         if self.supervisor_tx.send(SupervisorCommand::Restart).is_err() {
-            workspace.select(self.annotation.clone());
+            workspace.select(self.overlay.state.clone());
             self.other_monitors
-                .insert(next.0.output.device_name.clone(), next);
+                .insert(next.state.output.device_name.clone(), next);
             return Err("The streaming worker has stopped; close and reopen DeskInk".into());
         }
-        let old_name = self.annotation.output.device_name.clone();
-        let old = (
-            std::mem::replace(&mut self.annotation, next.0),
-            std::mem::replace(&mut self.overlay, next.1),
-        );
+        let old_name = self.overlay.state.output.device_name.clone();
+        let old = std::mem::replace(&mut self.overlay, next);
         self.other_monitors.insert(old_name, old);
-        tracing::info!(monitor = index, display = %self.annotation.output.device_name, "DeskInk monitor selected");
+        tracing::info!(monitor = index, display = %self.overlay.state.output.device_name, "DeskInk monitor selected");
         self.error = None;
         Ok(())
     }
@@ -215,7 +209,7 @@ impl eframe::App for DeskInk {
         }
         // Ink and temporary-content expiry run on their owning presentation
         // threads, even while eframe throttles this minimized settings window.
-        for (_, surface) in self.other_monitors.values() {
+        for surface in self.other_monitors.values() {
             if let Some(error) = surface.take_error() {
                 self.error = Some(error);
             }
@@ -237,7 +231,7 @@ impl eframe::App for DeskInk {
         let mut selected = None;
         ui.horizontal_wrapped(|ui| {
             for (index, output) in self.outputs.iter().enumerate() {
-                let active = output.device_name == self.annotation.output.device_name;
+                let active = output.device_name == self.overlay.state.output.device_name;
                 if ui
                     .selectable_label(active, format!("Screen {}", index + 1))
                     .clicked()
@@ -253,9 +247,9 @@ impl eframe::App for DeskInk {
         }
         ui.label(format!(
             "Monitor: {} ({} x {})",
-            self.annotation.output.device_name,
-            self.annotation.output.width,
-            self.annotation.output.height
+            self.overlay.state.output.device_name,
+            self.overlay.state.output.width,
+            self.overlay.state.output.height
         ));
         ui.label(if self.shared.client_connected() {
             "Tablet connected"
@@ -304,7 +298,7 @@ mod tests {
     #[ignore = "interactive desktop diagnostic; briefly shows a 64px synthetic ink marker"]
     fn real_controller_window_keeps_ink_fresh_when_minimized() {
         use std::{
-            sync::{atomic::AtomicBool, Mutex},
+            sync::{Mutex, atomic::AtomicBool},
             time::Instant,
         };
         use windows::Win32::Graphics::Gdi::{GetDC, GetPixel, ReleaseDC};
@@ -368,7 +362,6 @@ mod tests {
                 *annotation.repaint.lock() = Some(cc.egui_ctx.clone());
                 let app = DeskInk {
                     shared: SharedControl::new(0, 15_000_000),
-                    annotation: annotation.clone(),
                     overlay,
                     error: None,
                     outputs: Vec::new(),
@@ -454,7 +447,10 @@ mod tests {
             values.sort_by(f64::total_cmp);
             let p95 = values[values.len() * 95 / 100];
             println!(
-                "Desktop ink freshness {phase}: p95={p95:.1}ms samples={}",
+                "Desktop ink freshness {phase}: p50={:.1}ms p95={p95:.1}ms max={:.1}ms above_50ms={} samples={}",
+                values[values.len() / 2],
+                values[values.len() - 1],
+                values.iter().filter(|&&age| age > 50.0).count(),
                 values.len()
             );
             assert!(
@@ -497,7 +493,6 @@ mod tests {
         );
         let mut app = DeskInk {
             shared: SharedControl::new(0, 15_000_000),
-            annotation: annotation.clone(),
             overlay,
             error: None,
             outputs: Vec::new(),
@@ -552,7 +547,7 @@ mod tests {
         use eternal_wire::v2::control::{ControlMessage, Hello2, StreamConfig};
         use std::{os::windows::process::CommandExt, time::Instant};
         use windows::Win32::UI::WindowsAndMessaging::{
-            DispatchMessageW, PeekMessageW, MSG, PM_REMOVE,
+            DispatchMessageW, MSG, PM_REMOVE, PeekMessageW,
         };
         assert!(
             !deskink_windows::monitor_control::is_running(),
@@ -643,7 +638,6 @@ mod tests {
         let (supervisor_tx, _supervisor_rx) = mpsc::channel();
         let mut app = DeskInk {
             shared,
-            annotation,
             overlay,
             error: None,
             outputs: outputs.clone(),
@@ -678,14 +672,14 @@ mod tests {
             );
             assert!(app.error.is_none(), "{:?}", app.error);
             assert_eq!(
-                app.annotation.output.device_name,
+                app.overlay.state.output.device_name,
                 outputs[index].device_name
             );
             if step < 2 {
                 let bytes = serde_json::json!({"version":1,"session":42,"epoch":1,"seq":1,
                     "command":{"type":"begin","id":7,"brush":{"color":[255,80,40,255],"width":4},
                     "point":{"x":100+index*200,"y":200,"pressure":0.5}}});
-                assert!(app.annotation.receive(
+                assert!(app.overlay.state.receive(
                     PeerId::usb(99),
                     Some(PeerId::usb(99)),
                     Some(42),
@@ -694,7 +688,7 @@ mod tests {
                 ));
             }
             assert_eq!(
-                app.annotation.ink.lock().board().strokes()[0].points[0].x,
+                app.overlay.state.ink.lock().board().strokes()[0].points[0].x,
                 if index == 0 { 100.0 } else { 300.0 }
             );
             let mut pipeline = app.shared.clone();

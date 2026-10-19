@@ -16,22 +16,22 @@ use eternal_host::{
 };
 use eternal_wire::v2::{
     control::{
-        encode_control, parse_control, ControlMessage, Hello2, HelloAck, HelloStatus, Ping,
-        CAP_DECODE_H264,
+        CAP_DECODE_H264, ControlMessage, Hello2, HelloAck, HelloStatus, Ping, encode_control,
+        parse_control,
     },
     media::MediaHeader,
 };
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
     },
     time::{Duration, Instant},
 };
 use tokio::{
     net::{
-        tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpListener,
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
     },
     sync::mpsc,
 };
@@ -282,11 +282,15 @@ async fn measure(
     video.sort_by(f64::total_cmp);
     assert!(!video.is_empty(), "No video delivered");
     println!(
-        "{label}: pen_ms p50={:.2} p95={:.2} max={:.2}; video_ms p95={:.2} frames={}",
+        "{label}: pen_ms p50={:.2} p95={:.2} max={:.2} above_50ms={}; video_ms p50={:.2} p95={:.2} max={:.2} above_100ms={} frames={}",
         samples[360],
         samples[684],
         samples[719],
+        samples.iter().filter(|&&age| age > 50.0).count(),
+        video[video.len() / 2],
         video[video.len() * 95 / 100],
+        video[video.len() - 1],
+        video.iter().filter(|&&age| age > 100.0).count(),
         video.len()
     );
     assert!(samples[684] < 50.0, "Pen transport p95 exceeded 50ms");

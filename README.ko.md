@@ -19,11 +19,13 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 | 다운로드 | 사용 방법 |
 | --- | --- |
-| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.2) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
+| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.3) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
 | [**Android 앱 APK 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2) | 갤럭시탭 등 Android 8 이상 태블릿에서 파일을 열고 **설치** |
 | [**iPad 앱 IPA 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2) | PC의 iloader에서 불러와 아이패드에 설치 |
 | [**iloader Windows 설치 파일 다운로드**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | iPad 앱 설치용 도구. 공식 배포처의 EXE를 받아 PC에서 실행 |
 | [**설치·사용 안내 HTML 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | 캡처가 포함된 안내서를 브라우저에서 열기 |
+
+**Windows 0.4.3:** 설정 창을 최소화했을 때 PC 필기가 느려지는 문제를 수정했습니다. Windows DeskInk를 종료하고 새 ZIP의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. iPad·Android 앱이 0.4.2라면 이번 수정 때문에 다시 설치할 필요는 없습니다. 양쪽 기기가 함께 느려지는 장시간 사용 문제는 별도로 조사 중입니다.
 
 준비물: 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜, 데이터 USB 케이블. **Mac이나 개발 도구 없이 설치할 수 있습니다.** 첫 PC 설정에는 인터넷이 필요합니다. [전체 다운로드 파일](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1) · [iloader 공식 안내](https://iloader.app/)
 
@@ -52,7 +54,7 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 3. **6자리 입력:** PC의 현재 코드를 앞자리 0까지 입력하고, iPad는 **Pair iPad**, Android는 **연결 / Connect**을 누릅니다. Apple 계정의 이중 인증 번호와는 별개입니다.
 4. **연결 확인:** 태블릿에 Windows 화면이 보이고 PC 창에 **Tablet connected**가 표시되면 필기를 시작합니다. **각 PC에서 처음 한 번만 입력**하면 됩니다. 태블릿은 PC 두 대를 기억하며, Windows DeskInk를 다시 켜도 자동 연결합니다. 화면의 코드가 바뀌어도 기존 등록은 유지됩니다.
 
-**이전 버전에서 업데이트했다면:** Windows와 태블릿 앱을 모두 업데이트한 뒤, 각 PC에서 코드 입력을 한 번만 해주세요. 이후에는 USB 연결과 DeskInk 실행만 하면 됩니다. PC 앱의 **Forget paired tablets**를 누르면 등록이 해제되어 다시 코드가 필요합니다. 앱 재설치·데이터 초기화나 Windows 사용자 계정 변경 시에도 다시 등록해야 할 수 있습니다.
+**0.4.2 이전 버전에서 업데이트했다면:** Windows와 태블릿 앱을 모두 업데이트한 뒤, 각 PC에서 코드 입력을 한 번만 해주세요. 이후에는 USB 연결과 DeskInk 실행만 하면 됩니다. PC 앱의 **Forget paired tablets**를 누르면 등록이 해제되어 다시 코드가 필요합니다. 앱 재설치·데이터 초기화나 Windows 사용자 계정 변경 시에도 다시 등록해야 할 수 있습니다.
 
 코드가 틀리면 PC에 표시된 현재 숫자를 다시 확인하세요. **Too many attempts / 시도 횟수가 많습니다**가 나오면 1분 후 재시도합니다. iPad 안내에 EternalMonitor라는 이름이 보여도 코드는 Windows DeskInk에서 확인합니다. [그림으로 보는 페어링·문제 해결](https://zkdlwuthwo1-hash.github.io/deskink/README.html#pairing)
 

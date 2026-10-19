@@ -19,11 +19,13 @@ Click a link below to download the file directly. Get the **Windows ZIP, iPad IP
 
 | Download | What to do |
 | --- | --- |
-| [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.2) | Extract the entire ZIP and follow the device-specific steps below. |
+| [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.3) | Extract the entire ZIP and follow the device-specific steps below. |
 | [**Download Android app APK**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2) | Open on an Android 8+ tablet and tap **Install**. |
 | [**Download iPad app IPA**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2) | Import into iloader on your PC to install on iPad. |
 | [**Download iloader Windows installer**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | Run the EXE from the official publisher on your PC to prepare iPad installation. |
 | [**Download illustrated HTML guide**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | Open in a browser; screenshots are included in the file. |
+
+**Windows 0.4.3:** fixes delayed PC ink when the settings window is minimized. Close Windows DeskInk, extract the entire new ZIP and launch it. Closing clears existing ink. iPad and Android users already on 0.4.2 do not need to reinstall their tablet app for this fix. Long-session slowdown affecting both devices remains under investigation.
 
 You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ tablet, a compatible pen and a data-capable USB cable. **No Mac or development tools are needed.** Initial PC setup requires Internet access. [All download files](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1) · [Official iloader instructions](https://iloader.app/)
 
@@ -52,7 +54,7 @@ After setup, use either **DeskInk - Screen 1 / Screen 2** desktop icon. Android 
 3. **Enter all six digits:** include any leading zero. Tap **Pair iPad** on iPad or **Connect / 연결** on Android. This is separate from Apple account two-factor authentication.
 4. **Check the connection:** Windows appears on the tablet and the PC says **Tablet connected**. Pair once per PC; the tablet remembers two PCs and reconnects after Windows DeskInk restarts. The displayed code may change without affecting registered tablets.
 
-**Updating from an older version:** update Windows and the tablet app, then enter the code once on each PC. After that, USB connection and opening DeskInk are enough. **Forget paired tablets** in the Windows app removes registration and requires a new code. Reinstalling/resetting app data or changing Windows users can also require registration again.
+**Updating from a version before 0.4.2:** update Windows and the tablet app, then enter the code once on each PC. After that, USB connection and opening DeskInk are enough. **Forget paired tablets** in the Windows app removes registration and requires a new code. Reinstalling/resetting app data or changing Windows users can also require registration again.
 
 If a code is rejected, recheck the current digits in the PC window. For **Too many attempts**, wait one minute before retrying. Some iPad instructions still say EternalMonitor; find the code in Windows DeskInk. [Illustrated pairing and troubleshooting (한국어)](https://zkdlwuthwo1-hash.github.io/deskink/README.html#pairing)
 
