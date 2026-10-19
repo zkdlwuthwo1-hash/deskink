@@ -29,7 +29,7 @@ You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ ta
 
 ## Install on iPad
 
-1. **Prepare the PC and iPad.** You need a Windows x64 PC, iPadOS 17+, a compatible Pencil and a data-capable USB cable. Install **Apple Devices** from the Microsoft Store, open it, connect the unlocked iPad and accept **Trust This Computer**. Keep Apple Devices open while using DeskInk.
+1. **Prepare the PC and iPad.** You need a Windows x64 PC, iPadOS 17+, a compatible Pencil and a data-capable USB cable. Connect the unlocked iPad and accept **Trust This Computer** if prompted. **The Apple Devices app itself is not mandatory.** If DeskInk already detects your iPad, no additional app installation or launch is needed. Otherwise, check the Apple USB drivers and device service supplied by iTunes or Apple Devices.
 2. **Install DeskInk on Windows.** Extract the ZIP into a writable folder such as Documents. Run `DeskInk.exe` inside the extracted folder. The first launch downloads about 60 MB of video components from their publisher and verifies the checksum; Internet is required for this step. Later launches reuse them. Keep all files together.
 3. **Install DeskInk on iPad.** Download and run the [iloader Windows installer](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe). Its Windows instructions require iTunes; follow the [official setup instructions](https://iloader.app/) if Apple components are missing. Select your connected iPad, sign in with **your own Apple account**, and complete two-factor authentication. Use **Import IPA**, select the downloaded `DeskInk-iPad-unsigned.ipa`, then **Sign & Install App**. Wait for completion. Button labels can vary by iloader version/language.
 4. **Trust the developer if asked.** On iPad, open **Settings → General → VPN & Device Management → Developer App → your Apple account → Trust**. Follow any confirmation or restart prompt. Never use the author's Apple account.
@@ -56,7 +56,7 @@ If a code is rejected, recheck the current digits in the PC window. For **Too ma
 
 ## Use each time
 
-1. Connect and unlock your tablet by **USB**, then open Windows DeskInk. iPad users also keep Apple Devices open.
+1. Connect and unlock your tablet by **USB**, then open DeskInk on the PC and tablet.
 2. Choose **Screen 1 / Screen 2** in the Windows DeskInk window. Open DeskInk on the tablet and enter the pairing code displayed on the PC. Restarting the Windows host requires pairing again.
 3. Draw with your pen. Choose tools from the **bottom toolbar**:
 
@@ -82,7 +82,8 @@ A free Apple account signs development apps for **7 days**. Your Apple account d
 ## If something does not work
 
 - **Android is not detected:** run `DeskInk-Android.exe`, enable USB debugging, authorize this PC, and check the data cable/Samsung USB driver. Keep the tablet app open.
-- **iPad is not detected:** unlock it, confirm Trust, open Apple Devices, and try a data cable/another USB port.
+- **iPad is not detected:** unlock it, confirm Trust, and try a data cable/another USB port. If it is still missing, check the Apple USB components supplied by iTunes or Apple Devices. [Apple device service troubleshooting](https://support.apple.com/en-us/102347)
+- **Keeping Apple Devices open:** if DeskInk connects without opening it, continue as usual. Only keep it running/minimized if closing that app interrupts USB connectivity on your PC.
 - **Developer cannot be trusted / Developer Mode required:** complete steps 4 and 5, including the confirmation after restart.
 - **App stopped opening after a week:** renew it with iloader as described above.
 - **Wrong monitor:** select Screen 1/2 and verify the actual screen. DeskInk numbering may differ from Windows Display Settings.

@@ -29,7 +29,7 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 ## 아이패드에 처음 설치하기
 
-1. **PC와 아이패드를 준비합니다.** Windows x64 PC, iPadOS 17 이상, 호환되는 Pencil, 데이터 전송용 USB 케이블을 준비합니다. Microsoft Store에서 **Apple Devices**를 설치하고 엽니다. 아이패드의 잠금을 풀어 USB로 연결하고 **이 컴퓨터를 신뢰**를 누릅니다. DeskInk를 사용하는 동안 Apple Devices를 열어 두세요.
+1. **PC와 아이패드를 준비합니다.** Windows x64 PC, iPadOS 17 이상, 호환되는 Pencil, 데이터 전송용 USB 케이블을 준비합니다. 아이패드의 잠금을 풀어 USB로 연결하고, **이 컴퓨터를 신뢰**가 나오면 허용합니다. **Apple Devices 앱 자체는 필수가 아닙니다.** 이미 DeskInk가 아이패드를 인식하면 추가 설치·실행 없이 진행합니다. 연결되지 않을 때만 iTunes 또는 Apple Devices의 Apple USB 드라이버·연결 서비스를 확인하세요.
 2. **Windows DeskInk를 실행합니다.** ZIP을 문서 폴더 등 쓰기 가능한 위치에 **전체 압축 해제**하고 그 안의 `DeskInk.exe`를 엽니다. 첫 실행에서 영상 구성요소 약 60MB를 공식 배포처에서 받아 검사하므로 인터넷이 필요합니다. 이후에는 내려받은 파일을 재사용합니다. 폴더 안의 파일을 따로 옮기지 마세요.
 3. **iloader로 아이패드에 설치합니다.** [iloader Windows 설치 파일](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe)을 받아 실행합니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 안내가 나오면 [공식 설치 안내](https://iloader.app/)를 따릅니다. 연결한 아이패드를 선택하고 **본인 Apple 계정**으로 로그인·이중 인증합니다. **Import IPA / IPA 가져오기**에서 내려받은 `DeskInk-iPad-unsigned.ipa`를 선택하고 **Sign & Install App**을 눌러 완료될 때까지 기다립니다. 버튼 이름은 버전·언어에 따라 조금 다를 수 있습니다.
 4. **개발자를 신뢰합니다.** 아이패드에서 신뢰되지 않은 개발자라고 나오면 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**로 이동합니다. 추가 확인이나 재시동 안내가 나오면 따릅니다. 제작자의 계정이나 비밀번호를 공유받을 필요는 없습니다.
@@ -56,7 +56,7 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 ## 매번 사용하기
 
-1. 태블릿을 **USB로 연결**하고 잠금을 풉니다. PC에서 DeskInk를 엽니다. 아이패드 사용자는 Apple Devices도 열어 둡니다.
+1. 태블릿을 **USB로 연결**하고 잠금을 풉니다. PC와 태블릿에서 DeskInk를 엽니다.
 2. 바탕화면의 **DeskInk - Screen 1 / Screen 2** 아이콘이나 PC 앱에서 사용할 화면을 고릅니다. 태블릿 DeskInk를 열고 **PC에 표시된 페어링 코드**를 입력합니다. PC DeskInk를 재시작하면 다시 페어링합니다.
 3. 펜으로 쓰고, **아래 도구막대**에서 도구를 바꿉니다.
 
@@ -81,7 +81,8 @@ Zoom에서는 직접 **필기하는 모니터 전체**를 공유하고 다른 �
 
 ## 막힐 때
 
-- **iPad가 안 보임:** 잠금 해제 → 컴퓨터 신뢰 → Apple Devices 실행 → 데이터 케이블·다른 USB 포트를 확인합니다.
+- **iPad가 안 보임:** 잠금 해제 → 컴퓨터 신뢰 → 데이터 케이블·다른 USB 포트를 확인합니다. 계속 인식되지 않으면 iTunes 또는 Apple Devices의 Apple USB 연결 구성요소를 확인하세요. [Apple 연결 서비스 점검](https://support.apple.com/ko-kr/102347)
+- **Apple Devices 상시 실행 여부:** 앱을 열지 않아도 연결된다면 그대로 사용합니다. 해당 앱을 닫으면 연결이 끊기는 PC에서만 사용 중 최소화해 두세요.
 - **Android가 안 보임:** `DeskInk-Android.exe` 실행 → USB 디버깅 켜기 → 태블릿에서 PC 허용 → 데이터 케이블·삼성 USB 드라이버를 확인합니다. 앱을 태블릿 화면에 열어 두세요.
 - **개발자 앱을 사용할 수 없음:** 위 4·5단계를 확인합니다. 개발자 모드는 재시동 후 **켜기** 확인까지 필요합니다.
 - **일주일 뒤 iPad 앱이 안 열림:** iloader에서 다시 서명·설치합니다.

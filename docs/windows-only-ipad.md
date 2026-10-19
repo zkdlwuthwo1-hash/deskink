@@ -18,13 +18,13 @@ Windows를 개발 환경으로 사용하면서 iPad 코드는 GitHub의 macOS �
 
 ## Windows에서 서명·설치
 
-1. Apple Devices에서 USB iPad가 인식되는지 확인합니다. 잠금 해제 후 **이 컴퓨터를 신뢰**를 허용합니다.
+1. iPad를 USB로 연결하고 잠금을 푼 뒤 **이 컴퓨터를 신뢰**가 나오면 허용합니다. 기기가 이미 인식되면 Apple Devices를 별도로 설치할 필요가 없습니다. 인식되지 않을 때 iTunes 또는 Apple Devices의 Apple USB 연결 구성요소를 확인합니다.
 2. iPad 설치 도구(개발 과정에서는 iloader 사용)를 공식 배포처에서 준비합니다. 로그인과 이중 인증은 본인이 설치 도구에서 직접 진행합니다.
 3. 연결한 iPad와 내려받은 `DeskInk-unsigned.ipa`를 선택하여 서명·설치합니다.
 4. iPad에서 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**를 확인합니다. **설정 → 개인정보 보호 및 보안 → 개발자 모드**를 켜고 재시동합니다. 재시동 후 잠금을 풀고 확인창의 **켜기**를 누릅니다. 메뉴가 없다면 IPA를 먼저 설치하고 실행을 시도한 뒤 설정을 다시 엽니다.
 5. Windows DeskInk와 iPad DeskInk를 열고 Windows에 표시된 페어링 코드를 입력합니다.
 
-설치가 끝나면 설치 도구를 종료할 수 있습니다. 발표 중에는 Windows DeskInk, iPad DeskInk, USB 연결과 Apple 기기 연결 서비스가 필요합니다. Apple Devices는 기기 연결을 제공하며 앱 컴파일러는 아닙니다.
+설치가 끝나면 설치 도구를 종료할 수 있습니다. 발표 중에는 Windows DeskInk, iPad DeskInk, USB 연결과 Apple 기기 연결 서비스가 필요합니다. Apple Devices 앱 자체의 설치·상시 실행은 일괄 필수가 아닙니다. 그 앱을 닫을 때 USB 연결이 끊기는 환경에서만 실행을 유지합니다.
 
 무료 Personal Team의 설치 프로파일은 7일 후 만료됩니다. 각 테스터가 자신의 계정으로 갱신하거나 다시 서명·설치해야 합니다. [Apple 계정 제한](https://developer.apple.com/help/account/basics/about-your-developer-account)
 
