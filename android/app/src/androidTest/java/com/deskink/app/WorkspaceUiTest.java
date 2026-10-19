@@ -78,6 +78,8 @@ public class WorkspaceUiTest {
             assertTrue("Capture must wait until the software keyboard is actually visible",keyboardShown.get());
             InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             activity.onActivity(a -> {
+                assertFalse("Pairing must keep its instructions visible instead of using a fullscreen editor",
+                    a.getSystemService(android.view.inputmethod.InputMethodManager.class).isFullscreenMode());
                 for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
                     View code=window.findViewWithTag("pair.code"); if(code==null) continue;
                     Rect input=new Rect(),action=new Rect(),available=new Rect();

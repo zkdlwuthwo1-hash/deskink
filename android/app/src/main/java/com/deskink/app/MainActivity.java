@@ -137,7 +137,9 @@ public final class MainActivity extends Activity {
         TextView label=ui.text(R.string.pair_label,12,DeskInkUi.TEXT,true); content.addView(label); content.addView(ui.space(8));
         EditText code=new EditText(this); code.setTag("pair.code"); code.setId(View.generateViewId()); label.setLabelFor(code.getId());
         code.setInputType(InputType.TYPE_CLASS_NUMBER); code.setKeyListener(DigitsKeyListener.getInstance("0123456789"));
-        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)}); code.setSingleLine(true); code.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)}); code.setSingleLine(true);
+        // Keep the PC-code instructions visible in narrow landscape windows.
+        code.setImeOptions(EditorInfo.IME_ACTION_DONE|EditorInfo.IME_FLAG_NO_FULLSCREEN|EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         code.setHint(R.string.pair_placeholder); code.setTextSize(26); code.setGravity(Gravity.CENTER); code.setLetterSpacing(.14f);
         code.setTypeface(getResources().getFont(R.font.geist_mono)); code.setTextColor(DeskInkUi.TEXT); code.setHintTextColor(DeskInkUi.MUTED);
         code.setPadding(dp(12),dp(16),dp(12),dp(16)); code.setBackground(ui.surface(DeskInkUi.CANVAS,14,DeskInkUi.BORDER));
