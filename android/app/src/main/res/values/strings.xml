@@ -1,4 +1,5 @@
 <resources>
+    <string name="registration_load_failed">Could not read saved PCs. Reopen DeskInk. If this continues, reset its storage in Android Settings.</string>
     <string name="registration_save_failed">Could not save this PC. You may need its code on reconnect.</string>
     <string name="app_name" translatable="false">DeskInk</string>
     <string name="pen">Pen</string><string name="highlighter">Highlight</string><string name="eraser">Eraser</string><string name="laser">Laser</string><string name="vanishing">Fade</string>

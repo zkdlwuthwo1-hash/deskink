@@ -13,13 +13,16 @@ public final class PcPairingStore {
     public PcPairingStore(Path file) { this.file=file; }
     public List<PcRegistration> load(String legacy) throws IOException {
         String contents;
+        boolean migrating=false;
         try {
             if(Files.size(file)>1024) throw new IOException("Invalid saved PC registrations");
             contents=new String(Files.readAllBytes(file),StandardCharsets.US_ASCII);
-        } catch(NoSuchFileException missing) { contents=legacy; }
+        } catch(NoSuchFileException missing) { contents=legacy; migrating=true; }
         List<PcRegistration> saved=new ArrayList<>();
+        if(contents.isEmpty()) return saved;
         for(String entry:contents.split(",")) {
             PcRegistration pc=PcRegistration.decode(entry);
+            if(!migrating&&(pc==null||saved.size()>=2)) throw new IOException("Invalid saved PC registrations");
             if(pc!=null&&saved.size()<2) saved.add(pc);
         }
         return saved;

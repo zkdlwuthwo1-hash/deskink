@@ -82,7 +82,11 @@ public final class MainActivity extends Activity {
         List<PcRegistration> tokens;
         synchronized(pairingStorageLock) {
             try { tokens=pairingStore.load(preferences.getString("tokens","")); }
-            catch(java.io.IOException error) { tokens=new ArrayList<>(); }
+            catch(java.io.IOException error) {
+                workspace.showConnection(getString(R.string.app_name),getString(R.string.registration_load_failed),false);
+                Toast.makeText(this,getString(R.string.registration_load_failed),Toast.LENGTH_LONG).show();
+                return;
+            }
         }
         decoder=new VideoDecoder(() -> { UsbClient c=client; if(c!=null) c.requestKeyframe(); },() -> { });
         if(video.isAvailable()) attachSurface(video.getSurfaceTexture());

@@ -64,6 +64,7 @@ final class PairingStore: ObservableObject {
     private let storage: any PairingStorage
     private static let usbAccount = "DeskInk registrations|USB"
     private struct RememberedPC { let token: Data; let id: Data }
+    private enum StorageFailure: Error { case invalidRegistrations }
     init(storage: any PairingStorage) { self.storage = storage }
 
     static func address(host: String, port: UInt16) -> String {
@@ -79,25 +80,25 @@ final class PairingStore: ObservableObject {
 
     func tokens(address: String) throws -> [Data] {
         let records = try storage.records()
-        if address == "USB" { return usbPCs(records).map(\.token) }
+        if address == "USB" { return try usbPCs(records).map(\.token) }
         return records.filter { $0.account.hasSuffix("|\(address)") && Self.valid($0.token) }.map(\.token)
     }
 
-    private func usbPCs(_ records: [PairingRecord]) -> [RememberedPC] {
+    private func usbPCs(_ records: [PairingRecord]) throws -> [RememberedPC] {
         if let bundle = records.first(where: { $0.account == Self.usbAccount }) {
             // Both PC credentials live in one Keychain item, so replacing one
             // cannot leave the other missing after an interrupted write.
             let bytes = [UInt8](bundle.token)
             guard bytes.count >= 4, Array(bytes.prefix(2)) == [0x44, 0x49],
-                  (1...2).contains(bytes[2]), (1...2).contains(Int(bytes[3])) else { return [] }
+                  (1...2).contains(bytes[2]), (1...2).contains(Int(bytes[3])) else { throw StorageFailure.invalidRegistrations }
             let stride = bytes[2] == 1 ? 16 : 32
-            guard bytes.count == 4 + Int(bytes[3]) * stride else { return [] }
+            guard bytes.count == 4 + Int(bytes[3]) * stride else { throw StorageFailure.invalidRegistrations }
             let saved = (0..<Int(bytes[3])).map { index -> RememberedPC in
                 let offset = 4 + index * stride
                 return RememberedPC(token: Data(bytes[offset..<(offset + 16)]),
                     id: stride == 32 ? Data(bytes[(offset + 16)..<(offset + 32)]) : Data(repeating: 0, count: 16))
             }
-            guard saved.allSatisfy({ Self.valid($0.token) }), Set(saved.map(\.token)).count == saved.count else { return [] }
+            guard saved.allSatisfy({ Self.valid($0.token) }), Set(saved.map(\.token)).count == saved.count else { throw StorageFailure.invalidRegistrations }
             return saved
         }
         // Migrate the single USB registration written by older versions.
@@ -113,7 +114,7 @@ final class PairingStore: ObservableObject {
         guard Self.valid(token) else { return }
         if address == "USB" {
             let identity = Self.valid(pcID) ? pcID : Data(repeating: 0, count: 16)
-            var saved = usbPCs(try storage.records()).filter {
+            var saved = try usbPCs(storage.records()).filter {
                 $0.token != token && $0.token != presented && !(Self.valid(identity) && $0.id == identity)
             }
             saved.insert(RememberedPC(token: token, id: identity), at: 0)

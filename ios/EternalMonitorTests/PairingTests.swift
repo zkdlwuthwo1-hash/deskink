@@ -15,6 +15,17 @@ private final class MemoryPairingStorage: PairingStorage {
 }
 
 final class PairingTests: XCTestCase {
+    @MainActor func testDamagedUSBRegistrationsAreReportedWithoutOverwritingThem() async throws {
+        let backend = MemoryPairingStorage(), store = PairingStore(storage: MemoryPairingStorage())
+        let paired = PairingStore(storage: backend)
+        try paired.save(token: Data(1...16), hostName: "PC", address: "USB")
+        let account = try XCTUnwrap(backend.values.keys.first)
+        backend.values[account] = Data([0xff])
+        XCTAssertThrowsError(try paired.tokens(address: "USB"))
+        XCTAssertThrowsError(try paired.save(token: Data(17...32), hostName: "Other PC", address: "USB"))
+        XCTAssertEqual(backend.values[account], Data([0xff]))
+        XCTAssertTrue(try store.tokens(address: "USB").isEmpty)
+    }
     @MainActor func testRegisteringAForgottenPCPreservesTheOtherPC() async throws {
         let backend = MemoryPairingStorage(), firstID = Data(65...80), secondID = Data(81...96)
         let store = PairingStore(storage: backend)

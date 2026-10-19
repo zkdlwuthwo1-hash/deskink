@@ -6,6 +6,15 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class PcPairingStoreTest {
+    @Test public void damagedSavedRegistrationsAreReportedAndNeverTreatedAsFirstLaunch() throws Exception {
+        Path folder=Files.createTempDirectory("deskink-pairing-damaged-"); Path file=folder.resolve("pcs");
+        byte[] damaged="damaged registrations".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        try {
+            Files.write(file,damaged);
+            assertThrows(java.io.IOException.class,() -> new PcPairingStore(file).load(""));
+            assertArrayEquals(damaged,Files.readAllBytes(file));
+        } finally { Files.deleteIfExists(file); Files.deleteIfExists(folder); }
+    }
     @Test public void legacyRegistrationMigratesAndBothPcsSurviveReplacingTheFile() throws Exception {
         Path folder=Files.createTempDirectory("deskink-pairing-test-"); Path file=folder.resolve("pcs");
         try {
