@@ -18,6 +18,7 @@ final class ControlChannel {
         let streamConfig: StreamConfig
         let hostCaps: UInt16
         let authToken: Data
+        let presentedAuthToken: Data
     }
 
     var onSessionEstablished: ((SessionInfo) -> Void)?
@@ -44,6 +45,7 @@ final class ControlChannel {
     private var clientNonce: UInt32 = 0
     private var helloBytes = Data()
     private var helloTemplate: Hello2?
+    private var remainingAuthTokens: [Data] = []
     private var helloAttempts = 0
     private var helloTimer: DispatchSourceTimer?
     private var reportTimer: DispatchSourceTimer?
@@ -105,6 +107,7 @@ final class ControlChannel {
         var preferredFPS: UInt8 = 0
         var authToken = Data(repeating: 0, count: 16)
         var pairingCode: UInt32 = 0
+        var alternativeAuthTokens: [Data] = []
     }
 
     /// Begin the HELLO2 retry loop. `listenPort` is the ephemeral local port
@@ -115,6 +118,9 @@ final class ControlChannel {
             hostCaps = 0
             msgSeq = 0
             helloAttempts = 0
+            remainingAuthTokens = Array(identity.alternativeAuthTokens.filter {
+                $0.count == 16 && $0.contains(where: { $0 != 0 }) && $0 != identity.authToken
+            }.prefix(1))
             clientNonce = UInt32.random(in: 1...UInt32.max)
             let hello = Hello2(
                 clientNonce: clientNonce,
@@ -143,16 +149,22 @@ final class ControlChannel {
     /// delayed ACK cannot dismiss or accept the next code submission.
     func retryPairing(code: UInt32) {
         queue.async { [self] in
-            guard sessionId == 0, var hello = helloTemplate else { return }
-            clientNonce = UInt32.random(in: 1...UInt32.max)
-            hello.clientNonce = clientNonce
-            hello.authToken = Data(repeating: 0, count: 16)
-            hello.pairingCode = code
-            helloTemplate = hello
-            helloAttempts = 0
-            helloBytes = Wire.encodeControl(sessionId: 0, msgSeq: 1, message: .hello2(hello))
-            startHelloTimer()
+            remainingAuthTokens = []
+            retryHello(token: Data(repeating: 0, count: 16), code: code)
         }
+    }
+
+    /// Called only on queue, including automatic attempts for the other PC.
+    private func retryHello(token: Data, code: UInt32) {
+        guard sessionId == 0, var hello = helloTemplate else { return }
+        clientNonce = UInt32.random(in: 1...UInt32.max)
+        hello.clientNonce = clientNonce
+        hello.authToken = token
+        hello.pairingCode = code
+        helloTemplate = hello
+        helloAttempts = 0
+        helloBytes = Wire.encodeControl(sessionId: 0, msgSeq: 1, message: .hello2(hello))
+        startHelloTimer()
     }
 
     private func startHelloTimer() {
@@ -229,6 +241,13 @@ final class ControlChannel {
         helloTimer = nil
 
         guard ack.status == .ok else {
+            // Known credentials remain valid even while new code attempts are
+            // rate limited. Exhaust the two saved PCs before showing a prompt.
+            if (ack.status == .unauthorized || ack.status == .rateLimited),
+               helloTemplate?.pairingCode == 0, !remainingAuthTokens.isEmpty {
+                retryHello(token: remainingAuthTokens.removeFirst(), code: 0)
+                return
+            }
             clientNonce = 0
             onRejected?(ack.status)
             return
@@ -249,7 +268,8 @@ final class ControlChannel {
             livenessTimeoutMs: ack.livenessTimeoutMs,
             streamConfig: ack.streamConfig,
             hostCaps: ack.hostCaps,
-            authToken: ack.authToken
+            authToken: ack.authToken,
+            presentedAuthToken: helloTemplate?.authToken ?? Data()
         ))
     }
 
@@ -352,6 +372,7 @@ final class ControlChannel {
             pingTimer?.cancel()
             pingTimer = nil
             helloTemplate = nil
+            remainingAuthTokens = []
             helloBytes = Data()
             clientNonce = 0
             sessionId = 0

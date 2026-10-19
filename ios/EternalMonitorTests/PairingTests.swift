@@ -3,8 +3,12 @@ import XCTest
 
 private final class MemoryPairingStorage: PairingStorage {
     var values: [String: Data] = [:]
+    var failWrites = false
     func records() throws -> [PairingRecord] { values.map { PairingRecord(account: $0.key, token: $0.value) } }
-    func save(account: String, token: Data) throws { values[account] = token }
+    func save(account: String, token: Data) throws {
+        if failWrites { throw NSError(domain: "Pairing test storage", code: 1) }
+        values[account] = token
+    }
     func remove(account: String?) throws {
         if let account { values.removeValue(forKey: account) } else { values.removeAll() }
     }
@@ -22,6 +26,24 @@ final class PairingTests: XCTestCase {
         XCTAssertEqual(saved.count, 2)
         XCTAssertTrue(saved.contains(first))
         XCTAssertTrue(saved.contains(second))
+    }
+
+    @MainActor func testUSBRotationReplacesOnlyTheMatchedPCAndFailedSavesKeepBothRegistrations() async throws {
+        let backend = MemoryPairingStorage()
+        let first = Data(1...16), second = Data(17...32), replacement = Data(33...48)
+        // An older app's registration survives migration, even with identical PC names.
+        backend.values["Same name|USB"] = first
+        let store = PairingStore(storage: backend)
+        try store.save(token: second, hostName: "Same name", address: "USB")
+        backend.failWrites = true
+        XCTAssertThrowsError(try store.save(token: replacement, hostName: "Same name", address: "USB", replacing: first))
+        XCTAssertEqual(Set(try store.tokens(address: "USB")), Set([first, second]))
+        backend.failWrites = false
+        try store.save(token: replacement, hostName: "Same name", address: "USB", replacing: first)
+        let reopened = PairingStore(storage: backend)
+        XCTAssertEqual(try reopened.tokens(address: "USB"), [replacement, second])
+        try reopened.remove(address: "USB")
+        XCTAssertTrue(try reopened.tokens(address: "USB").isEmpty)
     }
 
     @MainActor func testStoreUsesHostNameAndAddressAndPromotesQRIdentity() async throws {
@@ -115,6 +137,55 @@ final class PairingTests: XCTestCase {
 }
 
 final class PairingControlTests: XCTestCase {
+    func testSavedPCsAreTriedAutomaticallyBeforeShowingPairing() async throws {
+        await checkAutomaticPCSelection(rejection: .unauthorized)
+    }
+
+    func testRegisteredPCStillConnectsWhenNewPairingAttemptsAreRateLimited() async throws {
+        await checkAutomaticPCSelection(rejection: .rateLimited)
+    }
+
+    private func checkAutomaticPCSelection(rejection: HelloStatus) async {
+        let queue = DispatchQueue(label: "automatic-pc-pairing-test")
+        let established = expectation(description: "Saved second PC connects without a code prompt")
+        var firstNonce: UInt32?
+        var selected: ControlChannel.SessionInfo?
+        var channel: ControlChannel!
+        func ack(_ nonce: UInt32, _ status: HelloStatus) -> Data {
+            Wire.encodeControl(sessionId: 0, msgSeq: 1, message: .helloAck(HelloAck(
+                status: status, acceptedVersion: 2, clientNonce: nonce, sessionId: status == .ok ? 41 : 0,
+                heartbeatIntervalMs: 1000, reportIntervalMs: 500, livenessTimeoutMs: 3000,
+                streamConfig: StreamConfig(), hostName: "Second PC", authToken: Data(33...48), hostCaps: 0)))
+        }
+        channel = ControlChannel(queue: queue) { data in
+            guard case .hello2(let hello) = Wire.parseControl(data)?.message else { return }
+            XCTAssertEqual(hello.pairingCode, 0)
+            if let firstNonce {
+                XCTAssertEqual(hello.authToken, Data(17...32))
+                XCTAssertNotEqual(hello.clientNonce, firstNonce)
+                channel.handleControl(ack(firstNonce, .ok)) // delayed ACK cannot select the wrong PC
+                channel.handleControl(ack(hello.clientNonce, .ok))
+            } else {
+                XCTAssertEqual(hello.authToken, Data(1...16))
+                firstNonce = hello.clientNonce
+                channel.handleControl(ack(hello.clientNonce, rejection))
+            }
+        }
+        queue.sync {
+            channel.onRejected = { _ in XCTFail("Saved PCs must be tried before requesting a code") }
+            channel.onSessionEstablished = { info in selected = info; established.fulfill() }
+        }
+        channel.startHandshake(listenPort: 50000, identity: ControlChannel.ClientIdentity(
+            deviceName: "Test iPad", screenPxW: 640, screenPxH: 360, screenPtW: 640, screenPtH: 360,
+            refreshHz: 60, authToken: Data(1...16), alternativeAuthTokens: [Data(17...32)]))
+        await fulfillment(of: [established], timeout: 3)
+        let result = queue.sync { selected }
+        XCTAssertEqual(result?.presentedAuthToken, Data(17...32))
+        XCTAssertEqual(result?.authToken, Data(33...48))
+        channel.stop()
+        queue.sync { channel = nil }
+    }
+
     func testTokenHandshakeCodeRetryAndStaleAckIsolation() async throws {
         let queue = DispatchQueue(label: "pairing-control-test")
         let (stream, continuation) = AsyncStream<Data>.makeStream()

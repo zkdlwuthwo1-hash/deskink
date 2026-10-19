@@ -264,7 +264,8 @@ final class ConnectionManager: ObservableObject {
         }
         let isUSB = receiver.isUSB
         let pairingAddress = isUSB ? "USB" : PairingStore.address(host: normalizedHost, port: port)
-        let pairingToken = explicitPairingToken ?? ((try? pairingStore.token(address: pairingAddress)) ?? Data(repeating: 0, count: 16))
+        let savedPairings = (try? pairingStore.tokens(address: pairingAddress)) ?? []
+        let pairingToken = explicitPairingToken ?? savedPairings.first ?? Data(repeating: 0, count: 16)
         explicitPairingToken = nil
         let connectionID = UUID()
         currentAttempt.withLock { $0 = connectionID }
@@ -450,7 +451,8 @@ final class ConnectionManager: ObservableObject {
                     self.armConnectTimeout(seconds: Self.connectionTimeoutSeconds)
                 }
                 if PairingStore.valid(info.authToken) {
-                    do { try self.pairingStore.save(token: info.authToken, hostName: info.hostName, address: pairingAddress) }
+                    do { try self.pairingStore.save(token: info.authToken, hostName: info.hostName,
+                        address: pairingAddress, replacing: info.presentedAuthToken) }
                     catch { self.record(.warning, "pairing", "Pairing was not saved on this iPad. Pair again next time.") }
                 }
                 if isUSB { self.usbStatus = "USB: connected to \(info.hostName)" }
@@ -469,7 +471,7 @@ final class ConnectionManager: ObservableObject {
                     self.reconnectTask?.cancel()
                     self.reconnectAttempt = 0
                     self.didExtendTimeout = true
-                    if status == .unauthorized {
+                    if status == .unauthorized && !isUSB {
                         do { try self.pairingStore.remove(address: pairingAddress) }
                         catch { self.record(.warning, "pairing", "Could not clear an expired pairing on this iPad.") }
                     }
@@ -551,7 +553,8 @@ final class ConnectionManager: ObservableObject {
                 | Hello2.featureMonitorBoards,
             deviceId: DeviceIdentity.load(),
             preferredFPS: drawing.preferredFPS(UserDefaults.standard.frameRatePreference(), maximum: screen.maximumFramesPerSecond),
-            authToken: pairingToken
+            authToken: pairingToken,
+            alternativeAuthTokens: isUSB ? savedPairings.filter { $0 != pairingToken } : []
         )
         E2E.emit("E2E_HELLO w=\(identity.screenPxW) h=\(identity.screenPxH) refresh_hz=\(identity.refreshHz)")
         receiver.onListenerReady = { [weak self, weak channel] actualPort in

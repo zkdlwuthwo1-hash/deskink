@@ -62,6 +62,7 @@ final class PairingStore: ObservableObject {
     static let shared = PairingStore(storage: KeychainPairingStorage())
     @Published private(set) var revision = 0
     private let storage: any PairingStorage
+    private static let usbAccount = "DeskInk registrations|USB"
     init(storage: any PairingStorage) { self.storage = storage }
 
     static func address(host: String, port: UInt16) -> String {
@@ -76,15 +77,41 @@ final class PairingStore: ObservableObject {
     }
 
     func tokens(address: String) throws -> [Data] {
-        try storage.records().filter { $0.account.hasSuffix("|\(address)") && Self.valid($0.token) }.map(\.token)
+        let records = try storage.records()
+        if address == "USB", let bundle = records.first(where: { $0.account == Self.usbAccount }) {
+            // Both PC credentials live in one Keychain item, so replacing one
+            // cannot leave the other missing after an interrupted write.
+            let bytes = [UInt8](bundle.token)
+            guard bytes.count >= 4, Array(bytes.prefix(3)) == [0x44, 0x49, 1],
+                  (1...2).contains(Int(bytes[3])), bytes.count == 4 + Int(bytes[3]) * 16 else { return [] }
+            let saved = (0..<Int(bytes[3])).map { Data(bytes[(4 + $0 * 16)..<(20 + $0 * 16)]) }
+            guard saved.allSatisfy(Self.valid), Set(saved).count == saved.count else { return [] }
+            return saved
+        }
+        // Migrate the single USB registration written by older versions.
+        return records.filter { $0.account.hasSuffix("|\(address)") && Self.valid($0.token) }.map(\.token)
     }
 
     func isPaired(host: String, port: UInt16) -> Bool {
         (try? token(address: Self.address(host: host, port: port))) != nil
     }
 
-    func save(token: Data, hostName: String, address: String) throws {
+    func save(token: Data, hostName: String, address: String, replacing presented: Data? = nil) throws {
         guard Self.valid(token) else { return }
+        if address == "USB" {
+            var saved = try tokens(address: address).filter { $0 != token && $0 != presented }
+            saved.insert(token, at: 0)
+            saved = Array(saved.prefix(2))
+            var bundle = Data([0x44, 0x49, 1, UInt8(saved.count)])
+            for entry in saved { bundle.append(entry) }
+            try storage.save(account: Self.usbAccount, token: bundle)
+            // A committed bundle takes precedence even if legacy cleanup fails.
+            for record in try storage.records() where record.account != Self.usbAccount && record.account.hasSuffix("|USB") {
+                try storage.remove(account: record.account)
+            }
+            revision += 1
+            return
+        }
         let account = "\(hostName)|\(address)"
         try storage.save(account: account, token: token)
         // Replace provisional QR names and previous identities at this address.
