@@ -45,6 +45,15 @@ You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ ta
 
 After setup, use either **DeskInk - Screen 1 / Screen 2** desktop icon. Android does not use Apple Devices. Authorize only PCs you trust; USB debugging can be turned off when no longer needed. Install a newer APK with the same signing identity over the existing app to update.
 
+## Connect with the pairing code
+
+1. **Find the code on your PC:** open the Windows DeskInk window and look for **`Pairing code: six digits`** below the connection status. Restore the window from the taskbar if minimized.
+2. **Open pairing on your tablet:** connect USB and open DeskInk. On iPad, use **Pair with your PC**. On Android, use the automatic prompt or the **Pair PC / PC 연결** button near the bottom.
+3. **Enter all six digits:** include any leading zero. Tap **Pair iPad** on iPad or **Connect / 연결** on Android. This is separate from Apple account two-factor authentication.
+4. **Check the connection:** Windows appears on the tablet and the PC says **Tablet connected**. The code rotating after successful pairing is normal. Restarting Windows DeskInk requires pairing with a new code.
+
+If a code is rejected, recheck the current digits in the PC window. For **Too many attempts**, wait one minute before retrying. Some iPad instructions still say EternalMonitor; find the code in Windows DeskInk. [Illustrated pairing and troubleshooting (한국어)](https://zkdlwuthwo1-hash.github.io/deskink/README.html#pairing)
+
 ## Use each time
 
 1. Connect and unlock your tablet by **USB**, then open Windows DeskInk. iPad users also keep Apple Devices open.

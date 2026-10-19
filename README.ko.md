@@ -45,6 +45,15 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 이후에는 바탕화면의 **DeskInk - Screen 1 / Screen 2** 중 하나를 열면 됩니다. Android용은 Apple Devices를 사용하지 않습니다. USB 디버깅에는 신뢰하는 PC만 허용하고, 더 이상 사용하지 않을 때는 끌 수 있습니다. 업데이트는 같은 서명의 새 APK를 기존 앱 위에 설치합니다.
 
+## 페어링 코드로 PC 연결하기
+
+1. **PC에서 코드 확인:** Windows DeskInk 창의 연결 상태 아래에 있는 **`Pairing code: 6자리 숫자`**를 봅니다. 창이 최소화돼 있으면 작업 표시줄에서 DeskInk를 엽니다.
+2. **태블릿에서 입력창 열기:** USB로 연결하고 태블릿 DeskInk를 엽니다. iPad는 **Pair with your PC**, Android는 자동 입력창 또는 아래 **PC 연결 / Pair PC**를 사용합니다.
+3. **6자리 입력:** PC의 현재 코드를 앞자리 0까지 입력하고, iPad는 **Pair iPad**, Android는 **연결 / Connect**을 누릅니다. Apple 계정의 이중 인증 번호와는 별개입니다.
+4. **연결 확인:** 태블릿에 Windows 화면이 보이고 PC 창에 **Tablet connected**가 표시되면 필기를 시작합니다. 연결 성공 직후 코드가 바뀌는 것은 정상입니다. PC DeskInk를 재시작하면 새 코드로 다시 연결합니다.
+
+코드가 틀리면 PC에 표시된 현재 숫자를 다시 확인하세요. **Too many attempts / 시도 횟수가 많습니다**가 나오면 1분 후 재시도합니다. iPad 안내에 EternalMonitor라는 이름이 보여도 코드는 Windows DeskInk에서 확인합니다. [그림으로 보는 페어링·문제 해결](https://zkdlwuthwo1-hash.github.io/deskink/README.html#pairing)
+
 ## 매번 사용하기
 
 1. 태블릿을 **USB로 연결**하고 잠금을 풉니다. PC에서 DeskInk를 엽니다. 아이패드 사용자는 Apple Devices도 열어 둡니다.
