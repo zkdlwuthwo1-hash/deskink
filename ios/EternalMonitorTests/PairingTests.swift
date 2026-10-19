@@ -15,6 +15,17 @@ private final class MemoryPairingStorage: PairingStorage {
 }
 
 final class PairingTests: XCTestCase {
+    @MainActor func testRegisteringAForgottenPCPreservesTheOtherPC() async throws {
+        let backend = MemoryPairingStorage(), firstID = Data(65...80), secondID = Data(81...96)
+        let store = PairingStore(storage: backend)
+        try store.save(token: Data(17...32), hostName: "PC", address: "USB", pcID: secondID)
+        try store.save(token: Data(1...16), hostName: "PC", address: "USB", pcID: firstID)
+        // Code pairing presents zero, but the accepted ACK identifies the same PC.
+        try store.save(token: Data(33...48), hostName: "PC", address: "USB",
+            replacing: Data(repeating: 0, count: 16), pcID: firstID)
+        let reopened = PairingStore(storage: backend)
+        XCTAssertEqual(try reopened.tokens(address: "USB"), [Data(33...48), Data(17...32)])
+    }
     @MainActor func testUSBRemembersBothPCsAcrossStoreRecreation() async throws {
         let backend = MemoryPairingStorage()
         let store = PairingStore(storage: backend)

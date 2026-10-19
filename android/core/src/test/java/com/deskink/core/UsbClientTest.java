@@ -8,6 +8,66 @@ import java.util.concurrent.*;
 import static org.junit.Assert.*;
 
 public class UsbClientTest {
+    @Test public void aFailedDurableSaveKeepsTheLastSavedCredentialOnTheNextUsbConnection() throws Exception {
+        byte[] durable=new byte[16]; Arrays.fill(durable,(byte)9);
+        BlockingQueue<UsbClient.Binding> bindings=new LinkedBlockingQueue<>();
+        UsbClient.Listener listener=new UsbClient.Listener() {
+            public void state(UsbClient.State state) { }
+            public void stream(UsbClient.Binding binding) { bindings.add(binding); }
+            public void frame(FrameAssembler.Frame frame) { }
+            public boolean savePairings(List<PcRegistration> saved) { return false; }
+        };
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Collections.singletonList(new PcRegistration(durable)),listener)) {
+            int port=client.start();
+            try(Socket host=new Socket("127.0.0.1",port)) {
+                host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                send(host.getOutputStream(),ack(read(host.getInputStream()),true));
+                assertNotNull(bindings.poll(2,TimeUnit.SECONDS));
+            }
+            try(Socket host=new Socket("127.0.0.1",port)) {
+                host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                byte[] hello=read(host.getInputStream());
+                assertArrayEquals(durable,Arrays.copyOfRange(hello,hello.length-20,hello.length-4));
+            }
+        }
+    }
+
+    @Test public void registeringAForgottenPcDoesNotEvictTheOtherPc() throws Exception {
+        BlockingQueue<UsbClient.Binding> bindings=new LinkedBlockingQueue<>();
+        UsbClient.Listener listener=new UsbClient.Listener() {
+            public void state(UsbClient.State state) { }
+            public void stream(UsbClient.Binding binding) { bindings.add(binding); }
+            public void frame(FrameAssembler.Frame frame) { }
+        };
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Collections.emptyList(),listener)) {
+            int port=client.start();
+            register(client,port,1,2,2,bindings); // PC B
+            register(client,port,1,1,1,bindings); // PC A is most recent
+            register(client,port,2,3,1,bindings); // Forget and re-register A with a new credential
+            try(Socket host=new Socket("127.0.0.1",port)) {
+                host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+                byte[] hello=read(host.getInputStream()); send(host.getOutputStream(),ack(hello,false));
+                hello=read(host.getInputStream()); byte[] second=new byte[16]; Arrays.fill(second,(byte)2);
+                assertArrayEquals("Re-registering A must retain B",second,Arrays.copyOfRange(hello,hello.length-20,hello.length-4));
+            }
+        }
+    }
+    private static void register(UsbClient client,int port,int candidates,int issued,int hostId,
+            BlockingQueue<UsbClient.Binding> bindings) throws Exception {
+        try(Socket host=new Socket("127.0.0.1",port)) {
+            host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
+            for(int i=0;i<candidates;i++) send(host.getOutputStream(),ack(read(host.getInputStream()),false));
+            client.pair(123456);
+            byte[] hello=read(host.getInputStream()); byte[] response=ack(hello,true);
+            Arrays.fill(response,response.length-18,response.length-2,(byte)issued);
+            int previous=response.length; response=Arrays.copyOf(response,previous+20);
+            System.arraycopy(new byte[]{'D','I','P','C'},0,response,previous,4);
+            Arrays.fill(response,previous+4,response.length,(byte)hostId);
+            ByteBuffer.wrap(response).order(ByteOrder.LITTLE_ENDIAN).putShort(6,(short)(response.length-16));
+            send(host.getOutputStream(),response); assertNotNull(bindings.poll(2,TimeUnit.SECONDS));
+        }
+    }
+
     @Test public void rotatingOnePcCredentialKeepsTheOtherPcForAutomaticReconnect() throws Exception {
         reconnectOtherPcAfterRotation(4);
     }
@@ -22,7 +82,7 @@ public class UsbClientTest {
             public void stream(UsbClient.Binding binding) { bindings.add(binding); }
             public void frame(FrameAssembler.Frame frame) { }
         };
-        try(UsbClient client=new UsbClient(0,123,1920,1080,Arrays.asList(first,second),listener)) {
+        try(UsbClient client=new UsbClient(0,123,1920,1080,Arrays.asList(new PcRegistration(first),new PcRegistration(second)),listener)) {
             int port=client.start();
             try(Socket host=new Socket("127.0.0.1",port)) {
                 host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});
@@ -32,7 +92,9 @@ public class UsbClientTest {
                 assertNotNull(bindings.poll(2,TimeUnit.SECONDS));
             }
             // Recreate the app from its durable snapshot, then switch PCs.
-            List<byte[]> saved=client.savedTokens(); client.close();
+            List<PcRegistration> saved=new ArrayList<>();
+            for(PcRegistration pc:client.savedPairings()) saved.add(PcRegistration.decode(pc.encode()));
+            client.close();
             try(UsbClient reopened=new UsbClient(0,123,1920,1080,saved,listener);
                     Socket host=new Socket("127.0.0.1",reopened.start())) {
                 host.setSoTimeout(2000); host.getOutputStream().write(new byte[]{'E','M','L','I','N','K',1,0});

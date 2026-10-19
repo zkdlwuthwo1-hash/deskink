@@ -98,6 +98,9 @@ impl Pairing {
     pub fn remembered_count(&self) -> usize {
         self.trusted.as_ref().map_or(0, |store| store.len())
     }
+    pub fn pc_id(&self) -> [u8; 16] {
+        self.trusted.as_ref().map_or([0; 16], |store| store.pc_id())
+    }
 
     /// Commit only after the session has accepted the device (not on busy/rejected requests).
     pub fn remember(&mut self, hello: &Hello2, used_code: bool) -> std::io::Result<()> {

@@ -452,7 +452,7 @@ final class ConnectionManager: ObservableObject {
                 }
                 if PairingStore.valid(info.authToken) {
                     do { try self.pairingStore.save(token: info.authToken, hostName: info.hostName,
-                        address: pairingAddress, replacing: info.presentedAuthToken) }
+                        address: pairingAddress, replacing: info.presentedAuthToken, pcID: info.pcID) }
                     catch { self.record(.warning, "pairing", "Pairing was not saved on this iPad. Pair again next time.") }
                 }
                 if isUSB { self.usbStatus = "USB: connected to \(info.hostName)" }

@@ -19,6 +19,7 @@ final class ControlChannel {
         let hostCaps: UInt16
         let authToken: Data
         let presentedAuthToken: Data
+        let pcID: Data
     }
 
     var onSessionEstablished: ((SessionInfo) -> Void)?
@@ -269,7 +270,8 @@ final class ControlChannel {
             streamConfig: ack.streamConfig,
             hostCaps: ack.hostCaps,
             authToken: ack.authToken,
-            presentedAuthToken: helloTemplate?.authToken ?? Data()
+            presentedAuthToken: helloTemplate?.authToken ?? Data(),
+            pcID: ack.pcID
         ))
     }
 

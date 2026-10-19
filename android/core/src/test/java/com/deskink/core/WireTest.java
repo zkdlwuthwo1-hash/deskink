@@ -6,6 +6,11 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.Assert.*;
 
 public class WireTest {
+    @Test public void pcIdentityMatchesTheWindowsFixtureAndOlderHostsRemainCompatible() throws Exception {
+        byte[] identity=new byte[16]; for(int i=0;i<16;i++) identity[i]=(byte)(161+i);
+        assertArrayEquals(identity,Wire.decode(vector("hello_ack_remembered")).ack().pcId);
+        assertArrayEquals(new byte[16],Wire.decode(vector("hello_ack_paired")).ack().pcId);
+    }
     @Test public void liveSessionReportsAndRecoveryMatchTheHostContract() throws Exception {
         assertArrayEquals(vector("keyframe_request"), Wire.keyframe(0x12345678L,44,3,4111,0));
         assertArrayEquals(vector("receiver_report"), Wire.report(0x12345678L,45,3,5000,4990,10,120000,250,2100,599,1,0,321,28));

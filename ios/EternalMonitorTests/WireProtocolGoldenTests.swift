@@ -35,7 +35,7 @@ final class WireProtocolGoldenTests: XCTestCase {
 
     func testGoldenFileIsBundledAndComplete() throws {
         XCTAssertEqual(
-            Self.vectors.count, 28,
+            Self.vectors.count, 29,
             "golden vector count drifted — update both test suites together"
         )
     }
@@ -199,6 +199,16 @@ final class WireProtocolGoldenTests: XCTestCase {
         guard case .helloAck(let legacy) = old else { return XCTFail("wrong type") }
         XCTAssertEqual(legacy.authToken, Data(repeating: 0, count: 16))
         XCTAssertEqual(legacy.hostCaps, 0)
+        XCTAssertEqual(legacy.pcID, Data(repeating: 0, count: 16))
+    }
+
+    func testRememberedPCIdentityMatchesTheWindowsWireFormat() throws {
+        let data = try vector("hello_ack_remembered")
+        let (header, message) = try XCTUnwrap(Wire.parseControl(data))
+        guard case .helloAck(let ack) = message else { return XCTFail("wrong type") }
+        XCTAssertEqual(ack.pcID, Data(161...176))
+        XCTAssertEqual(ack.authToken, Data(1...16))
+        XCTAssertEqual(Wire.encodeControl(sessionId: header.sessionId, msgSeq: header.msgSeq, message: message), data)
     }
 
     func testReceiverReportV030VectorAndLegacyDefaults() throws {

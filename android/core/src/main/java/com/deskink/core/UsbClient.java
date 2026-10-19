@@ -15,6 +15,8 @@ public final class UsbClient implements AutoCloseable {
         void state(State state);
         void stream(Binding binding);
         void frame(FrameAssembler.Frame frame);
+        /** Called off the UI thread. Only a successful durable write promotes credentials. */
+        default boolean savePairings(List<PcRegistration> registrations) { return true; }
         default DecodeStats decoding() { return new DecodeStats(0,0,0); }
     }
     public static final class DecodeStats {
@@ -36,7 +38,7 @@ public final class UsbClient implements AutoCloseable {
     private final Object lock=new Object();
     private final int port,width,height;
     private final long device;
-    private final List<byte[]> tokens=new ArrayList<>();
+    private final List<PcRegistration> registrations=new ArrayList<>();
     private final Listener listener;
     private final SecureRandom random=new SecureRandom();
     private final ScheduledExecutorService timer=Executors.newSingleThreadScheduledExecutor(r -> daemon(r,"DeskInk heartbeat"));
@@ -47,23 +49,13 @@ public final class UsbClient implements AutoCloseable {
     private long inkSequence,controlSequence,nonce,lastKeyframe;
     private int tokenIndex,pairingCode;
     private static Thread daemon(Runnable task,String name) { Thread t=new Thread(task,name); t.setDaemon(true); return t; }
-    public UsbClient(int port,long device,int width,int height,List<byte[]> savedTokens,Listener listener) {
+    public UsbClient(int port,long device,int width,int height,List<PcRegistration> saved,Listener listener) {
         this.port=port; this.device=device; this.width=width; this.height=height; this.listener=listener;
-        for(byte[] t:savedTokens) if(validToken(t)&&tokens.size()<2&&!tokens.stream().anyMatch(known -> Arrays.equals(known,t))) tokens.add(t.clone());
-        if(tokens.isEmpty()) tokens.add(new byte[16]);
-    }
-    private static boolean validToken(byte[] token) {
-        if(token.length!=16) return false;
-        for(byte b:token) if(b!=0) return true;
-        return false;
+        for(PcRegistration pc:saved) if(pc!=null&&registrations.size()<2) registrations.add(pc);
     }
     /** Snapshot for durable app storage; callers cannot mutate live credentials. */
-    public List<byte[]> savedTokens() {
-        synchronized(lock) {
-            List<byte[]> saved=new ArrayList<>();
-            for(byte[] token:tokens) if(validToken(token)) saved.add(token.clone());
-            return saved;
-        }
+    public List<PcRegistration> savedPairings() {
+        synchronized(lock) { return new ArrayList<>(registrations); }
     }
     /** Call off the Android main thread. Returns the actual port for socket integration tests. */
     public int start() throws IOException {
@@ -135,7 +127,10 @@ public final class UsbClient implements AutoCloseable {
         nonce=Integer.toUnsignedLong(random.nextInt());
         current.lastPacket=System.nanoTime();
         current.offer(Wire.hello(++controlSequence,nonce,9877,1,9,width,height,width,height,60,
-            "DeskInk Android",device,60,tokens.get(tokenIndex),pairingCode));
+            "DeskInk Android",device,60,presentedToken(),pairingCode));
+    }
+    private byte[] presentedToken() {
+        return pairingCode==0&&!registrations.isEmpty()?registrations.get(tokenIndex).token():new byte[16];
     }
     public void pair(int code) {
         if(code<1||code>999999) throw new IllegalArgumentException("six-digit code");
@@ -169,7 +164,7 @@ public final class UsbClient implements AutoCloseable {
             source.lastPacket=System.nanoTime();
             if(ack.status!=0) {
                 source.awaitingPairing=true;
-                if((ack.status==4||ack.status==5)&&pairingCode==0&&tokenIndex+1<tokens.size()) { tokenIndex++; hello(); return null; }
+                if((ack.status==4||ack.status==5)&&pairingCode==0&&tokenIndex+1<registrations.size()) { tokenIndex++; hello(); return null; }
                 State state=ack.status==5?State.RATE_LIMITED:ack.status==1?State.BUSY:State.PAIRING;
                 return () -> listener.state(state);
             }
@@ -179,14 +174,21 @@ public final class UsbClient implements AutoCloseable {
             if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return null;
             Binding next=new Binding(ack.session,ack.config,ack.host,ack.token);
             configure(source,next);
-            if(validToken(ack.token)) {
-                byte[] presented=pairingCode==0?tokens.get(tokenIndex):null;
-                tokens.removeIf(t -> !validToken(t)||Arrays.equals(t,presented)||Arrays.equals(t,ack.token));
-                tokens.add(0,ack.token.clone());
-                while(tokens.size()>2) tokens.remove(tokens.size()-1);
-                tokenIndex=0;
+            List<PcRegistration> saved=new ArrayList<>(registrations);
+            if(PcRegistration.valid(ack.token)) {
+                byte[] presented=presentedToken();
+                saved.removeIf(pc -> pc.matches(presented,ack.token,ack.pcId));
+                saved.add(0,new PcRegistration(ack.token,ack.pcId));
+                while(saved.size()>2) saved.remove(saved.size()-1);
             }
-            return () -> { listener.stream(next); listener.state(State.CONNECTED); };
+            return () -> {
+                if(listener.savePairings(Collections.unmodifiableList(saved))) {
+                    synchronized(lock) {
+                        if(!closed&&current==source) { registrations.clear(); registrations.addAll(saved); tokenIndex=0; }
+                    }
+                }
+                listener.stream(next); listener.state(State.CONNECTED);
+            };
         }
         if(binding==null||packet.session!=binding.session) return null;
         source.lastPacket=System.nanoTime();

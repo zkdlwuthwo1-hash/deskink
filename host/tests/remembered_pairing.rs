@@ -14,16 +14,14 @@ use std::{
 struct TestPc(PathBuf);
 impl TestPc {
     fn new() -> Self {
-        Self(
-            std::env::temp_dir().join(format!(
+        Self(std::env::temp_dir().join(format!(
                 "deskink-pairing-test-{}-{}.bin",
                 std::process::id(),
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_nanos()
-            )),
-        )
+            )))
     }
 }
 impl Drop for TestPc {
@@ -104,6 +102,8 @@ fn a_registered_tablet_reconnects_after_the_windows_app_restarts_without_a_code(
     hello.pairing_code = first.pairing.lock().code();
     let accepted = handshake(&first, hello.clone());
     assert_eq!(accepted.status, HelloStatus::Ok);
+    let identity = accepted.pc_id;
+    assert!(identity != [0; 16]);
     hello.auth_token = accepted.auth_token;
     hello.pairing_code = 0;
     drop(first);
@@ -114,6 +114,10 @@ fn a_registered_tablet_reconnects_after_the_windows_app_restarts_without_a_code(
         let ack = handshake(&reopened, hello.clone());
         assert_eq!(ack.status, HelloStatus::Ok,
             "A registered tablet must reconnect after Windows restarts without asking for another code");
+        assert!(
+            ack.pc_id == identity,
+            "The PC identity must survive app restarts"
+        );
         assert!(
             ack.auth_token != hello.auth_token,
             "New host runs still use a fresh ink-document identity"
@@ -154,7 +158,12 @@ fn forgetting_registration_revokes_current_and_persisted_credentials() {
     hello.pairing_code = host.pairing.lock().code();
     hello.auth_token = handshake(&host, hello.clone()).auth_token;
     hello.pairing_code = 0;
+    let identity = host.pairing.lock().pc_id();
     host.pairing.lock().regenerate_token().unwrap();
+    assert!(
+        host.pairing.lock().pc_id() == identity,
+        "Forgetting tablets must preserve the PC identity"
+    );
     hello.client_nonce += 1;
     assert_eq!(
         handshake(&host, hello.clone()).status,

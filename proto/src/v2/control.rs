@@ -162,6 +162,8 @@ pub struct HelloAck {
     pub host_name: String,
     pub auth_token: [u8; 16],
     pub host_caps: u16,
+    /// Optional DeskInk PC identity, independent of per-run credentials.
+    pub pc_id: [u8; 16],
 }
 
 /// Host → client, every heartbeat interval while a session is active.
@@ -390,9 +392,13 @@ pub fn encode_control(session_id: u32, msg_seq: u32, message: &ControlMessage) -
             body.extend_from_slice(&cfg);
             body.push(name.len() as u8);
             body.extend_from_slice(name.as_bytes());
-            if a.host_caps != 0 || a.auth_token != [0; 16] {
+            if a.host_caps != 0 || a.auth_token != [0; 16] || a.pc_id != [0; 16] {
                 body.extend_from_slice(&a.auth_token);
                 body.extend_from_slice(&a.host_caps.to_le_bytes());
+            }
+            if a.pc_id != [0; 16] {
+                body.extend_from_slice(b"DIPC");
+                body.extend_from_slice(&a.pc_id);
             }
         }
         ControlMessage::Heartbeat(hb) => {
@@ -564,6 +570,11 @@ pub fn parse_control(datagram: &[u8]) -> Result<(ControlHeader, ControlMessage),
             } else {
                 ([0; 16], 0)
             };
+            let pc_id = if r.remaining() >= 20 && r.take(4)? == b"DIPC" {
+                r.take(16)?.try_into().unwrap()
+            } else {
+                [0; 16]
+            };
             if status == HelloStatus::Ok && session_id == 0 {
                 return Err(WireError::InvalidField("session_id"));
             }
@@ -579,6 +590,7 @@ pub fn parse_control(datagram: &[u8]) -> Result<(ControlHeader, ControlMessage),
                 host_name,
                 auth_token,
                 host_caps,
+                pc_id,
             })
         }
         PacketType::Heartbeat => ControlMessage::Heartbeat(Heartbeat {
@@ -899,6 +911,7 @@ mod tests {
                 host_name: "ALI-PC".to_string(),
                 auth_token: [0; 16],
                 host_caps: 0,
+                pc_id: [0; 16],
             }),
             ControlMessage::Heartbeat(Heartbeat {
                 host_time_us: 987_654_321,
@@ -1017,6 +1030,7 @@ mod tests {
             host_name: String::new(),
             auth_token: [0; 16],
             host_caps: 0,
+            pc_id: [0; 16],
         });
         // encode_control would happily serialize it; the parser must reject.
         let datagram = encode_control(0, 1, &ack);

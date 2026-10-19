@@ -75,21 +75,30 @@ public final class MainActivity extends Activity {
         workspace.showConnection(getString(R.string.app_name),getString(R.string.waiting),false);
         long device=preferences.getLong("device",0);
         if(device==0) { device=new SecureRandom().nextLong()&Long.MAX_VALUE; if(device==0) device=1; preferences.edit().putLong("device",device).apply(); }
-        List<byte[]> tokens=new ArrayList<>();
-        for(String encoded:preferences.getString("tokens","").split(",")) {
-            if(!encoded.matches("[0-9a-f]{32}")) continue;
-            byte[] bytes=new byte[16]; for(int i=0;i<16;i++) bytes[i]=(byte)Integer.parseInt(encoded.substring(i*2,i*2+2),16); tokens.add(bytes);
-        }
+        PcPairingStore pairingStore=new PcPairingStore(new java.io.File(getFilesDir(),"pc-registrations").toPath());
+        List<PcRegistration> tokens;
+        try { tokens=pairingStore.load(preferences.getString("tokens","")); }
+        catch(java.io.IOException error) { tokens=new ArrayList<>(); }
         decoder=new VideoDecoder(() -> { UsbClient c=client; if(c!=null) c.requestKeyframe(); },() -> { });
         if(video.isAvailable()) attachSurface(video.getSurfaceTexture());
         UsbClient session=new UsbClient(9877,device,getResources().getDisplayMetrics().widthPixels,getResources().getDisplayMetrics().heightPixels,tokens,new UsbClient.Listener() {
+            public boolean savePairings(List<PcRegistration> saved) {
+                if(generation!=runId) return false;
+                // USB reader thread: disk durability never blocks pen/UI input.
+                try { pairingStore.save(saved); return true; }
+                catch(java.io.IOException error) {
+                    runOnUiThread(() -> { if(generation==runId) Toast.makeText(MainActivity.this,
+                        getString(R.string.registration_save_failed),Toast.LENGTH_LONG).show(); });
+                    return false;
+                }
+            }
             public void state(UsbClient.State state) { runOnUiThread(() -> { if(generation==runId) showState(state); }); }
             public void stream(UsbClient.Binding next) {
                 if(generation!=runId) return;
                 VideoDecoder d=decoder; if(d!=null) d.configure(next.config);
                 runOnUiThread(() -> {
                     if(generation!=runId) return;
-                    binding=next; String token=hex(next.token); rememberPairings();
+                    binding=next; String token=hex(next.token);
                     InkDocument document=documents.select(token,next.host);
                     UsbClient owner=client; ink.bind(document,c -> owner!=null&&owner.ink(next,c),next.config.width,next.config.height);
                     workspace.showConnection(next.host,getString(R.string.usb_details,next.config.width,next.config.height),true);
@@ -110,12 +119,6 @@ public final class MainActivity extends Activity {
     private static String hex(byte[] token) {
         char[] alphabet="0123456789abcdef".toCharArray(); StringBuilder text=new StringBuilder(32);
         for(byte b:token) text.append(alphabet[(b&255)>>4]).append(alphabet[b&15]); return text.toString();
-    }
-    private void rememberPairings() {
-        UsbClient owner=client; if(owner==null) return;
-        List<String> saved=new ArrayList<>();
-        for(byte[] token:owner.savedTokens()) saved.add(hex(token));
-        preferences.edit().putString("tokens",String.join(",",saved)).apply();
     }
     private void showState(UsbClient.State state) {
         if(state==UsbClient.State.CONNECTED) return;

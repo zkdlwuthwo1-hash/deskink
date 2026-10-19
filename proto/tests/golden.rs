@@ -111,6 +111,7 @@ fn canonical_vectors() -> Vec<(&'static str, Vec<u8>)> {
                     host_name: "ALI-PC".into(),
                     auth_token: [0; 16],
                     host_caps: 0,
+                    pc_id: [0; 16],
                 }),
             ),
         ));
@@ -218,6 +219,7 @@ fn canonical_vectors() -> Vec<(&'static str, Vec<u8>)> {
                 host_name: "ALI-PC".to_string(),
                 auth_token: [0; 16],
                 host_caps: 0,
+                pc_id: [0; 16],
             }),
         ),
         (
@@ -236,6 +238,7 @@ fn canonical_vectors() -> Vec<(&'static str, Vec<u8>)> {
                 host_name: "ALI-PC".to_string(),
                 auth_token: [0; 16],
                 host_caps: 0,
+                pc_id: [0; 16],
             }),
         ),
         (
@@ -379,6 +382,11 @@ fn canonical_vectors() -> Vec<(&'static str, Vec<u8>)> {
     ack.host_caps = HOSTCAP_NACK;
     vectors.push((
         "hello_ack_paired",
+        encode_control(0, 3, &ControlMessage::HelloAck(ack.clone())),
+    ));
+    ack.pc_id = std::array::from_fn(|index| index as u8 + 161);
+    vectors.push((
+        "hello_ack_remembered",
         encode_control(0, 3, &ControlMessage::HelloAck(ack)),
     ));
     let (_, ControlMessage::Hello2(mut hello)) = parse_control(

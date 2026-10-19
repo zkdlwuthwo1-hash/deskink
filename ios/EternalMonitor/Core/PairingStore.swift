@@ -63,6 +63,7 @@ final class PairingStore: ObservableObject {
     @Published private(set) var revision = 0
     private let storage: any PairingStorage
     private static let usbAccount = "DeskInk registrations|USB"
+    private struct RememberedPC { let token: Data; let id: Data }
     init(storage: any PairingStorage) { self.storage = storage }
 
     static func address(host: String, port: UInt16) -> String {
@@ -78,32 +79,47 @@ final class PairingStore: ObservableObject {
 
     func tokens(address: String) throws -> [Data] {
         let records = try storage.records()
-        if address == "USB", let bundle = records.first(where: { $0.account == Self.usbAccount }) {
+        if address == "USB" { return usbPCs(records).map(\.token) }
+        return records.filter { $0.account.hasSuffix("|\(address)") && Self.valid($0.token) }.map(\.token)
+    }
+
+    private func usbPCs(_ records: [PairingRecord]) -> [RememberedPC] {
+        if let bundle = records.first(where: { $0.account == Self.usbAccount }) {
             // Both PC credentials live in one Keychain item, so replacing one
             // cannot leave the other missing after an interrupted write.
             let bytes = [UInt8](bundle.token)
-            guard bytes.count >= 4, Array(bytes.prefix(3)) == [0x44, 0x49, 1],
-                  (1...2).contains(Int(bytes[3])), bytes.count == 4 + Int(bytes[3]) * 16 else { return [] }
-            let saved = (0..<Int(bytes[3])).map { Data(bytes[(4 + $0 * 16)..<(20 + $0 * 16)]) }
-            guard saved.allSatisfy(Self.valid), Set(saved).count == saved.count else { return [] }
+            guard bytes.count >= 4, Array(bytes.prefix(2)) == [0x44, 0x49],
+                  (1...2).contains(bytes[2]), (1...2).contains(Int(bytes[3])) else { return [] }
+            let stride = bytes[2] == 1 ? 16 : 32
+            guard bytes.count == 4 + Int(bytes[3]) * stride else { return [] }
+            let saved = (0..<Int(bytes[3])).map { index -> RememberedPC in
+                let offset = 4 + index * stride
+                return RememberedPC(token: Data(bytes[offset..<(offset + 16)]),
+                    id: stride == 32 ? Data(bytes[(offset + 16)..<(offset + 32)]) : Data(repeating: 0, count: 16))
+            }
+            guard saved.allSatisfy({ Self.valid($0.token) }), Set(saved.map(\.token)).count == saved.count else { return [] }
             return saved
         }
         // Migrate the single USB registration written by older versions.
-        return records.filter { $0.account.hasSuffix("|\(address)") && Self.valid($0.token) }.map(\.token)
+        return records.filter { $0.account.hasSuffix("|USB") && Self.valid($0.token) }
+            .map { RememberedPC(token: $0.token, id: Data(repeating: 0, count: 16)) }
     }
 
     func isPaired(host: String, port: UInt16) -> Bool {
         (try? token(address: Self.address(host: host, port: port))) != nil
     }
 
-    func save(token: Data, hostName: String, address: String, replacing presented: Data? = nil) throws {
+    func save(token: Data, hostName: String, address: String, replacing presented: Data? = nil, pcID: Data = Data()) throws {
         guard Self.valid(token) else { return }
         if address == "USB" {
-            var saved = try tokens(address: address).filter { $0 != token && $0 != presented }
-            saved.insert(token, at: 0)
+            let identity = Self.valid(pcID) ? pcID : Data(repeating: 0, count: 16)
+            var saved = usbPCs(try storage.records()).filter {
+                $0.token != token && $0.token != presented && !(Self.valid(identity) && $0.id == identity)
+            }
+            saved.insert(RememberedPC(token: token, id: identity), at: 0)
             saved = Array(saved.prefix(2))
-            var bundle = Data([0x44, 0x49, 1, UInt8(saved.count)])
-            for entry in saved { bundle.append(entry) }
+            var bundle = Data([0x44, 0x49, 2, UInt8(saved.count)])
+            for entry in saved { bundle.append(entry.token); bundle.append(entry.id) }
             try storage.save(account: Self.usbAccount, token: bundle)
             // A committed bundle takes precedence even if legacy cleanup fails.
             for record in try storage.records() where record.account != Self.usbAccount && record.account.hasSuffix("|USB") {

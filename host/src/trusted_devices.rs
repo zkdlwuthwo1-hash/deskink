@@ -14,6 +14,7 @@ const MAX_BYTES: u64 = 64 * 1024;
 #[derive(Clone, Serialize, Deserialize)]
 struct Saved {
     version: u8,
+    pc_id: [u8; 16],
     tablets: BTreeMap<u64, Vec<[u8; 16]>>,
 }
 
@@ -36,6 +37,7 @@ impl TrustedDevices {
                 plain.fill(0);
                 let saved = decoded.map_err(|_| invalid())?;
                 if saved.version != 1
+                    || saved.pc_id == [0; 16]
                     || saved.tablets.len() > MAX_DEVICES
                     || saved.tablets.iter().any(|(id, tokens)| {
                         *id == 0
@@ -50,6 +52,7 @@ impl TrustedDevices {
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => Saved {
                 version: 1,
+                pc_id: crate::pairing::new_token().map_err(io::Error::other)?,
                 tablets: BTreeMap::new(),
             },
             Err(error) => return Err(error),
@@ -98,11 +101,15 @@ impl TrustedDevices {
     pub fn clear(&mut self) -> io::Result<()> {
         self.save(Saved {
             version: 1,
+            pc_id: self.saved.pc_id,
             tablets: BTreeMap::new(),
         })
     }
     pub fn len(&self) -> usize {
         self.saved.tablets.len()
+    }
+    pub fn pc_id(&self) -> [u8; 16] {
+        self.saved.pc_id
     }
 
     fn save(&mut self, next: Saved) -> io::Result<()> {

@@ -413,6 +413,7 @@ impl Session {
             session_id,
             config,
             grant.token,
+            pairing.as_ref().map_or([0; 16], |state| state.pc_id()),
         );
         self.active.as_mut().unwrap().ack = ack.clone();
         actions.replies.push((source, ack));
@@ -605,7 +606,7 @@ impl Session {
         session_id: u32,
         config: &impl ConfigSource,
     ) -> Vec<u8> {
-        self.make_ack_with_token(status, client_nonce, session_id, config, [0; 16])
+        self.make_ack_with_token(status, client_nonce, session_id, config, [0; 16], [0; 16])
     }
 
     fn make_ack_with_token(
@@ -615,6 +616,7 @@ impl Session {
         session_id: u32,
         config: &impl ConfigSource,
         auth_token: [u8; 16],
+        pc_id: [u8; 16],
     ) -> Vec<u8> {
         let msg_seq = self.next_msg_seq();
         let ack = ControlMessage::HelloAck(HelloAck {
@@ -629,6 +631,7 @@ impl Session {
             host_name: config.host_name(),
             auth_token,
             host_caps: HOSTCAP_NACK | config.host_caps(),
+            pc_id,
         });
         eternal_wire::v2::control::encode_control(session_id, msg_seq, &ack)
     }

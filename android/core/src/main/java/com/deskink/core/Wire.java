@@ -57,6 +57,7 @@ public final class Wire {
         public final Config config;
         public final String host;
         public final byte[] token;
+        public final byte[] pcId;
         Ack(ByteBuffer b) throws IOException {
             require(b.remaining()>=33);
             status=Byte.toUnsignedInt(b.get()); version=Byte.toUnsignedInt(b.get());
@@ -66,6 +67,8 @@ public final class Wire {
             byte[] name=new byte[count]; b.get(name); host=new String(name,StandardCharsets.UTF_8);
             token=new byte[16];
             if (b.remaining()>=18) { b.get(token); caps=u16(b); } else { caps=0; }
+            pcId=new byte[16];
+            if(b.remaining()>=20&&b.getInt()==0x43504944) b.get(pcId); // DIPC, little endian
         }
     }
     public static final class Packet {

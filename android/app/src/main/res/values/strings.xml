@@ -1,4 +1,5 @@
 <resources>
+    <string name="registration_save_failed">Could not save this PC. You may need its code on reconnect.</string>
     <string name="app_name" translatable="false">DeskInk</string>
     <string name="pen">Pen</string><string name="highlighter">Highlight</string><string name="eraser">Eraser</string><string name="laser">Laser</string><string name="vanishing">Fade</string>
     <string name="undo">Undo</string><string name="redo">Redo</string><string name="clear">Clear all</string><string name="hide">Show / hide</string><string name="fit">Fit</string>

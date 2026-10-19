@@ -300,6 +300,7 @@ struct HelloAck: Equatable {
     var hostName: String
     var authToken = Data(repeating: 0, count: 16)
     var hostCaps: UInt16 = 0
+    var pcID = Data(repeating: 0, count: 16)
 }
 
 struct Heartbeat: Equatable {
@@ -458,9 +459,13 @@ extension Wire {
             body.append(UInt8(name.count))
             body.append(name)
             precondition(a.authToken.count == 16)
-            if a.hostCaps != 0 || a.authToken.contains(where: { $0 != 0 }) {
+            if a.hostCaps != 0 || a.authToken.contains(where: { $0 != 0 }) || a.pcID.contains(where: { $0 != 0 }) {
                 body.append(a.authToken)
                 body.appendLE(a.hostCaps)
+            }
+            if a.pcID.count == 16 && a.pcID.contains(where: { $0 != 0 }) {
+                body.append(contentsOf: "DIPC".utf8)
+                body.append(a.pcID)
             }
         case .heartbeat(let hb):
             body.appendLE(hb.hostTimeUs)
@@ -663,6 +668,9 @@ extension Wire {
             guard let token = r.take(16), let caps = r.readU16() else { return nil }
             ack.authToken = Data(token)
             ack.hostCaps = caps
+        }
+        if r.remaining >= 20, let marker = r.take(4), Data(marker) == Data("DIPC".utf8), let identity = r.take(16) {
+            ack.pcID = Data(identity)
         }
         return .helloAck(ack)
     }
