@@ -20,7 +20,7 @@ Click a link below to download the file directly. Get the **Windows ZIP, iPad IP
 | Download | What to do |
 | --- | --- |
 | [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip) | Extract the entire ZIP and follow the device-specific steps below. |
-| [**Download Android app APK**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk) | Open on an Android 8+ tablet and tap **Install**. |
+| [**Download Android app APK**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.1) | Open on an Android 8+ tablet and tap **Install**. |
 | [**Download iPad app IPA**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa) | Import into iloader on your PC to install on iPad. |
 | [**Download iloader Windows installer**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | Run the EXE from the official publisher on your PC to prepare iPad installation. |
 | [**Download illustrated HTML guide**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | Open in a browser; screenshots are included in the file. |
@@ -37,18 +37,18 @@ You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ ta
 
 ## Install on Galaxy Tab / Android
 
-1. Tap **[Download Android APK](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk) on your tablet**, open the downloaded `DeskInk-Android.apk`, and tap **Install**. Allow installation from the browser/file app when prompted. No Apple account, iloader or weekly renewal is needed.
+1. Tap **[Download Android APK](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.1) on your tablet**, open the downloaded `DeskInk-Android.apk`, and tap **Install**. Allow installation from the browser/file app when prompted. No Apple account, iloader or weekly renewal is needed.
 2. Open **Settings → About tablet → Software information → tap Build number seven times**, then enter the device passcode. Enable **Developer options → USB debugging**. Menu names vary by device. [Samsung instructions](https://www.samsung.com/uk/support/mobile-devices/how-do-i-turn-on-the-developer-options-menu-on-my-samsung-galaxy-device/)
 3. Extract the entire Windows ZIP and run **`DeskInk-Android.exe` once**. It downloads and verifies Google's USB components (about 8 MB) and the video runtime (about 60 MB); Internet is needed for setup.
 4. Connect a USB data cable and **allow USB debugging from your PC** on the tablet. Open DeskInk and enter the PC's six-digit pairing code. Connect only one Android tablet over USB at a time.
 5. **Hold the S Pen button to erase; release to restore the previous tool.** Pens without a button can use the toolbar eraser. If Windows cannot detect the tablet, check [Samsung's official USB driver](https://developer.samsung.com/android-usb-driver).
 
-After setup, use either **DeskInk - Screen 1 / Screen 2** desktop icon. Android does not use Apple Devices. Authorize only PCs you trust; USB debugging can be turned off when no longer needed. Install a newer APK with the same signing identity over the existing app to update.
+After setup, use either **DeskInk - Screen 1 / Screen 2** desktop icon. Android does not use Apple Devices. Authorize only PCs you trust; USB debugging can be turned off when no longer needed. Install a newer APK with the same signing identity over the existing app to update. **Android 0.4.1** adds an icon dock, color and width previews, and a redesigned connection screen.
 
 ## Connect with the pairing code
 
 1. **Find the code on your PC:** open the Windows DeskInk window and look for **`Pairing code: six digits`** below the connection status. Restore the window from the taskbar if minimized.
-2. **Open pairing on your tablet:** connect USB and open DeskInk. On iPad, use **Pair with your PC**. On Android, use the automatic prompt or the **Pair PC / PC 연결** button near the bottom.
+2. **Open pairing on your tablet:** connect USB and open DeskInk. On iPad, use **Pair with your PC**. On Android, use the automatic prompt or **Pair PC / PC 연결** on the welcome screen. While disconnected, you can also tap the connection status at the top left.
 3. **Enter all six digits:** include any leading zero. Tap **Pair iPad** on iPad or **Connect / 연결** on Android. This is separate from Apple account two-factor authentication.
 4. **Check the connection:** Windows appears on the tablet and the PC says **Tablet connected**. The code rotating after successful pairing is normal. Restarting Windows DeskInk requires pairing with a new code.
 
@@ -67,7 +67,7 @@ If a code is rejected, recheck the current digits in the PC window. For **Too ma
 | Laser / disappearing pen | Point without permanent ink / leave ink that fades after about two seconds. Hover requires compatible tablet and pen hardware. |
 | Undo / redo | Correct recent changes on the current monitor. |
 | Eye / trash | Hide/show ink / clear the current monitor's ink. Clear can be undone. |
-| Two-finger pinch / drag | Zoom (1–4×) / pan **on the tablet only**. Tap **화면 맞춤** (Fit) to reset. Fingers do not draw by default. |
+| Two-finger pinch / drag | Zoom (1–4×) / pan **on the tablet only**. Tap **화면 맞춤** (Fit) to reset; on Android, use the four-corners icon at the top right. Fingers do not draw by default. |
 
 **Desktop screen switching:** The first Windows launch automatically creates **DeskInk - Screen 1 / Screen 2** desktop icons. Anyone can double-click either icon to choose that display, without a terminal window. Stream Deck users may optionally register the same shortcuts as Open actions. Video reconnects briefly. Keep the extracted folder in the same location; run `DeskInk-Shortcuts.exe` if the icons need to be recreated.
 

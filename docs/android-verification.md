@@ -60,3 +60,32 @@ The added regressions were each run failing before their corresponding implement
 6. Unplug/replug, sleep/wake and reopen the app. In Zoom, check the shared **whole monitor** from another participant's view.
 
 Useful commands and signing-key handling are in [development.md](development.md). Public release files exclude pairing logs, device identifiers, account credentials and private signing material.
+
+## Android 0.4.1 interface update — 2026-10-19
+
+Scope: [UI ticket](../.scratch/desk-ink/issues/07-android-ui.md). The iPad toolbar is the visual reference: line icons, short labels, a rounded dock, selected-tool feedback and native color/width previews. Connection and pairing screens share the same dark palette and bundled Geist fonts. The header and dock remain outside the viewport. No transport or codec changes, WebView, background blur or perpetual animation are introduced.
+
+Local verification: 19 core tests and 10 Android View tests passed; lint reports 0 errors and the same three existing test-dependency update suggestions. Release and instrumentation APKs compile. Four new behavior regressions were exercised red → green:
+
+- The selected-tool state now follows S Pen button erasing and restoration.
+- Drawing after hiding ink updates the subsequent visibility action correctly.
+- Undo and redo reflect the connected document's available history.
+- Pairing validation remains fully reachable in a 380×260px test window. The test waits for the dialog's `onShow` listener before attempting submission; without the scroll fix its visible-rectangle assertion fails.
+
+### Standards
+
+Independent review of `959311a...8fa0251` found two concrete layout defects: header captions were squeezed into a 48dp height, and the pairing form could not scroll above the keyboard. Both were corrected in `331cc26`: compact accessible header icons and content-sized dock buttons, plus scrollable forms with native action buttons outside the scroll area. Follow-up review found no new major regression or actionable code smell. Ordinary pen moves and hover do not refresh the dock unless the tool changes.
+
+### Spec
+
+Independent requirements review found two related gaps: short-window sheets and large-font captions. Both were corrected. S Pen restoration, selected-tool feedback, visibility/history and tablet-only zoom remain consistent with the approved requirements. Public APK delivery and actual emulator captures are verified separately from source review. Physical Galaxy Tab pen feel and latency remain device checks.
+
+Standards: 2 findings resolved, 0 outstanding in the reviewed correction. Spec: 2 findings resolved, 0 outstanding in the reviewed correction.
+
+The first screenshot pass exposed an observation gap: the IME capture ran before the keyboard finished appearing. The test now waits for actual IME visibility. That revealed Android's fullscreen input editor in the compact landscape window. Pairing now keeps its numeric keyboard inside the normal app context (`a82ce6c`), and the native check rejects fullscreen input mode. Independent Standards and Spec follow-ups over `331cc26..a82ce6c` found no actionable defect.
+
+Final native run [39190227883](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39190227883), source `a82ce6c`, passed all 29 unit tests, three full-tablet instrumentation tests and the additional compact-window pass. Actual MediaCodec output, native stylus ink, toolbar commands, both orientations, large fonts and pairing with the keyboard visible were checked. The final captures were visually inspected; the connected workspace is embedded unchanged in the HTML guide. Guide checks passed at 1440, 820, 390 and 320px widths, including tabs, offline images, enlargement/focus return and the no-JavaScript fallback.
+
+The release APK retains `com.deskink.android`, increases versionCode to `2` / versionName `0.4.1`, and passes v2/v3 signature and zip-alignment verification. Its signing certificate matches the original release (`d6839b84a1e2e019e546ecbef57747de5fa07483024828770bdd09c23bd1aa02`), allowing an update over the existing app. APK SHA-256: `cc277cf75daaeb524653726391b4ea771eb9e81bb417c44f15795d7af1c9b2b6`. Physical Galaxy Tab latency and S Pen feel have not been measured.
+
+Native layout references: [Android edge-to-edge/inset handling](https://developer.android.com/develop/ui/views/layout/edge-to-edge), [accessible touch targets and labels](https://developer.android.com/guide/topics/ui/accessibility/apps). The disposable CI emulator suppresses the one-time system fullscreen tutorial using the same setting as [AOSP window-manager tests](https://android.googlesource.com/platform/frameworks/base/+/c8ae8f11ab345baae42288a725545d4d73af79b4/services/tests/wmtests/AndroidTest.xml); the shipping app does not change system settings.

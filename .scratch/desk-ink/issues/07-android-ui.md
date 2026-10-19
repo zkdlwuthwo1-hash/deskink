@@ -1,6 +1,6 @@
 # Android workspace design parity
 
-Status: in-progress
+Status: done
 Blocked by: none
 Review baseline: `959311aa725d69fc115496b3f0810b2ce80525a3`
 
@@ -20,3 +20,5 @@ The user asked to improve the Galaxy Tab UI to the quality of the existing iPad 
 Use the previously approved `docs/android-plan.md` seams: native toolbar interactions, stylus events, tablet-only zoom and session integration. Add behavior regressions one at a time, red before green; do not test decorative constants. Run existing core/app tests and Android lint. Capture actual Android UI for welcome, pairing, connected workspace and narrow/portrait layouts. Real Galaxy Tab hardware latency and S Pen feel remain a physical-device check.
 
 Skills: `tdd` at the approved seams; `code-review` for independent standards/spec review against the baseline above. The previously requested `design-taste-frontend-v1` informs visual consistency only; its web stack is unsuitable for this native Android app. Use the iPad toolbar as the visual reference and prioritize low latency over decorative motion.
+
+Implemented in `8fa0251` with layout and keyboard corrections through `a82ce6c`. [Verification and independent review results](../../../docs/android-verification.md#android-041-interface-update--2026-10-19) record 29 unit tests, native video/input integration, tablet and compact layouts, matching release signing identity and screenshot provenance. Delivery is Android 0.4.1 through the existing public download and updated guide.
