@@ -31,7 +31,7 @@ pub struct PipelineStats {
     pub nal_bytes_last: usize,
     pub bitrate_bps: u32,
     pub codec_name: String,
-    /// True when a hardware encoder failed to open and the pipeline fell back to libx264
+    /// True when a hardware encoder failed to open and the pipeline fell back to software
     /// (CPU) encoding. Surfaced as a warning banner in the GUI so a tester is never silently
     /// stuck on slow software encoding.
     pub using_software_fallback: bool,

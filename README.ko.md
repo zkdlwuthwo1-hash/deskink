@@ -19,18 +19,22 @@ USB로 연결한 태블릿에 Windows 화면을 띄우고, 펜으로 쓰면 PC �
 
 | 다운로드 | 사용 방법 |
 | --- | --- |
-| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.3) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
+| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.4) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
 | [**Android 앱 APK 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2) | 갤럭시탭 등 Android 8 이상 태블릿에서 파일을 열고 **설치** |
 | [**iPad 앱 IPA 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2) | PC의 iloader에서 불러와 아이패드에 설치 |
 | [**iloader Windows 설치 파일 다운로드**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | iPad 앱 설치용 도구. 공식 배포처의 EXE를 받아 PC에서 실행 |
 | [**Apple 기기 설치 · Microsoft Store**](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR) | iPad 첫 USB 연결 준비·기기 인식 확인. 이미 정상 인식되는 PC는 생략 가능 |
 | [**설치·사용 안내 HTML 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | 캡처가 포함된 안내서를 브라우저에서 열기 |
 
-**Windows 0.4.3:** 설정 창을 최소화했을 때 PC 필기가 느려지는 문제를 수정했습니다. Windows DeskInk를 종료하고 새 ZIP의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. iPad·Android 앱이 0.4.2라면 이번 수정 때문에 다시 설치할 필요는 없습니다. 양쪽 기기가 함께 느려지는 장시간 사용 문제는 별도로 조사 중입니다.
+**Windows 0.4.4:** 일부 Intel PC에서 페어링 직후 영상 압축 실패로 연결이 끊기는 문제를 수정했습니다. Windows DeskInk를 종료하고 새 ZIP의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. iPad·Android 앱이 0.4.2라면 다시 설치할 필요는 없습니다. 이전의 설정 창 최소화 시 PC 필기 지연 수정도 포함합니다. 장시간 사용 시 양쪽 기기가 함께 느려지는 문제는 별도로 조사 중입니다.
 
 준비물: 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜, 데이터 USB 케이블. **Mac이나 개발 도구 없이 설치할 수 있습니다.** 첫 PC 설정에는 인터넷이 필요합니다. [전체 다운로드 파일](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1) · [iloader 공식 안내](https://iloader.app/)
 
 ## 아이패드에 처음 설치하기
+
+**Lightning iPad도 같은 IPA와 설치 순서를 사용합니다.** iPadOS 17 이상이 필요합니다. PC의 USB-A 포트에는 USB-A–Lightning, USB-C 포트에는 USB-C–Lightning **데이터 전송용 케이블**을 사용하세요. [Apple의 컴퓨터 USB 연결 안내](https://support.apple.com/ko-kr/guide/ipad/ipad756c56a8/17.0/ipados/17.0). Apple Pencil 1세대는 두 번 탭 전환을 지원하지 않으므로 앱 아래 도구막대의 지우개를 누릅니다. [Apple Pencil 기능 안내](https://support.apple.com/ko-kr/guide/ipad/ipad63913965/ipados).
+
+페어링 후 `Connection lost — USB disconnected`가 떠도 케이블 고장으로 단정할 수 없습니다. **먼저 Windows 앱을 0.4.4로 업데이트**하세요. 이전 버전에서 Intel 영상 압축 실패도 이 메시지로 표시됐습니다. 계속 실패하면 Apple 기기에서 iPad 인식을 확인하고, `%LOCALAPPDATA%\DeskInk\logs`의 같은 시각 `stdout`·`stderr` 로그 두 파일로 원인을 확인할 수 있습니다. 로그에는 기기·연결 정보가 포함될 수 있으니 공개 게시 전 가리세요.
 
 1. **Apple 기기에서 iPad 연결을 확인합니다.** 처음 설정하는 Windows PC는 [Apple 기기(Apple Devices)](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR)를 설치하고 실행하세요. 아이패드를 데이터 USB 케이블로 연결하고 잠금을 풉니다. **이 컴퓨터를 신뢰**를 허용하고 기기 암호를 입력한 뒤, **Apple 기기 왼쪽 목록에 iPad가 나타나는지** 확인합니다. [사진으로 연결 확인 위치 보기](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). 이미 iloader와 DeskInk에서 iPad를 정상 인식하는 PC는 추가 설치 없이 진행해도 됩니다. iTunes 등으로 Apple USB 연결 구성요소가 준비된 경우도 있습니다. [Apple 공식 안내](https://support.apple.com/ko-kr/108643)
 2. **Windows DeskInk를 실행합니다.** ZIP을 문서 폴더 등 쓰기 가능한 위치에 **전체 압축 해제**하고 그 안의 `DeskInk.exe`를 엽니다. 첫 실행에서 영상 구성요소 약 60MB를 공식 배포처에서 받아 검사하므로 인터넷이 필요합니다. 이후에는 내려받은 파일을 재사용합니다. 폴더 안의 파일을 따로 옮기지 마세요.

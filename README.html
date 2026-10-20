@@ -145,7 +145,7 @@ dialog{width:min(1120px,calc(100vw - 32px));max-height:94dvh;border:1px solid va
       <section id="downloads">
         <div class="section-heading"><div><p class="eyebrow">01 / Download</p><h2>PC용 하나, 태블릿용 하나.</h2><p>Windows 앱은 공통입니다. 사용하는 태블릿에 맞춰 iPad 또는 Android 앱을 받으세요.</p></div></div>
         <div class="download-list">
-          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg></span><div><div class="download-name">Windows 앱</div><div class="download-desc">PC에서 받기 · ZIP · 0.4.3</div></div><a class="button primary" aria-label="Windows 앱 ZIP 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.3">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
+          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg></span><div><div class="download-name">Windows 앱</div><div class="download-desc">PC에서 받기 · ZIP · 0.4.4</div></div><a class="button primary" aria-label="Windows 앱 ZIP 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.4">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
           <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-tablet"/></svg></span><div><div class="download-name">iPad 앱</div><div class="download-desc">PC에서 받기 · IPA · iloader로 설치</div></div><a class="button" aria-label="iPad 앱 IPA 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
           <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-tablet"/></svg></span><div><div class="download-name">Galaxy Tab · Android 앱</div><div class="download-desc">태블릿에서 받기 · APK · 열어서 설치</div></div><a class="button" aria-label="Android 앱 APK 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
           <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-usb"/></svg></span><div><div class="download-name">iloader</div><div class="download-desc">PC에서 받기 · EXE · iPad 앱 설치에 필요</div></div><a class="button" aria-label="iloader Windows 설치 파일 다운로드" href="https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
@@ -161,6 +161,7 @@ dialog{width:min(1120px,calc(100vw - 32px));max-height:94dvh;border:1px solid va
         </div>
         <div class="platform-panel" id="install" role="tabpanel" aria-labelledby="tab-ipad" data-device-panel="ipad">
           <div class="platform-heading"><h3>iPad에 설치하기</h3><span class="label">iPadOS 17+</span></div>
+          <div class="callout" id="lightning"><strong>Lightning iPad도 같은 앱으로 연결합니다.</strong><p>iPadOS 17 이상이면 아래의 같은 설치 순서를 따르세요. PC의 USB-A 포트에는 <b>USB-A–Lightning</b>, USB-C 포트에는 <b>USB-C–Lightning</b> 데이터 전송용 케이블을 사용합니다. <a href="https://support.apple.com/ko-kr/guide/ipad/ipad756c56a8/17.0/ipados/17.0">Apple 연결 안내</a></p><p>Apple Pencil 1세대는 두 번 탭 전환이 없으므로 아래 도구막대에서 지우개를 고릅니다. <a href="https://support.apple.com/ko-kr/guide/ipad/ipad63913965/ipados">Apple Pencil 기능 안내</a></p></div>
           <ol class="steps">
             <li><div><h4>PC에서 Windows 앱 실행</h4><p><a href="#downloads">Windows ZIP</a>을 문서 폴더 등 쓰기 가능한 위치에 <strong>전체 압축 해제</strong>한 뒤 <code>DeskInk.exe</code>를 엽니다. 영상 구성요소 약 60MB를 처음 한 번 내려받습니다.</p><p>바탕화면에 <strong>DeskInk - Screen 1 / Screen 2</strong> 아이콘이 생깁니다. 압축을 푼 폴더의 파일들은 함께 보관하세요.</p></div></li>
             <li id="apple-devices"><div>
@@ -213,7 +214,8 @@ dialog{width:min(1120px,calc(100vw - 32px));max-height:94dvh;border:1px solid va
         </ol>
         <div class="pairing-fixes"><h3>코드 입력에서 막혔다면</h3>
           <details><summary>업데이트 후에도 코드가 필요한가요?</summary><p>0.4.2 이전 버전에서 업데이트했다면 <b>Windows와 태블릿 앱을 모두 업데이트</b>하고, 각 PC에서 마지막으로 한 번 등록하세요. 다음부터 USB 연결과 DeskInk 실행만 하면 됩니다. PC 앱의 <b>Forget paired tablets</b>를 누르면 등록이 해제되어 코드가 다시 필요합니다. 앱 재설치·데이터 초기화나 Windows 사용자 계정 변경 시에도 다시 등록해야 할 수 있습니다.</p></details>
-          <details><summary>Windows 0.4.3은 어떻게 업데이트하나요?</summary><p>Windows DeskInk를 종료하고 새 ZIP의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. 설정 창을 최소화했을 때 PC 필기가 느려지는 문제를 수정했습니다. <b>iPad·Android 앱이 0.4.2라면 다시 설치할 필요는 없습니다.</b> 양쪽 기기가 함께 느려지는 장시간 사용 문제는 별도로 조사 중입니다.</p></details>
+          <details><summary>Windows 0.4.4는 어떻게 업데이트하나요?</summary><p>Windows DeskInk를 종료하고 <a href="#downloads">새 ZIP</a>의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. 일부 Intel PC에서 페어링 직후 영상 압축 실패로 끊기는 문제를 수정했습니다. <b>iPad·Android 앱이 0.4.2라면 다시 설치할 필요는 없습니다.</b> 이전의 설정 창 최소화 시 PC 필기 지연 수정도 포함합니다. 장시간 사용 시 양쪽 기기가 함께 느려지는 문제는 별도로 조사 중입니다.</p></details>
+          <details id="connection-lost"><summary>코드를 입력했는데 Connection lost — USB disconnected가 떠요.</summary><p>이 메시지만으로 케이블 고장이라고 판단할 수는 없습니다. <b>먼저 Windows 앱을 0.4.4로 업데이트</b>하세요. 이전 버전에서는 Intel 영상 압축이 실패해도 USB 연결이 종료되어 이 메시지가 나타났습니다. iPad 앱은 0.4.2라면 그대로 사용합니다.</p><p>계속 실패하면 <a href="#apple-devices">Apple 기기에서 iPad가 인식되는지</a> 확인하세요. Windows의 <code>%LOCALAPPDATA%\DeskInk\logs</code> 폴더에서 같은 시각의 <b>stdout·stderr 로그 두 파일</b>로 원인을 확인할 수 있습니다. 로그를 공개할 때는 기기·연결 정보를 가려주세요.</p></details>
           <details><summary>PC에 코드가 안 보여요.</summary><p>iloader나 Apple Devices가 아니라 <b>Windows의 DeskInk 창</b>을 엽니다. ZIP을 전체 압축 해제하고 iPad는 <code>DeskInk.exe</code>, Android는 첫 설정 때 <code>DeskInk-Android.exe</code>를 실행하세요. 바탕화면 아이콘으로 실행한 경우 작업 표시줄에서 DeskInk 창을 찾습니다.</p></details>
           <details><summary>태블릿에 입력창이 안 떠요.</summary><p>PC와 태블릿 양쪽에서 DeskInk를 열고 USB 케이블을 확인하세요. iPad는 컴퓨터 신뢰와 Apple USB 연결 서비스를 확인합니다. 앱의 USB 항목이 꺼져 있으면 <b>Turn on</b>, 연결이 끊긴 상태라면 표시된 <b>Connect USB</b>를 누릅니다. Android는 USB 디버깅 허용 후 시작 화면의 <b>PC 연결</b>을 누릅니다. 이미 PC 화면이 보이면 연결된 상태입니다.</p></details>
           <details><summary>코드가 틀렸거나 너무 많이 시도했다고 나와요.</summary><p>PC 창의 <b>현재 코드</b>를 다시 보고 6자리를 입력하세요. 재시작하거나 연결에 성공하면 숫자가 바뀔 수 있습니다. <b>Too many attempts / 시도 횟수가 많습니다</b>가 나오면 1분 기다린 뒤 다시 입력합니다.</p></details>
@@ -361,7 +363,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE. -->
     panels.forEach(panel => { panel.hidden = panel.dataset.devicePanel !== device; });
   }
   function revealDestination(hash) {
-    if (['#install', '#apple-devices', '#iloader', '#developer', '#renew'].includes(hash)) selectDevice('ipad');
+    if (['#install', '#lightning', '#apple-devices', '#iloader', '#developer', '#renew'].includes(hash)) selectDevice('ipad');
     if (hash === '#android') selectDevice('android');
   }
   if (controls) {

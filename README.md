@@ -19,18 +19,22 @@ Use the links below for downloads and official installation pages. Get the **Win
 
 | Download | What to do |
 | --- | --- |
-| [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.3) | Extract the entire ZIP and follow the device-specific steps below. |
+| [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.4) | Extract the entire ZIP and follow the device-specific steps below. |
 | [**Download Android app APK**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2) | Open on an Android 8+ tablet and tap **Install**. |
 | [**Download iPad app IPA**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2) | Import into iloader on your PC to install on iPad. |
 | [**Download iloader Windows installer**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | Run the EXE from the official publisher on your PC to prepare iPad installation. |
 | [**Install Apple Devices · Microsoft Store**](https://apps.microsoft.com/detail/9np83lwlpz9k) | Prepare the first iPad USB connection and check detection. Skip additional setup if your PC already detects iPad correctly. |
 | [**Download illustrated HTML guide**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | Open in a browser; screenshots are included in the file. |
 
-**Windows 0.4.3:** fixes delayed PC ink when the settings window is minimized. Close Windows DeskInk, extract the entire new ZIP and launch it. Closing clears existing ink. iPad and Android users already on 0.4.2 do not need to reinstall their tablet app for this fix. Long-session slowdown affecting both devices remains under investigation.
+**Windows 0.4.4:** fixes video encoder startup failures that disconnected some Intel PCs immediately after pairing. Close Windows DeskInk, extract the entire new ZIP and launch it. Closing clears existing ink. iPad and Android users already on 0.4.2 do not need to reinstall their tablet app. The earlier fix for delayed PC ink when minimizing settings is included. Long-session slowdown affecting both devices remains under investigation.
 
 You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ tablet, a compatible pen and a data-capable USB cable. **No Mac or development tools are needed.** Initial PC setup requires Internet access. [All download files](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1) · [Official iloader instructions](https://iloader.app/)
 
 ## Install on iPad
+
+**Lightning iPads use the same IPA and installation steps.** iPadOS 17+ is required. Use a **data-capable** USB-A–Lightning cable for a USB-A PC port, or USB-C–Lightning for a USB-C port. [Apple's USB connection guide](https://support.apple.com/en-us/guide/ipad/ipad756c56a8/17.0/ipados/17.0). Apple Pencil (1st generation) does not support double-tap switching; use the eraser in the bottom toolbar. [Apple Pencil features](https://support.apple.com/en-us/guide/ipad/ipad63913965/ipados).
+
+`Connection lost — USB disconnected` after pairing does not necessarily mean a bad cable. **Update the Windows app to 0.4.4 first**: Intel video encoder failures in older versions also caused this message. If it persists, check iPad detection in Apple Devices and examine the matching `stdout` and `stderr` files in `%LOCALAPPDATA%\DeskInk\logs`. Redact device and connection details before posting logs publicly.
 
 1. **Check iPad detection in Apple Devices.** On a Windows PC you are setting up for the first time, install and open [Apple Devices](https://apps.microsoft.com/detail/9np83lwlpz9k). Connect iPad with a data-capable USB cable, unlock it, accept **Trust This Computer**, and enter the device passcode if prompted. Confirm that **iPad appears in the Apple Devices sidebar**. [See the marked connection example](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). If iloader and DeskInk already detect iPad correctly, no additional installation is needed; iTunes or another existing Apple setup may already provide the USB components. [Apple's instructions](https://support.apple.com/en-us/108643)
 2. **Install DeskInk on Windows.** Extract the ZIP into a writable folder such as Documents. Run `DeskInk.exe` inside the extracted folder. The first launch downloads about 60 MB of video components from their publisher and verifies the checksum; Internet is required for this step. Later launches reuse them. Keep all files together.

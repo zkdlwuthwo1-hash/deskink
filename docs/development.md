@@ -68,6 +68,15 @@ python scripts/package-windows.py --version v0.4.0-lab.1 --crt "C:/path/to/VC/Re
 
 Use the original redistributable x64 DLL, not a debug runtime. The script copies an explicit allowlist, includes locked dependency license texts, hashes all files, and writes the source commit to `build-info.json`. Package a clean checkout for release. It never bundles development tools, logs, credentials or FFmpeg binaries. The first-run helper fetches a pinned publisher archive and validates SHA-256 before extraction.
 
+If the release executable is already running, build into a separate target directory
+instead of interrupting it:
+
+```powershell
+. ./scripts/windows-env.ps1
+cargo build -p eternal-host -p deskink-windows --bin deskink --bin deskink-launcher --release --target-dir target/release-candidate
+python scripts/package-windows.py --version v0.4.4 --build-dir target/release-candidate/release --crt "C:/path/to/VC/Redist/MSVC/version/x64/Microsoft.VC143.CRT/vcruntime140.dll"
+```
+
 Verify the extracted ZIP from a path with spaces and non-ASCII characters, with development directories removed from PATH:
 
 ```powershell

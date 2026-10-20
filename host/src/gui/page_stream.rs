@@ -64,7 +64,7 @@ impl AnalyzerApp {
                 ui,
                 WARNING,
                 Icon::Warning,
-                "Hardware encoder unavailable. Encoding on the CPU (libx264).",
+                "Hardware encoder unavailable. Using software encoding.",
                 "Expect higher latency and heavy CPU load. Update your NVIDIA, AMD or Intel graphics driver, then restart the stream.",
                 0.0,
                 |_| {},

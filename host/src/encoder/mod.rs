@@ -20,7 +20,7 @@ use crate::gpu::GpuInfo;
 use crate::stats::PIPELINE_STATS;
 
 pub mod input;
-use input::{select_input, EncoderInput};
+use input::EncoderInput;
 #[cfg(target_os = "macos")]
 mod vimage;
 
@@ -28,6 +28,9 @@ const CHANNEL_CAPACITY: usize = 4;
 const AMF_CAPTURE_PACKET_LIMIT: u64 = 120;
 const AMF_IDR_WARNING_PACKET: u64 = 60;
 const AMF_FORCED_INTRA_PERIOD: u64 = 30;
+// x264 is available in development builds; the distributed Windows LGPL
+// runtime instead includes OpenH264 without an extra codec DLL.
+const SOFTWARE_ENCODERS: [&str; 2] = ["libx264", "libopenh264"];
 
 /// Encoded H.264 NAL unit ready for transport.
 #[derive(Debug, Clone)]
@@ -70,21 +73,11 @@ fn run_encode_loop(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Apply GUI encoder override at pipeline start. The override is consulted only here;
     // mid-stream changes don't take effect until the user requests a Restart.
-    let (mut encoder_name, mut codec_display_name) = {
+    let (mut encoder_name, codec_display_name) = {
         let override_name = shared.encoder_override.lock().clone();
         match override_name {
             Some(name) if ffmpeg_next::encoder::find_by_name(&name).is_some() => {
-                let display = match name.as_str() {
-                    "h264_nvenc" => "H.264 (NVENC)",
-                    "h264_amf" => "H.264 (AMF)",
-                    "h264_qsv" => "H.264 (QSV)",
-                    "libx264" => "H.264 (x264)",
-                    other => {
-                        warn!(encoder = %other, "Unknown encoder override label");
-                        other
-                    }
-                };
-                let display = display.to_string();
+                let display = codec_display_name_for(&name).to_string();
                 info!(encoder = %name, "Encoder override honoured");
                 (name, display)
             }
@@ -99,10 +92,7 @@ fn run_encode_loop(
         }
     };
 
-    if ffmpeg_next::encoder::find_by_name(&encoder_name).is_none() {
-        return Err(format!("{} codec not found in FFmpeg", encoder_name).into());
-    }
-    info!(encoder = %encoder_name, "Found encoder codec");
+    info!(encoder = %encoder_name, "Selected encoder codec");
     {
         let mut stats = PIPELINE_STATS.lock();
         stats.set_codec_name(&codec_display_name);
@@ -113,7 +103,7 @@ fn run_encode_loop(
     }
 
     let mut encoder_state: Option<EncoderState> = None;
-    let input_mode = *shared.encoder_input.lock();
+    let mut input_mode = *shared.encoder_input.lock();
     let mut frames_since_last_idr: u64 = 0;
     let test_idr_period = std::env::var("ETERNAL_FORCE_IDR_PERIOD")
         .ok()
@@ -246,34 +236,52 @@ fn run_encode_loop(
                     hevc_open_failed = true;
                     continue;
                 }
-                Err(e) if encoder_name != "libx264" => {
-                    // A hardware encoder (commonly AMF) can fail to *open* even though it is
-                    // compiled into FFmpeg — driver hiccup, AMF runtime busy/missing, transient
-                    // device loss. Fall back to software once so streaming keeps a picture
-                    // instead of the whole encode thread dying.
+                Err(e) => {
+                    // Being compiled in does not imply the required GPU/driver
+                    // exists. Try only installed software codecs, and retain
+                    // each failure if none can open.
                     warn!(
                         encoder = %encoder_name,
                         error = %e,
-                        "Encoder failed to open — falling back to libx264 (software)"
+                        "Encoder failed to open — trying available software encoders"
                     );
-                    encoder_name = "libx264".to_string();
-                    codec_display_name = "H.264 (x264)".to_string();
-                    {
-                        let mut stats = PIPELINE_STATS.lock();
-                        stats.set_codec_name(&codec_display_name);
-                        stats.set_software_fallback(true);
+                    let mut failures = vec![format!("{encoder_name}: {e}")];
+                    for candidate in SOFTWARE_ENCODERS {
+                        if candidate == encoder_name
+                            || ffmpeg_next::encoder::find_by_name(candidate).is_none()
+                        {
+                            continue;
+                        }
+                        match EncoderState::new(
+                            candidate,
+                            raw_frame.width,
+                            raw_frame.height,
+                            desired_bitrate,
+                            target_fps,
+                            EncoderInput::Yuv420,
+                        ) {
+                            Ok(state) => {
+                                encoder_name = candidate.to_string();
+                                // Keep this mode on later resize/bitrate reopens.
+                                input_mode = EncoderInput::Yuv420;
+                                encoder_state = Some(state);
+                                break;
+                            }
+                            Err(error) => {
+                                warn!(encoder = candidate, %error, "Software encoder failed to open");
+                                failures.push(format!("{candidate}: {error}"));
+                            }
+                        }
                     }
-                    encoder_state = Some(EncoderState::new(
-                        &encoder_name,
-                        raw_frame.width,
-                        raw_frame.height,
-                        desired_bitrate,
-                        target_fps,
-                        input_mode,
-                    )?);
+                    if encoder_state.is_none() {
+                        return Err(
+                            format!("No usable video encoder: {}", failures.join("; ")).into()
+                        );
+                    }
+                    info!(encoder = %encoder_name, "Software fallback opened");
+                    PIPELINE_STATS.lock().set_software_fallback(true);
                     note_encoder_opened(&shared, &encoder_name);
                 }
-                Err(e) => return Err(e),
             }
         } else if size_changed
             || keyframe_reopen
@@ -612,18 +620,7 @@ impl EncoderState {
         let legacy_pts = std::env::var("ETERNAL_LEGACY_PTS").is_ok_and(|v| v.trim() == "1");
         let codec = ffmpeg_next::encoder::find_by_name(encoder_name)
             .ok_or_else(|| format!("{} codec not found in FFmpeg", encoder_name))?;
-        // AVCodec owns this terminated static list. A null list means that
-        // native BGRA support is unknown, so Auto retains the YUV path.
-        let supported = unsafe {
-            let mut ptr = (*codec.as_ptr()).pix_fmts;
-            let mut formats = Vec::new();
-            while !ptr.is_null() && *ptr != ffmpeg_next::ffi::AVPixelFormat::AV_PIX_FMT_NONE {
-                formats.push(ffmpeg_next::format::Pixel::from(*ptr));
-                ptr = ptr.add(1);
-            }
-            formats
-        };
-        let pixel_format = select_input(input_mode, encoder_name, &supported)?;
+        let pixel_format = input_mode.pixel_format(codec)?;
         let context = ffmpeg_next::codec::Context::new_with_codec(codec);
         let mut encoder = context.encoder().video()?;
 
@@ -668,12 +665,16 @@ impl EncoderState {
         let mut h264 = H264BitstreamState::default();
         h264.refresh_parameter_sets_from_extradata(encoder_extradata(&encoder));
 
-        let scaler = if pixel_format == ffmpeg_next::format::Pixel::YUV420P {
+        let needs_conversion = !matches!(
+            pixel_format,
+            ffmpeg_next::format::Pixel::BGRA | ffmpeg_next::format::Pixel::BGRZ
+        );
+        let scaler = if needs_conversion {
             Some(ffmpeg_next::software::scaling::Context::get(
                 ffmpeg_next::format::Pixel::BGRA,
                 width,
                 height,
-                ffmpeg_next::format::Pixel::YUV420P,
+                pixel_format,
                 width,
                 height,
                 // 1:1 scale — the "filter" only converts colorspace, so take the fast path.
@@ -683,7 +684,7 @@ impl EncoderState {
             None
         };
         if scaler.is_some() {
-            info!("swscale BGRA->YUV420P context created");
+            info!(output = ?pixel_format, "swscale BGRA conversion context created");
         }
 
         Ok(Self {
@@ -704,7 +705,7 @@ impl EncoderState {
             },
             encoder,
             scaler,
-            bgra_frame: (pixel_format == ffmpeg_next::format::Pixel::YUV420P).then(|| {
+            bgra_frame: needs_conversion.then(|| {
                 ffmpeg_next::frame::Video::new(ffmpeg_next::format::Pixel::BGRA, width, height)
             }),
             frame: ffmpeg_next::frame::Video::new(pixel_format, width, height),
@@ -793,6 +794,8 @@ fn codec_display_name_for(encoder_name: &str) -> &str {
         "h264_nvenc" => "H.264 (NVENC)",
         "h264_amf" => "H.264 (AMF)",
         "h264_qsv" => "H.264 (QSV)",
+        "h264_mf" => "H.264 (Media Foundation)",
+        "libopenh264" => "H.264 (OpenH264)",
         "h264_videotoolbox" => "H.264 (VideoToolbox)",
         "libx264" => "H.264 (x264)",
         "hevc_nvenc" => "HEVC (NVENC)",
@@ -857,6 +860,22 @@ fn encoder_options(encoder_name: &str) -> ffmpeg_next::Dictionary<'_> {
             opts.set("preset", "veryfast");
             opts.set("profile", "baseline");
             opts.set("look_ahead", "0");
+            // A reconnect needs an IDR, not an intra frame referencing the old GOP.
+            opts.set("forced_idr", "1");
+            opts.set("async_depth", "1");
+        }
+        "h264_mf" => {
+            // MF also provides a driver-independent NV12 path, used by the
+            // format-conversion integration test. It takes a numeric profile.
+            opts.set("hw_encoding", "0");
+            opts.set("profile", "66");
+            opts.set("scenario", "display_remoting");
+            opts.set("rate_control", "cbr");
+        }
+        "libopenh264" => {
+            opts.set("profile", "constrained_baseline");
+            opts.set("rc_mode", "bitrate");
+            opts.set("allow_skip_frames", "1");
         }
         "libx264" => {
             opts.set("preset", "ultrafast");

@@ -20,8 +20,7 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def package(version, crt):
-    release = ROOT / 'target/monitor-switch/release'
+def package(version, crt, release):
     output = ROOT / 'artifacts/local/releases' / version
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='deskink-package-') as temporary:
@@ -99,9 +98,12 @@ if __name__ == '__main__':
     parser.add_argument('--version', required=True)
     parser.add_argument('--crt', type=Path, required=True,
                         help='Unmodified x64 vcruntime140.dll from Visual Studio VC/Redist')
+    parser.add_argument('--build-dir', type=Path,
+                        default=ROOT / 'target/monitor-switch/release',
+                        help='Release binary directory; use a separate target when DeskInk is running')
     args = parser.parse_args()
     if not args.version or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-' for c in args.version):
         parser.error('Version must be a simple tag, without path separators.')
     if args.crt.name.lower() != 'vcruntime140.dll' or not args.crt.is_file():
         parser.error('--crt must be an existing vcruntime140.dll')
-    package(args.version, args.crt.resolve())
+    package(args.version, args.crt.resolve(), args.build_dir.resolve())
