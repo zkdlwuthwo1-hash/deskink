@@ -21,7 +21,9 @@ public class MainActivityTest {
             // explicitly installed positive-button listener in the IP form.
             org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
             assertFalse("The disconnect action must finish before backgrounding",dialog.isShowing());
-            controller.stop().start();
+            // A stopped Activity must restart before starting again; otherwise Android
+            // keeps mStopped=true and silently skips its next onStop callback.
+            controller.stop().restart().start();
             try(java.net.ServerSocket available=new java.net.ServerSocket()) {
                 available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877));
             }
@@ -38,6 +40,9 @@ public class MainActivityTest {
             }
             assertNotNull("Explicit automatic reconnect must resume the USB listener",usb);
             usb.close(); controller.stop();
+            try(java.net.ServerSocket available=new java.net.ServerSocket()) {
+                available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877));
+            }
         }
     }
     @Test public void lanEntryShowsThePortAndRejectsAnInvalidAddressWithoutLeavingUsb() {
