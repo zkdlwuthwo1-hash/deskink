@@ -26,8 +26,10 @@ public class WirelessStreamingTest {
     }
     private static void send(DatagramSocket socket,SocketAddress peer,byte[] bytes) throws IOException { socket.send(new DatagramPacket(bytes,bytes.length,peer)); }
     @Test public void wirelessSessionDisplaysReorderedVideoAndAcknowledgesTheClearButton() throws Exception {
-        try(DatagramSocket host=new DatagramSocket(0,InetAddress.getLoopbackAddress());
+        // Android's generic loopback is ::1; the app's IP form uses IPv4.
+        try(DatagramSocket host=new DatagramSocket(0,InetAddress.getByName("127.0.0.1"));
                 ActivityScenario<MainActivity> activity=ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(host.getLocalAddress() instanceof Inet4Address);
             host.setSoTimeout(2500);
             activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("network").performClick());
             // Dialog.onShow installs the Connect handler on the next UI turn.
