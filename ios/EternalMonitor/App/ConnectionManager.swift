@@ -403,6 +403,9 @@ final class ConnectionManager: ObservableObject {
         let channel = ControlChannel(queue: receiver.controlQueue, send: { [weak receiver] data in
             receiver?.send(data)
         })
+        // Invalidate an older queued UI update if another monitor transition
+        // arrives before MainActor can apply it.
+        let monitorIdentityRevision = OSAllocatedUnfairLock<UInt64>(initialState: 0)
         controlChannelBox.value = channel
         assembler.rttUs = { [weak channel] in channel?.clockSnapshot.withLock { $0.rttUs } ?? 10_000 }
         assembler.onNack = { [weak channel] nack in channel?.sendNack(nack) }
@@ -440,12 +443,30 @@ final class ConnectionManager: ObservableObject {
                 self.disconnect(reason: .error)
             }
         }
+        channel.onSessionRefreshing = { [weak self, weak receiver, weak assembler] in
+            // Keep new-monitor frames out until its ACK label selects the matching
+            // local document. This callback only fires for reliable LAN sessions.
+            receiver?.setAcceptedSessionId(0)
+            assembler?.reset()
+            let revision = monitorIdentityRevision.withLock { $0 &+= 1; return $0 }
+            Task { @MainActor in
+                guard let self, self.currentAttempt.withLock({ $0 == connectionID }),
+                      monitorIdentityRevision.withLock({ $0 == revision }) else { return }
+                self.deskInkTools.canvas?.finish(sendEnd: false)
+                self.hostStreamConfig = nil
+                self.signalLost = true
+                self.record(.info, "ctrl", "Refreshing the selected monitor over LAN")
+            }
+        }
         channel.onSessionEstablished = { [weak self, weak receiver, weak assembler] info in
             assembler?.repairEnabled = !isUSB && info.hostCaps & HelloAck.hostCapNack != 0
             assembler?.framePeriodUs = 1_000_000 / UInt64(max(1, info.streamConfig.fps))
-            receiver?.setAcceptedSessionId(info.sessionId)
+            let selectsLanBoard = !isUSB && info.hostCaps & HelloAck.hostCapReliableInk != 0
+            if !selectsLanBoard { receiver?.setAcceptedSessionId(info.sessionId) }
+            let revision = monitorIdentityRevision.withLock { $0 &+= 1; return $0 }
             Task { @MainActor in
-                guard let self, self.currentAttempt.withLock({ $0 == connectionID }) else { return }
+                guard let self, self.currentAttempt.withLock({ $0 == connectionID }),
+                      monitorIdentityRevision.withLock({ $0 == revision }) else { return }
                 if !isUSB, info.hostCaps & 0x1000 != 0,
                    info.hostCaps & HelloAck.hostCapReliableInk == 0 {
                     self.connectionError = "이 Windows 버전은 무선 필기를 지원하지 않습니다. Windows DeskInk를 0.5.0 이상으로 업데이트하거나 USB로 연결하세요."
@@ -472,6 +493,7 @@ final class ConnectionManager: ObservableObject {
                 }
                 if isUSB { self.usbStatus = "USB: connected to \(info.hostName)" }
                 self.hostStreamConfig = info.streamConfig
+                if selectsLanBoard { receiver?.setAcceptedSessionId(info.sessionId) }
                 self.record(
                     .info, "ctrl",
                     "Connected to \(info.hostName): \(info.streamConfig.width)x\(info.streamConfig.height) @ \(info.streamConfig.fps)fps"

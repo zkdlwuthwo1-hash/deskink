@@ -278,6 +278,15 @@ impl Session {
     ) -> Actions {
         let mut actions = Actions::default();
 
+        if source.link == LinkId::Udp
+            && config.host_caps() & crate::annotation::RELIABLE_INK_CAP != 0
+            && hello.feature_caps & eternal_wire::v2::control::FEATURE_RELIABLE_INK == 0
+        {
+            let ack = self.make_ack(HelloStatus::VersionUnsupported, hello.client_nonce, 0, config);
+            actions.replies.push((source, ack));
+            return actions;
+        }
+
         // Version gate first.
         if hello.proto_min > 2 || hello.proto_max < 2 {
             let ack = self.make_ack(

@@ -23,6 +23,8 @@ final class ControlChannel {
     }
 
     var onSessionEstablished: ((SessionInfo) -> Void)?
+    /// LAN monitor changes need a new authenticated host label before drawing resumes.
+    var onSessionRefreshing: (() -> Void)?
     var onRejected: ((HelloStatus) -> Void)?
     /// HELLO2 went unanswered for the whole retry budget.
     var onHandshakeTimeout: (() -> Void)?
@@ -45,6 +47,9 @@ final class ControlChannel {
     private var reliableInk: ReliableInkSender?
     private var inkRetryTimer: DispatchSourceTimer?
     private var usesReliableInk = false
+    private var authenticatedEpoch: UInt32 = 0
+    private var authenticatedToken = Data()
+    private var refreshingSession = false
     private var hostCaps: UInt16 = 0
     private var msgSeq: UInt32 = 0
     private var clientNonce: UInt32 = 0
@@ -121,6 +126,9 @@ final class ControlChannel {
         queue.async { [self] in
             stopReliableInk()
             usesReliableInk = identity.featureCaps & Hello2.featureReliableInk != 0
+            authenticatedEpoch = 0
+            authenticatedToken = Data()
+            refreshingSession = false
             sessionId = 0
             hostCaps = 0
             msgSeq = 0
@@ -194,6 +202,12 @@ final class ControlChannel {
             helloTimer?.cancel()
             helloTimer = nil
             onDiagnostic?("HELLO2 unanswered after \(Self.maxHelloAttempts) attempts")
+            if refreshingSession {
+                refreshingSession = false
+                clientNonce = 0
+                onInkFailure?("전환한 모니터의 연결을 확인하지 못했습니다. Windows DeskInk와 네트워크를 확인한 뒤 다시 연결하세요.")
+                return
+            }
             onHandshakeTimeout?()
             return
         }
@@ -215,7 +229,7 @@ final class ControlChannel {
             handleAck(ack)
         case .heartbeat(let heartbeat):
             guard header.sessionId == sessionId, sessionId != 0 else { return }
-            reliableInk?.start(session: sessionId, epoch: heartbeat.streamConfig.streamEpoch)
+            guard acceptsStreamConfig(heartbeat.streamConfig) else { return }
             lastHeartbeatAtUs.withLock { $0 = Self.clientNowUs() }
             onHeartbeat?(heartbeat)
         case .bye(let reason):
@@ -234,11 +248,33 @@ final class ControlChannel {
             // catch up. Dropping it made the host's immediate notify dead
             // traffic.
             guard header.sessionId == sessionId, sessionId != 0 else { return }
-            reliableInk?.start(session: sessionId, epoch: config.streamEpoch)
+            guard acceptsStreamConfig(config) else { return }
             onStreamConfig?(config)
         default:
             break
         }
+    }
+
+    /// A UDP pipeline restart can select another monitor without changing the
+    /// transport session. Only HELLO_ACK carries its authenticated monitor label.
+    private func acceptsStreamConfig(_ config: StreamConfig) -> Bool {
+        guard usesReliableInk, hostCaps & HelloAck.hostCapReliableInk != 0 else { return true }
+        guard config.streamEpoch != 0 else { return false }
+        if config.streamEpoch == authenticatedEpoch { return true }
+        guard authenticatedEpoch != 0, Int32(bitPattern: config.streamEpoch &- authenticatedEpoch) > 0 else { return false }
+        stopReliableInk()
+        reportTimer?.cancel()
+        reportTimer = nil
+        pingTimer?.cancel()
+        pingTimer = nil
+        sessionId = 0
+        hostCaps = 0
+        refreshingSession = true
+        remainingAuthTokens = []
+        lastKeyframeRequestUs = nil
+        onSessionRefreshing?()
+        retryHello(token: authenticatedToken, code: 0)
+        return false
     }
 
     private func handleAck(_ ack: HelloAck) {
@@ -250,6 +286,12 @@ final class ControlChannel {
         helloTimer = nil
 
         guard ack.status == .ok else {
+            if refreshingSession {
+                refreshingSession = false
+                clientNonce = 0
+                onInkFailure?("전환한 모니터에 연결하지 못했습니다. Windows DeskInk의 연결 상태를 확인한 뒤 다시 연결하세요.")
+                return
+            }
             // Known credentials remain valid even while new code attempts are
             // rate limited. Exhaust the two saved PCs before showing a prompt.
             if (ack.status == .unauthorized || ack.status == .rateLimited),
@@ -265,6 +307,9 @@ final class ControlChannel {
 
         sessionId = ack.sessionId
         hostCaps = ack.hostCaps
+        authenticatedEpoch = ack.streamConfig.streamEpoch
+        authenticatedToken = ack.authToken
+        refreshingSession = false
         if usesReliableInk, hostCaps & HelloAck.hostCapReliableInk != 0 {
             let delivery = ReliableInkSender(nowUs: nowUs, send: send, failed: { [weak self] message in
                 self?.onInkFailure?(message)
@@ -389,6 +434,9 @@ final class ControlChannel {
         queue.async { [self] in
             stopReliableInk()
             usesReliableInk = false
+            authenticatedEpoch = 0
+            authenticatedToken = Data()
+            refreshingSession = false
             helloTimer?.cancel()
             helloTimer = nil
             reportTimer?.cancel()

@@ -15,6 +15,8 @@
   function revealDestination(hash) {
     if (['#install', '#lightning', '#apple-devices', '#iloader', '#developer', '#renew'].includes(hash)) selectDevice('ipad');
     if (hash === '#android') selectDevice('android');
+    const destination = document.getElementById(hash.slice(1));
+    if (destination?.matches('details')) destination.open = true;
   }
   if (controls) {
     controls.hidden = false;

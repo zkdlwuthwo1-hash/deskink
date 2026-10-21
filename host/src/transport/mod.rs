@@ -91,6 +91,7 @@ impl ConfigSource for SharedConfigSource<'_> {
             return crate::annotation::HOST_CAP
                 | crate::annotation::TOOLS_CAP
                 | crate::annotation::MONITOR_CAP
+                | crate::annotation::RELIABLE_INK_CAP
                 | eternal_wire::v2::control::HOSTCAP_USB;
         }
         let usb = if PIPELINE_STATS.lock().usb_service_reachable {
@@ -145,7 +146,7 @@ pub async fn start_sender(
     shared: SharedControl,
     supervisor_tx: std_mpsc::Sender<SupervisorCommand>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bind_ip = if shared.annotation.is_some() {
+    let bind_ip = if shared.annotation.is_some() && !shared.lan_enabled.load(Ordering::SeqCst) {
         "127.0.0.1"
     } else {
         "0.0.0.0"
@@ -318,6 +319,12 @@ pub async fn start_sender(
                     }
                     Ok(LinkEvent::Datagram(src, datagram)) => {
                         let datagram = datagram.as_slice();
+                        if datagram.starts_with(crate::annotation::LAN_INPUT_MAGIC) {
+                            if let Some(ack) = acknowledge_lan_ink(&shared, src, stream_epoch, datagram) {
+                                let _ = links.send_to(&ack, src).await;
+                            }
+                            continue;
+                        }
                         if let (Some(annotations), Some(body)) = (&shared.annotation, datagram.strip_prefix(crate::annotation::INPUT_MAGIC)) {
                             let session = shared.session.lock();
                             annotations.active().receive(src, session.peer(), session.session_id(), stream_epoch, body);
@@ -614,6 +621,12 @@ async fn repair_while_pacing(
             _ = &mut timer => break,
             received = socket.recv_from(&mut bytes) => {
                 let Ok((len, peer)) = received else { break; };
+                if bytes[..len].starts_with(crate::annotation::LAN_INPUT_MAGIC) {
+                    if let Some(ack) = acknowledge_lan_ink(shared, PeerId::udp(peer), config.stream_config().stream_epoch, &bytes[..len]) {
+                        let _ = socket.send_to(&ack, peer).await;
+                    }
+                    continue;
+                }
                 if let Ok((header, ControlMessage::Nack(nack))) = parse_control(&bytes[..len]) {
                     let count = nack.frag_count;
                     let actions = shared.session.lock().handle_control(PeerId::udp(peer), header.session_id,
@@ -627,6 +640,14 @@ async fn repair_while_pacing(
             }
         }
     }
+}
+
+fn acknowledge_lan_ink(shared: &SharedControl, source: PeerId, epoch: u32, packet: &[u8]) -> Option<[u8;20]> {
+    if !shared.lan_enabled.load(Ordering::SeqCst) { return None; }
+    let workspace = shared.annotation.as_ref()?;
+    let body = packet.strip_prefix(crate::annotation::LAN_INPUT_MAGIC)?;
+    let session = shared.session.lock();
+    workspace.active().receive_lan(source, session.peer(), session.session_id(), epoch, body, Instant::now())
 }
 
 async fn execute_actions(

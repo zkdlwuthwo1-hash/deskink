@@ -39,6 +39,8 @@ pub const FEATURE_WANTS_AUDIO: u16 = 1 << 1;
 pub const FEATURE_SUPPORTS_NACK: u16 = 1 << 2;
 /// Keeps independent local ink documents for authenticated DeskInk monitor labels.
 pub const FEATURE_MONITOR_BOARDS: u16 = 1 << 3;
+/// Acknowledged DI02 ink over UDP; USB continues using DI01.
+pub const FEATURE_RELIABLE_INK: u16 = 1 << 4;
 pub const HOSTCAP_NACK: u16 = 1 << 0;
 pub const HOSTCAP_AUDIO: u16 = 1 << 1;
 pub const HOSTCAP_USB: u16 = 1 << 2;

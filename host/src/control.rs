@@ -12,6 +12,8 @@ pub const DEFAULT_TARGET_FPS: u32 = 60;
 pub struct SharedControl {
     /// DeskInk presentation mode. Remote OS input and virtual displays are not used.
     pub annotation: Option<Arc<crate::annotation::AnnotationWorkspace>>,
+    /// DeskInk opt-in LAN listener. Does not affect USB links or upstream mode.
+    pub lan_enabled: Arc<AtomicBool>,
     pub running: Arc<AtomicBool>,
     /// The user's MAXIMUM bitrate (the GUI slider) — the ABR ceiling.
     pub bitrate_bps: Arc<AtomicU32>,
@@ -126,6 +128,7 @@ impl SharedControl {
     pub fn new(listen_port: u16, initial_bitrate_bps: u32) -> Self {
         Self {
             annotation: None,
+            lan_enabled: Arc::new(AtomicBool::new(false)),
             pairing: Arc::new(Mutex::new(
                 crate::pairing::Pairing::new(
                     true,

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="DeskInk 설치·사용 안내. Windows·iPad·Android 앱 다운로드, Apple 기기 연결 확인과 iloader 설치, 개발자 모드, PC의 6자리 페어링 코드 입력, 펜 도구와 화면 전환 방법.">
+  <meta name="description" content="DeskInk 설치·사용 안내. Windows·iPad·Android 앱 다운로드, USB 또는 Wi-Fi/LAN 연결, QR·IP 주소와 6자리 페어링 코드, iloader 설치·개발자 모드, 펜 도구와 화면 전환 방법.">
   <title>DeskInk — 설치, 연결, 필기</title>
   <style>{{STYLES}}</style>
 </head>
@@ -23,7 +23,7 @@
 <header class="site-header">
   <div class="wrap header-row">
     <a class="wordmark" href="#top" aria-label="DeskInk 처음으로"><span class="mark"><svg class="icon" aria-hidden="true"><use href="#i-pen"/></svg></span>DeskInk</a>
-    <nav class="top-nav" aria-label="주요 메뉴"><a href="#downloads">다운로드</a><a href="#pairing">페어링</a><a href="#use">사용법</a><a class="desktop-link" href="https://github.com/zkdlwuthwo1-hash/deskink">GitHub</a></nav>
+    <nav class="top-nav" aria-label="주요 메뉴"><a href="#downloads">다운로드</a><a href="#wireless">무선 연결</a><a href="#pairing">페어링</a><a class="desktop-link" href="#use">사용법</a><a class="desktop-link" href="https://github.com/zkdlwuthwo1-hash/deskink">GitHub</a></nav>
   </div>
 </header>
 <main id="main">
@@ -33,7 +33,7 @@
       <h1>화면을 보여주고,<br><em>펜으로 설명하세요.</em></h1>
       <p class="lead">Windows 화면을 태블릿에 띄우고 그 위에 씁니다. 논문, 슬라이드, 코드까지. 마우스로 가리키던 설명을 펜으로 이어가세요.</p>
       <div class="actions"><a class="button primary" href="#downloads">설치 파일 받기<svg class="icon" aria-hidden="true"><use href="#i-down"/></svg></a><a class="text-link" href="#pairing">페어링 코드 입력 방법</a></div>
-      <div class="hero-tags"><span><svg class="icon small-icon" aria-hidden="true"><use href="#i-usb"/></svg>USB 연결</span><span>태블릿에서만 확대</span><span>화면별 필기</span></div>
+      <div class="hero-tags"><span><svg class="icon small-icon" aria-hidden="true"><use href="#i-usb"/></svg>USB · Wi-Fi/LAN</span><span>태블릿에서만 확대</span><span>화면별 필기</span></div>
     </div>
     <figure class="hero-art reveal" style="--index:2" aria-label="Windows 화면과 태블릿에 같은 필기가 나타나는 기능 설명 그림">
       <div class="art-stage" aria-hidden="true">
@@ -50,20 +50,22 @@
       <p class="eyebrow">시작부터 발표까지</p>
       <a href="#downloads"><span class="index">01</span>파일 다운로드</a>
       <a href="#setup"><span class="index">02</span>기기별 설치</a>
-      <a href="#pairing"><span class="index">03</span>페어링 코드 입력</a>
-      <a href="#use"><span class="index">04</span>펜과 화면 사용</a>
-      <a href="#help"><span class="index">05</span>문제 해결</a>
+      <a href="#wireless"><span class="index">03</span>Wi-Fi/LAN 연결</a>
+      <a href="#pairing"><span class="index">04</span>페어링 코드 입력</a>
+      <a href="#use"><span class="index">05</span>펜과 화면 사용</a>
+      <a href="#help"><span class="index">06</span>문제 해결</a>
     </aside>
     <div class="guide-content">
       <section id="downloads">
         <div class="section-heading"><div><p class="eyebrow">01 / Download</p><h2>PC용 하나, 태블릿용 하나.</h2><p>Windows 앱은 공통입니다. 사용하는 태블릿에 맞춰 iPad 또는 Android 앱을 받으세요.</p></div></div>
         <div class="download-list">
-          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg></span><div><div class="download-name">Windows 앱</div><div class="download-desc">PC에서 받기 · ZIP · 0.4.4</div></div><a class="button primary" aria-label="Windows 앱 ZIP 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.4.4">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
-          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-tablet"/></svg></span><div><div class="download-name">iPad 앱</div><div class="download-desc">PC에서 받기 · IPA · iloader로 설치</div></div><a class="button" aria-label="iPad 앱 IPA 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.4.2">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
-          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-tablet"/></svg></span><div><div class="download-name">Galaxy Tab · Android 앱</div><div class="download-desc">태블릿에서 받기 · APK · 열어서 설치</div></div><a class="button" aria-label="Android 앱 APK 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
+          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg></span><div><div class="download-name">Windows 앱</div><div class="download-desc">PC에서 받기 · ZIP · 0.5.0</div></div><a class="button primary" aria-label="Windows 앱 ZIP 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.5.0">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
+          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-tablet"/></svg></span><div><div class="download-name">iPad 앱</div><div class="download-desc">PC에서 받기 · IPA · 0.5.0 · iloader로 설치</div></div><a class="button" aria-label="iPad 앱 IPA 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.5.0">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
+          <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-tablet"/></svg></span><div><div class="download-name">Galaxy Tab · Android 앱</div><div class="download-desc">태블릿에서 받기 · APK · 0.5.0 · 열어서 설치</div></div><a class="button" aria-label="Android 앱 APK 다운로드" href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.5.0">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
           <div class="download-row"><span class="download-icon"><svg class="icon" aria-hidden="true"><use href="#i-usb"/></svg></span><div><div class="download-name">iloader</div><div class="download-desc">PC에서 받기 · EXE · iPad 앱 설치에 필요</div></div><a class="button" aria-label="iloader Windows 설치 파일 다운로드" href="https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe">다운로드<svg class="icon small-icon" aria-hidden="true"><use href="#i-down"/></svg></a></div>
         </div>
-        <p class="requirements"><strong>준비물</strong> 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜, 데이터 전송용 USB 케이블. 첫 PC 설정에는 인터넷이 필요합니다. iPad는 먼저 <a href="#apple-devices">Apple 기기 앱으로 USB 인식을 확인</a>하세요. iloader는 <a href="https://iloader.app/">공식 배포처</a>의 설치 파일로 연결됩니다.</p>
+        <div class="callout"><strong>무선 연결은 양쪽 앱을 0.5.0으로 업데이트하세요.</strong><p>Windows는 새 ZIP의 전체 압축을 풀어 실행하고, iPad는 iloader로 새 IPA를 설치하거나 Android는 새 APK를 기존 앱 위에 설치합니다. 기존 USB 연결은 이전 태블릿 앱과도 계속 사용할 수 있습니다. <a href="#wireless">Wi-Fi/LAN 연결 순서 보기</a></p></div>
+        <p class="requirements"><strong>준비물</strong> 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜. USB 연결·iPad 설치에는 데이터 전송용 USB 케이블을, 무선 연결에는 신뢰하는 로컬 네트워크를 사용합니다. 첫 PC 설정에는 인터넷이 필요합니다. iPad 설치 전 <a href="#apple-devices">Apple 기기 앱으로 USB 인식을 확인</a>하세요. iloader는 <a href="https://iloader.app/">공식 배포처</a>의 설치 파일로 연결됩니다.</p>
       </section>
 
       <section id="setup">
@@ -85,7 +87,7 @@
               <p class="setting-path">PC에서 <strong>Apple 기기</strong> 실행 → USB 연결<br>→ iPad 잠금 해제·컴퓨터 신뢰<br>→ Apple 기기 왼쪽 목록에서 <strong>내 iPad 확인</strong></p>
               <figure class="figure" id="apple-devices-image"><div class="media-frame"><button type="button" class="enlarge" aria-label="Apple 기기 앱에서 연결된 iPad 확인 위치 확대"><img src="{{APPLE_DEVICES}}" alt="Apple 기기 앱의 연결 확인 예시. 초록색 1번은 왼쪽 목록에 표시된 내 iPad이며, 2번은 위쪽의 기기 이름과 모델 정보입니다. iPad가 표시되면 iloader로 이동해 Refresh Devices를 누릅니다." loading="lazy"></button><div class="image-error" role="status"><p>이미지를 불러오지 못했습니다. Apple 기기의 왼쪽 목록에 iPad가 나타나는지 확인하고, iloader에서 Refresh Devices를 누르세요.</p><button type="button" class="retry-image">이미지 다시 불러오기</button></div></div><figcaption><strong>① 왼쪽에 iPad가 보이고 ② 기기 정보가 나오면 USB 인식이 확인된 상태입니다.</strong> 누르면 확대됩니다. 제공된 화면을 바탕으로 표시한 설명용 이미지로, 개인 기기 이름은 ‘내 iPad’로 바꿨습니다.</figcaption></figure>
               <p>다음 단계에서 <a href="#iloader">iloader를 설치·실행</a>한 뒤 <strong>Refresh Devices / 기기 새로고침(Ctrl+R)</strong>을 누르고, 위쪽 <strong>iDevice</strong>에서 아이패드를 선택하세요. Apple 기기에는 보이는데 iloader에 없다면 iloader를 완전히 닫았다가 다시 엽니다.</p>
-              <p class="small">이미 iloader와 DeskInk에서 iPad를 정상 인식하는 PC라면 추가 설치 없이 진행해도 됩니다. iTunes 등으로 Apple USB 연결 구성요소가 준비된 경우도 있습니다. <a href="https://support.apple.com/ko-kr/108643">Apple 공식 USB 인식 안내</a></p>
+              <p class="small">이미 iloader와 DeskInk에서 iPad를 정상 인식하는 PC라면 추가 설치 없이 진행해도 됩니다. iTunes 등으로 Apple USB 연결 구성요소가 준비된 경우도 있습니다. 이 단계는 USB 설치·연결 준비이며, 설치 후 <a href="#wireless">무선 화면 전송</a> 자체에는 Apple USB 서비스가 필요하지 않습니다. <a href="https://support.apple.com/ko-kr/108643">Apple 공식 USB 인식 안내</a></p>
             </div></li>
             <li id="iloader"><div><h4>iloader 설정하고 Apple 계정 로그인</h4><p><a href="#downloads">iloader 설치 파일과 iPad IPA</a>를 <strong>Windows PC에</strong> 내려받습니다. iloader를 설치해 실행하고, 위쪽 <strong>iDevice</strong>에서 연결한 아이패드를 선택하세요.</p><p>처음 로그인한다면 사진의 <strong>① Anisette Server</strong> 오른쪽 화살표를 눌러 <strong>Jkcoxson (Windows)</strong>를 고릅니다. 이 안내서는 사진에서 로그인에 성공한 설정을 예시로 사용합니다. <strong>이미 같은 항목이 선택돼 있거나 정상 로그인됐다면 그대로 진행하세요.</strong></p><p class="setting-path">Anisette Server → <strong>Jkcoxson (Windows)</strong><br>→ 왼쪽 Apple ID에서 본인 계정으로 로그인<br>→ iPad·iPhone에 온 이중 인증 요청 확인</p><figure class="figure" id="iloader-settings-image"><div class="media-frame"><button type="button" class="enlarge" aria-label="iloader Windows 서버 설정과 Import IPA 위치 확대"><img src="{{ILOADER}}" alt="iloader 설정 안내. 초록색 1번은 Anisette Server에서 Jkcoxson (Windows)를 선택하는 곳이며 오른쪽 화살표로 목록을 엽니다. 2번은 로그인 후 누르는 오른쪽 위 Import IPA 버튼입니다." loading="lazy"></button><div class="image-error" role="status"><p>이미지를 불러오지 못했습니다. Anisette Server에서 Jkcoxson (Windows)를 선택한 뒤 로그인하고 Import IPA를 누르세요.</p><button type="button" class="retry-image">이미지 다시 불러오기</button></div></div><figcaption><strong>사진의 ①에서 서버 선택, ②에서 IPA 가져오기.</strong> 누르면 크게 볼 수 있습니다. 제공된 iloader 2.3.9 화면을 바탕으로 위치를 표시한 설명용 이미지이며, 계정·기기 정보는 제외했습니다.</figcaption></figure><p class="small">서버 이름의 Mac·Windows는 인증 서버 종류입니다. PC 운영체제와 반드시 맞춰야 하는 항목은 아닙니다. <a href="https://github.com/nab138/iloader/blob/main/src/pages/Settings.tsx">iloader 공식 서버 목록</a></p></div></li>
             <li><div><h4>Import IPA로 DeskInk 설치</h4><p>사진의 <strong>② Import IPA</strong>를 누릅니다. PC의 <strong>다운로드</strong> 폴더에서 받은 <code>DeskInk-iPad-unsigned.ipa</code>를 선택하세요.</p><p class="setting-path">Import IPA / IPA 가져오기<br>→ <code>DeskInk-iPad-unsigned.ipa</code> 선택<br>→ <strong>Sign &amp; Install App</strong><br>→ 완료 후 iPad 홈 화면에서 <strong>DeskInk</strong> 확인</p><p>설치하는 동안 아이패드 잠금을 풀어 두고 USB 연결을 유지하세요. 설치가 끝나면 iloader는 닫아도 됩니다. iTunes 등 Apple 구성요소가 필요하다는 안내가 나오면 <a href="https://iloader.app/">iloader 공식 안내</a>를 따릅니다.</p></div></li>
@@ -96,9 +98,10 @@
         </div>
         <div class="platform-panel" id="android" role="tabpanel" aria-labelledby="tab-android" data-device-panel="android">
           <div class="platform-heading"><h3>Galaxy Tab에 설치하기</h3><span class="label">Android 8+</span></div>
+          <div class="callout"><strong>무선만 쓴다면 USB 디버깅 없이 시작합니다.</strong><p>태블릿에 APK를 설치하고, PC에서 Windows ZIP의 전체 압축을 풀어 <code>DeskInk.exe</code>를 엽니다. 그다음 <a href="#wireless">Wi-Fi/LAN 연결</a>로 이동하세요. 아래 USB 디버깅과 <code>DeskInk-Android.exe</code> 설정은 <b>USB를 사용할 때만</b> 필요합니다.</p></div>
           <ol class="steps">
-            <li><div><h4>태블릿에서 APK 다운로드·설치</h4><p>태블릿에서 <a href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.4.2">Android APK 다운로드</a>를 누릅니다. 받은 파일을 열어 <strong>설치</strong>를 누르고, 요청하면 해당 브라우저·내 파일 앱의 <strong>이 출처 허용</strong>을 켭니다.</p></div></li>
-            <li><div><h4>개발자 옵션에서 USB 디버깅 켜기</h4><p class="setting-path">설정 → 태블릿 정보 → 소프트웨어 정보<br>→ 빌드번호 <strong>7번 탭</strong> → 기기 암호 입력<br>→ 설정 → 개발자 옵션 → <strong>USB 디버깅 켜기</strong></p><p>기기마다 메뉴 이름이 조금 다를 수 있습니다. <a href="https://www.samsung.com/uk/support/mobile-devices/how-do-i-turn-on-the-developer-options-menu-on-my-samsung-galaxy-device/">삼성 공식 안내</a></p></div></li>
+            <li><div><h4>태블릿에서 APK 다운로드·설치</h4><p>태블릿에서 <a href="https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.5.0">Android APK 다운로드</a>를 누릅니다. 받은 파일을 열어 <strong>설치</strong>를 누르고, 요청하면 해당 브라우저·내 파일 앱의 <strong>이 출처 허용</strong>을 켭니다.</p></div></li>
+            <li><div><h4>USB 연결: 개발자 옵션에서 USB 디버깅 켜기</h4><p class="setting-path">설정 → 태블릿 정보 → 소프트웨어 정보<br>→ 빌드번호 <strong>7번 탭</strong> → 기기 암호 입력<br>→ 설정 → 개발자 옵션 → <strong>USB 디버깅 켜기</strong></p><p>기기마다 메뉴 이름이 조금 다를 수 있습니다. <a href="https://www.samsung.com/uk/support/mobile-devices/how-do-i-turn-on-the-developer-options-menu-on-my-samsung-galaxy-device/">삼성 공식 안내</a></p></div></li>
             <li><div><h4>PC에서 Android 연결 준비</h4><p><a href="#downloads">Windows ZIP</a>을 <strong>전체 압축 해제</strong>하고 <code>DeskInk-Android.exe</code>를 처음 한 번 엽니다. USB 구성요소 약 8MB와 영상 구성요소 약 60MB를 내려받으므로 인터넷이 필요합니다.</p><p>다음부터 바탕화면의 <strong>DeskInk - Screen 1 / Screen 2</strong> 중 원하는 아이콘을 열면 됩니다.</p></div></li>
             <li><div><h4>USB로 연결하고 PC 허용</h4><p>데이터 USB 케이블로 연결하고 태블릿에서 <strong>이 컴퓨터에서 USB 디버깅 허용</strong>을 누릅니다. 태블릿의 DeskInk를 열어 두세요. Android 태블릿은 한 번에 한 대만 연결합니다.</p></div></li>
           </ol>
@@ -108,8 +111,22 @@
         </div>
       </section>
 
+      <section id="wireless">
+        <div class="section-heading"><div><p class="eyebrow">03 / Wi-Fi &amp; LAN</p><h2>같은 네트워크에서,<br>QR이나 IP로 PC를 선택하세요.</h2><p>USB가 기본이며 무선은 직접 켜서 사용합니다. Windows와 태블릿을 모두 <strong>0.5.0</strong>으로 업데이트하세요. PC는 이더넷, 태블릿은 같은 공유기의 Wi-Fi로 연결해도 됩니다.</p></div><span class="label">선택 기능 · 기본 꺼짐</span></div>
+        <ol class="steps">
+          <li><div><h4>PC와 태블릿을 같은 로컬 네트워크에 연결</h4><p>두 기기가 서로 통신할 수 있는 공유기·네트워크를 사용합니다. PC는 유선 이더넷을 권장하며, 태블릿은 신호가 강한 5/6GHz Wi-Fi를 사용하세요. 인터넷을 통한 외부 원격 접속은 지원하지 않습니다.</p></div></li>
+          <li><div><h4>Windows의 Wi-Fi / LAN 항목을 펼쳐 연결 허용</h4><p>USB를 빼고 태블릿 연결을 종료합니다. Windows DeskInk에서 <strong>Wi-Fi / LAN</strong> 항목을 펼쳐 <strong>Allow Wi-Fi / LAN</strong>을 켜세요. 연결 중에는 이 설정을 바꿀 수 없습니다.</p><p>표시되는 <strong>PC IPv4 주소와 Port</strong>를 확인합니다. 기본 포트는 <strong>9876</strong>입니다. VPN·가상 어댑터 대신 태블릿과 같은 네트워크의 주소인지 확인하고, 네트워크를 바꿨다면 <strong>Refresh IP</strong>를 누르세요.</p></div></li>
+          <li><div><h4>iPad는 QR 또는 IP, Galaxy Tab은 IP 입력</h4><p><strong>iPad:</strong> Windows에서 <strong>QR code (iPad)</strong>를 누르고, iPad DeskInk의 <strong>Scan QR code</strong>로 읽습니다. 직접 입력하려면 <strong>PC address</strong>에 PC의 주소, <strong>Port</strong>에 표시된 포트를 넣고 <strong>Connect</strong>를 누르세요. 로컬 네트워크 권한 요청이 나오면 허용합니다.</p><p><strong>Android:</strong> <strong>Wi-Fi / LAN</strong> 연결을 고르고 PC의 IP 주소와 포트를 입력합니다. Android에는 QR 스캔이 없습니다. 이번 버전은 <strong>Find PCs 대신 QR·IP 입력</strong>으로 연결합니다.</p><p class="setting-path">PC에 표시된 IPv4 주소 → 태블릿의 PC address<br>PC에 표시된 포트(기본 <strong>9876</strong>) → Port<br>→ Connect → 처음 등록할 때 <strong>6자리 코드</strong></p></div></li>
+          <li><div><h4>처음 한 번 페어링하고 Windows 화면 확인</h4><p>QR에는 접속 주소만 담겨 있습니다. 처음 사용하는 PC라면 <a href="#pairing">PC의 6자리 페어링 코드</a>도 입력하세요. 등록한 PC 정보는 유지되며, 화면이 나타나면 필기를 시작합니다. PC의 IP 주소가 바뀌면 새 QR을 읽거나 새 주소로 접속합니다.</p></div></li>
+        </ol>
+        <div class="callout"><strong>신뢰하는 로컬 네트워크에서 사용하세요.</strong><p>화면과 필기 데이터는 암호화되지 않습니다. Windows 방화벽은 압축을 푼 폴더의 <code>bin/deskink.exe</code>에 대해 <b>개인 네트워크·UDP 9876·로컬 서브넷</b> 범위로 허용합니다. 방화벽을 끄거나 공유기 포트 포워딩을 설정하지 마세요. 다른 포트로 설정했다면 표시된 포트와 허용 규칙을 맞춥니다.</p></div>
+        <div class="usage-row"><h3>지연과 연결 상태</h3><p>무선은 전파·공유기 상태에 따라 지연이 달라져 <strong>지연 0을 보장하지 않습니다.</strong> 오래된 필기가 길게 쌓이지 않도록 처리하며, 연결 상태가 나쁘면 다시 연결하거나 USB로 돌아가세요. 자동 검사는 입력 순서·손실 복구·대기량 제한을 대상으로 합니다. <strong>실제 Wi-Fi 지연, 펜 감각과 Zoom 발표는 실기기 확인이 필요합니다.</strong></p></div>
+        <div class="usage-row"><h3>USB로 돌아가기</h3><p>네트워크 연결을 종료하고 기존 USB 케이블을 연결하세요. USB 설치·설정 방법은 같습니다. 무선 전송 자체에는 Apple USB 서비스나 Android USB 디버깅이 필요하지 않지만, iPad의 iloader 설치·7일 갱신은 위의 USB 절차를 사용합니다.</p></div>
+        <details id="wireless-help"><summary>IP를 넣어도 무선 연결이 안 되나요?</summary><p>양쪽 앱이 <b>0.5.0</b>인지, Windows의 <b>Allow Wi-Fi / LAN</b>이 켜져 있는지, PC의 현재 IP와 포트를 입력했는지 확인합니다. 페어링 코드만으로 PC를 찾을 수는 없으므로 먼저 주소를 입력하거나 QR을 읽으세요.</p><p>iPad는 <b>설정 → 개인정보 보호 및 보안 → 로컬 네트워크 → DeskInk</b>의 접근 허용을 확인합니다. 게스트 Wi-Fi, 기기 간 통신 차단, 서로 다른 서브넷이나 VPN 때문에 인터넷이 되더라도 PC에 접속할 수 없을 수 있습니다. Windows의 개인 네트워크·로컬 서브넷 방화벽 허용도 확인하세요. 기관 네트워크라면 담당자에게 같은 네트워크의 기기 간 통신 허용 여부를 확인합니다.</p></details>
+      </section>
+
       <section class="pairing-section" id="pairing">
-        <div class="section-heading"><div><p class="eyebrow">03 / Pair your PC</p><h2>PC의 숫자를,<br>태블릿에 그대로 입력하세요.</h2><p><b>페어링 코드(Pairing code)</b>는 연결할 PC를 확인하는 6자리 숫자입니다. PC의 DeskInk 창에서 보고, 태블릿의 DeskInk 앱에 입력합니다.</p></div><span class="label">iPad·Galaxy Tab 공통</span></div>
+        <div class="section-heading"><div><p class="eyebrow">04 / Pair your PC</p><h2>PC의 숫자를,<br>태블릿에 그대로 입력하세요.</h2><p><b>페어링 코드(Pairing code)</b>는 연결할 PC를 확인하는 6자리 숫자입니다. USB로 연결하거나 <a href="#wireless">무선에서 QR·IP로 PC를 선택한 뒤</a>, PC의 DeskInk 창에서 보고 태블릿 앱에 입력합니다.</p></div><span class="label">iPad·Galaxy Tab 공통</span></div>
         <div class="pairing-demo" aria-label="PC에서 코드를 확인해 태블릿에 입력하는 예시">
           <div class="demo-caption"><b>코드 위치와 입력 화면 예시</b><span>아래 숫자는 설명용입니다.</span></div>
           <div class="pairing-screens">
@@ -121,14 +138,14 @@
         </div>
         <ol class="steps pairing-steps">
           <li><div><h4>PC에서 DeskInk 창과 코드 찾기</h4><p>PC에서 DeskInk를 실행하고 <strong>Screen 1 / Screen 2</strong>로 사용할 화면을 고릅니다. 창 안의 연결 상태 문구 아래에 있는 <strong><code>Pairing code: 6자리 숫자</code></strong>를 확인하세요. 창을 최소화했다면 작업 표시줄의 DeskInk를 눌러 다시 엽니다.</p></div></li>
-          <li><div><h4>USB를 연결하고 태블릿의 입력창 열기</h4><p><strong>iPad:</strong> 잠금을 풀고 DeskInk를 열면 <strong>Pair with your PC / Pair with PC</strong> 입력창이 나타납니다.</p><p><strong>Galaxy Tab:</strong> 입력창이 자동으로 뜨면 사용하고, 보이지 않으면 시작 화면의 <strong>PC 연결 / Pair PC</strong> 버튼을 누릅니다. 연결 대기 중에는 왼쪽 위 연결 상태를 눌러도 입력창이 열립니다.</p></div></li>
+          <li><div><h4>USB 또는 무선으로 접속하고 입력창 열기</h4><p>USB 케이블을 연결하거나 <a href="#wireless">무선 연결 순서</a>로 PC를 선택합니다. <strong>iPad:</strong> 잠금을 풀고 DeskInk를 열면 <strong>Pair with your PC / Pair with PC</strong> 입력창이 나타납니다.</p><p><strong>Galaxy Tab:</strong> 입력창이 자동으로 뜨면 사용하고, 보이지 않으면 시작 화면의 <strong>PC 연결 / Pair PC</strong> 버튼을 누릅니다. 연결 대기 중에는 왼쪽 위 연결 상태를 눌러도 입력창이 열립니다.</p></div></li>
           <li><div><h4>6자리를 입력하고 연결 버튼 누르기</h4><p>PC에 표시된 숫자를 <strong>앞자리 0까지 모두</strong> 입력합니다. iPad에서는 <strong>Pair iPad</strong>, Android에서는 <strong>연결 / Connect</strong>을 누르세요. Apple 계정의 이중 인증 번호와는 별개입니다.</p></div></li>
           <li><div><h4>처음 한 번 등록하면, 다음부터 자동 연결</h4><p>태블릿에 PC 화면이 표시되고 PC 창에 <strong>Tablet connected</strong>가 나타나면 완료입니다. <strong>각 PC에서 처음 한 번만 입력</strong>하면 태블릿이 PC 두 대를 기억합니다. Windows DeskInk를 다시 켜거나 화면 1·2를 전환해도 등록은 유지됩니다. PC에 표시된 숫자는 바뀔 수 있지만, 등록한 태블릿에서는 다시 입력하지 않습니다.</p></div></li>
         </ol>
         <div class="pairing-fixes"><h3>코드 입력에서 막혔다면</h3>
           <details><summary>업데이트 후에도 코드가 필요한가요?</summary><p>0.4.2 이전 버전에서 업데이트했다면 <b>Windows와 태블릿 앱을 모두 업데이트</b>하고, 각 PC에서 마지막으로 한 번 등록하세요. 다음부터 USB 연결과 DeskInk 실행만 하면 됩니다. PC 앱의 <b>Forget paired tablets</b>를 누르면 등록이 해제되어 코드가 다시 필요합니다. 앱 재설치·데이터 초기화나 Windows 사용자 계정 변경 시에도 다시 등록해야 할 수 있습니다.</p></details>
-          <details><summary>Windows 0.4.4는 어떻게 업데이트하나요?</summary><p>Windows DeskInk를 종료하고 <a href="#downloads">새 ZIP</a>의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. 일부 Intel PC에서 페어링 직후 영상 압축 실패로 끊기는 문제를 수정했습니다. <b>iPad·Android 앱이 0.4.2라면 다시 설치할 필요는 없습니다.</b> 이전의 설정 창 최소화 시 PC 필기 지연 수정도 포함합니다. 장시간 사용 시 양쪽 기기가 함께 느려지는 문제는 별도로 조사 중입니다.</p></details>
-          <details id="connection-lost"><summary>코드를 입력했는데 Connection lost — USB disconnected가 떠요.</summary><p>이 메시지만으로 케이블 고장이라고 판단할 수는 없습니다. <b>먼저 Windows 앱을 0.4.4로 업데이트</b>하세요. 이전 버전에서는 Intel 영상 압축이 실패해도 USB 연결이 종료되어 이 메시지가 나타났습니다. iPad 앱은 0.4.2라면 그대로 사용합니다.</p><p>계속 실패하면 <a href="#apple-devices">Apple 기기에서 iPad가 인식되는지</a> 확인하세요. Windows의 <code>%LOCALAPPDATA%\DeskInk\logs</code> 폴더에서 같은 시각의 <b>stdout·stderr 로그 두 파일</b>로 원인을 확인할 수 있습니다. 로그를 공개할 때는 기기·연결 정보를 가려주세요.</p></details>
+          <details><summary>0.5.0은 어떻게 업데이트하나요?</summary><p>Windows DeskInk를 종료하고 <a href="#downloads">새 ZIP</a>의 전체 압축을 풀어 실행하세요. 종료하면 기존 필기는 지워집니다. <b>무선을 쓰려면 태블릿도 0.5.0</b>으로 업데이트합니다. iPad는 iloader에서 새 IPA를 설치하고, Android는 새 APK를 기존 앱 위에 설치하세요. USB만 쓴다면 이전 태블릿 앱도 계속 사용할 수 있습니다.</p><p>Windows 0.4.4의 Intel 영상 시작 오류 수정과 설정 창 최소화 시 PC 필기 지연 수정도 포함합니다. 장시간 사용 시 양쪽 기기가 함께 느려지는 문제는 별도로 조사 중입니다.</p></details>
+          <details id="connection-lost"><summary>코드를 입력했는데 Connection lost — USB disconnected가 떠요.</summary><p>이 메시지만으로 케이블 고장이라고 판단할 수는 없습니다. <b>먼저 Windows 앱을 업데이트</b>하세요. 0.4.4 이전 버전에서는 Intel 영상 압축이 실패해도 USB 연결이 종료되어 이 메시지가 나타났습니다.</p><p>계속 실패하면 <a href="#apple-devices">Apple 기기에서 iPad가 인식되는지</a> 확인하세요. Windows의 <code>%LOCALAPPDATA%\DeskInk\logs</code> 폴더에서 같은 시각의 <b>stdout·stderr 로그 두 파일</b>로 원인을 확인할 수 있습니다. 로그를 공개할 때는 기기·연결 정보를 가려주세요. 무선에서만 실패한다면 <a href="#wireless-help">네트워크 연결 확인</a>을 따르세요.</p></details>
           <details><summary>PC에 코드가 안 보여요.</summary><p>iloader나 Apple Devices가 아니라 <b>Windows의 DeskInk 창</b>을 엽니다. ZIP을 전체 압축 해제하고 iPad는 <code>DeskInk.exe</code>, Android는 첫 설정 때 <code>DeskInk-Android.exe</code>를 실행하세요. 바탕화면 아이콘으로 실행한 경우 작업 표시줄에서 DeskInk 창을 찾습니다.</p></details>
           <details><summary>태블릿에 입력창이 안 떠요.</summary><p>PC와 태블릿 양쪽에서 DeskInk를 열고 USB 케이블을 확인하세요. iPad는 컴퓨터 신뢰와 Apple USB 연결 서비스를 확인합니다. 앱의 USB 항목이 꺼져 있으면 <b>Turn on</b>, 연결이 끊긴 상태라면 표시된 <b>Connect USB</b>를 누릅니다. Android는 USB 디버깅 허용 후 시작 화면의 <b>PC 연결</b>을 누릅니다. 이미 PC 화면이 보이면 연결된 상태입니다.</p></details>
           <details><summary>코드가 틀렸거나 너무 많이 시도했다고 나와요.</summary><p>PC 창의 <b>현재 코드</b>를 다시 보고 6자리를 입력하세요. 재시작하거나 연결에 성공하면 숫자가 바뀔 수 있습니다. <b>Too many attempts / 시도 횟수가 많습니다</b>가 나오면 1분 기다린 뒤 다시 입력합니다.</p></details>
@@ -137,7 +154,7 @@
       </section>
 
       <section id="use">
-        <div class="section-heading"><div><p class="eyebrow">04 / Write &amp; present</p><h2>펜은 태블릿에서.<br>설명은 Windows 화면에.</h2><p>태블릿 아래 도구막대에서 펜을 고릅니다. PC 조작은 평소처럼 마우스와 키보드로 합니다.</p></div></div>
+        <div class="section-heading"><div><p class="eyebrow">05 / Write &amp; present</p><h2>펜은 태블릿에서.<br>설명은 Windows 화면에.</h2><p>태블릿 아래 도구막대에서 펜을 고릅니다. PC 조작은 평소처럼 마우스와 키보드로 합니다.</p></div></div>
         <div class="tool-list">
           <div class="tool"><div class="tool-title"><svg class="icon" aria-hidden="true"><use href="#i-pen"/></svg>펜·형광펜</div><p>필기를 남기고 강조합니다. 색상과 굵기를 선택할 수 있습니다.</p></div>
           <div class="tool"><div class="tool-title"><svg class="icon" aria-hidden="true"><use href="#i-erase"/></svg>지우개</div><p>닿은 선을 통째로 지웁니다. 도구막대 지우개는 펜을 떼면 이전 도구로 복귀합니다. S펜은 버튼을 누르는 동안 지우개, 지원 Pencil은 두 번 탭으로 전환합니다.</p></div>
@@ -148,12 +165,13 @@
         <div class="usage-row"><h3>태블릿에서만 확대</h3><p><strong>두 손가락을 벌리면 1~4배 확대</strong>, 두 손가락으로 끌면 이동합니다. <strong>화면 맞춤</strong>으로 원래 배율에 돌아옵니다. Android에서는 오른쪽 위의 네 모서리 아이콘입니다. PC 화면의 배율은 그대로이며, 손가락으로는 필기되지 않습니다.</p></div>
         <div class="usage-row"><h3>모니터 1·2 전환</h3><p>바탕화면의 <strong>DeskInk - Screen 1 / Screen 2</strong> 아이콘을 더블클릭합니다. 터미널 창 없이 화면이 전환되고 영상은 잠시 다시 연결됩니다. Stream Deck에도 같은 아이콘을 등록할 수 있습니다. 아이콘을 다시 만들 때는 <code>DeskInk-Shortcuts.exe</code>를 실행하세요. DeskInk의 화면 번호는 Windows 설정 번호와 다를 수 있습니다.</p></div>
         <div class="usage-row"><h3>Zoom에서 발표</h3><p>Zoom에서 직접 <strong>필기하는 모니터 전체</strong>를 공유합니다. 다른 참가자에게 필기와 포인터가 보이는지 확인하세요. 특정 앱 창만 공유하면 필기가 빠질 수 있습니다.</p></div>
-        <div class="usage-row"><h3>다시 사용하거나 종료</h3><p>다음에는 USB 연결 → PC·태블릿 DeskInk 실행만 하면 등록한 PC에 자동 연결됩니다. 화면마다 필기가 따로 유지되지만, <strong>Windows DeskInk를 종료하면 모든 필기가 지워집니다.</strong> PC 등록은 유지됩니다. 사용 중에는 DeskInk와 USB 연결을 유지하세요.</p></div>
+        <div class="usage-row"><h3>다시 사용하거나 종료</h3><p>다음에는 USB 연결 → PC·태블릿 DeskInk 실행으로 접속하거나, <a href="#wireless">Wi-Fi/LAN으로 등록한 PC에 접속</a>합니다. 화면마다 필기가 따로 유지되지만, <strong>Windows DeskInk를 종료하면 모든 필기가 지워집니다.</strong> PC 등록은 유지됩니다. 사용 중에는 DeskInk와 선택한 연결을 유지하세요.</p></div>
         <figure class="figure"><div class="media-frame"><button type="button" class="enlarge" aria-label="iPad 도구막대 확대"><img src="{{TOOLS}}" width="2048" height="1536" alt="iPad 도구막대의 펜, 형광펜, 지우개, 레이저, 사라지는 펜, 색상, 굵기, 취소, 다시, 숨기기, 지우기 버튼." loading="lazy"></button><div class="image-error" role="status"><p>도구막대 캡처를 불러오지 못했습니다.</p><button type="button" class="retry-image">이미지 다시 불러오기</button></div></div><figcaption>iPad 도구막대를 렌더링한 구성 테스트 캡처입니다. 배경 창은 예시입니다. 실제 연결 화면의 배치는 위 캡처를 참고하세요.</figcaption></figure>
       </section>
 
       <section id="help">
-        <div class="section-heading"><div><p class="eyebrow">05 / Help</p><h2>막힌 부분부터 확인하세요.</h2></div></div>
+        <div class="section-heading"><div><p class="eyebrow">06 / Help</p><h2>막힌 부분부터 확인하세요.</h2></div></div>
+        <details><summary>무선 연결이 안 되거나 지연이 커요.</summary><p><a href="#wireless-help">IP·포트·권한·방화벽 확인</a>을 따르세요. 전파나 공유기 상태에 따른 실제 지연은 자동 검사만으로 보장할 수 없습니다. PC를 이더넷으로 연결하고 태블릿의 Wi-Fi 신호를 확인하거나, 기존 USB 연결을 사용하세요.</p></details>
         <details><summary>Windows 앱이 실행되지 않아요.</summary><p>ZIP 안에서 바로 실행하지 말고 전체 압축을 풀어 주세요. 첫 실행에는 인터넷과 폴더 쓰기 권한이 필요합니다. 오류 로그는 <code>%LOCALAPPDATA%/DeskInk/logs</code>에서 확인할 수 있습니다.</p></details>
         <details><summary>아이패드가 PC나 iloader에 나타나지 않아요.</summary><p><a href="#apple-devices">Apple 기기 설치·연결 확인 단계</a>부터 확인하세요. iPad 잠금을 풀고 <b>이 컴퓨터 신뢰</b>를 허용합니다. Apple 기기의 왼쪽 목록에도 안 보이면 데이터 전송용 케이블과 다른 USB 포트를 사용해 보세요. Apple 기기에는 보이면 iloader의 <b>Refresh Devices / 기기 새로고침(Ctrl+R)</b>을 누르고, 계속 없으면 iloader를 다시 실행합니다. Apple 구성요소가 없다는 오류는 <a href="https://iloader.app/">iloader 공식 설치 안내</a>를 따르세요.</p></details>
         <details><summary>Apple Devices를 계속 열어 둬야 하나요?</summary><p>모든 PC에서 필요한 것은 아닙니다. DeskInk는 Apple의 USB 연결 서비스가 동작하면 연결할 수 있습니다. <b>Apple Devices를 열지 않아도 정상 연결된다면 그대로 사용</b>하세요. 해당 앱을 닫았을 때 연결이 끊기는 환경에서만 사용 중 최소화해 두면 됩니다.</p></details>
@@ -161,7 +179,7 @@
         <details><summary>갤럭시탭이 PC에 나타나지 않아요.</summary><p><code>DeskInk-Android.exe</code>로 첫 설정을 했는지 확인하세요. USB 디버깅을 켜고 태블릿에서 이 PC를 허용합니다. 앱을 열어 두고, 필요하면 <a href="https://developer.samsung.com/android-usb-driver">삼성 USB 드라이버</a>를 설치하세요.</p></details>
         <details><summary>개발자의 앱을 사용할 수 없다고 나와요.</summary><p>iPad의 <a href="#developer">개발자 신뢰·개발자 모드 설정</a>을 확인하세요. 재시동 후 <b>켜기</b> 확인까지 마쳐야 합니다. 설치한 지 일주일이 지났다면 <a href="#renew">iloader에서 서명·설치 갱신</a>을 진행하세요.</p></details>
         <details><summary>페어링 코드 입력이 어려워요.</summary><p><a href="#pairing">PC에서 코드 찾기 → 태블릿에 입력하기</a> 안내를 보세요. 코드가 안 보이거나, 입력창이 없거나, 오류가 날 때의 해결 방법을 함께 정리했습니다.</p></details>
-        <p class="requirements">현재 연결 방식은 USB입니다. <a href="https://github.com/zkdlwuthwo1-hash/deskink/blob/main/docs/android-verification.md">지원·검증 범위</a> · <a href="https://github.com/zkdlwuthwo1-hash/deskink/issues">문제 제보</a></p>
+        <p class="requirements">USB와 선택적으로 켜는 Wi-Fi/LAN 연결을 지원합니다. <a href="https://github.com/zkdlwuthwo1-hash/deskink/blob/main/docs/android-verification.md">지원·검증 범위</a> · <a href="https://github.com/zkdlwuthwo1-hash/deskink/issues">문제 제보</a></p>
       </section>
     </div>
   </div>

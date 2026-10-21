@@ -1,7 +1,7 @@
 //! DeskInk's entry point: no virtual-display changes, remote OS input, audio,
 //! autostart registration or upstream auto-updater.
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
-use deskink_windows::monitor_control::{MonitorControl, request_monitor};
+use deskink_windows::monitor_control::{request_monitor, MonitorControl};
 #[cfg(test)]
 use deskink_windows::overlay::Overlay;
 use eframe::egui;
@@ -15,7 +15,7 @@ use eternal_host::{
 };
 use std::{
     collections::HashMap,
-    sync::{Arc, atomic::Ordering, mpsc},
+    sync::{atomic::Ordering, mpsc, Arc},
     time::Duration,
 };
 
@@ -68,6 +68,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let overlay = AnnotationSurface::new(output)?;
     let annotation = overlay.state.clone();
     let mut shared = SharedControl::new(9876, 15_000_000);
+    let lan = eternal_host::lan::LanPanel::new(
+        std::path::PathBuf::from(
+            std::env::var_os("LOCALAPPDATA")
+                .ok_or("Windows local app data folder is unavailable")?,
+        )
+        .join("DeskInk")
+        .join("lan-setting.txt"),
+    );
+    shared.lan_enabled.store(lan.enabled(), Ordering::SeqCst);
     shared.annotation = Some(Arc::new(AnnotationWorkspace::new(annotation.clone())));
     shared.audio_enabled.store(false, Ordering::SeqCst);
     let pairing_path = std::path::PathBuf::from(
@@ -88,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = eframe::run_native(
         "DeskInk",
         eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default().with_inner_size([520.0, 420.0]),
+            viewport: egui::ViewportBuilder::default().with_inner_size([580.0, 600.0]),
             ..Default::default()
         },
         Box::new(move |cc| {
@@ -101,6 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 repaint.request_repaint();
             })?;
             Ok(Box::new(DeskInk {
+                lan,
                 shared: controller,
                 overlay,
                 error: None,
@@ -124,6 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 struct DeskInk {
+    lan: eternal_host::lan::LanPanel,
     shared: SharedControl,
     overlay: AnnotationSurface,
     error: Option<String>,
@@ -225,66 +236,71 @@ impl eframe::App for DeskInk {
             .rect_filled(ui.max_rect(), 0.0, egui::Color32::from_rgb(248, 249, 251));
         ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(25, 31, 42));
         ui.spacing_mut().item_spacing.y = 9.0;
-        ui.heading("DeskInk");
-        ui.label("Write on Windows from iPad or Android tablet");
-        ui.add_space(12.0);
-        let mut selected = None;
-        ui.horizontal_wrapped(|ui| {
-            for (index, output) in self.outputs.iter().enumerate() {
-                let active = output.device_name == self.overlay.state.output.device_name;
-                if ui
-                    .selectable_label(active, format!("Screen {}", index + 1))
-                    .clicked()
-                {
-                    selected = Some(index);
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.heading("DeskInk");
+            ui.label("Write on Windows from iPad or Android tablet");
+            ui.add_space(12.0);
+            let mut selected = None;
+            ui.horizontal_wrapped(|ui| {
+                for (index, output) in self.outputs.iter().enumerate() {
+                    let active = output.device_name == self.overlay.state.output.device_name;
+                    if ui
+                        .selectable_label(active, format!("Screen {}", index + 1))
+                        .clicked()
+                    {
+                        selected = Some(index);
+                    }
+                }
+            });
+            if let Some(index) = selected {
+                if let Err(error) = self.select_monitor(index) {
+                    self.error = Some(error.to_string());
                 }
             }
-        });
-        if let Some(index) = selected {
-            if let Err(error) = self.select_monitor(index) {
-                self.error = Some(error.to_string());
+            ui.label(format!(
+                "Monitor: {} ({} x {})",
+                self.overlay.state.output.device_name,
+                self.overlay.state.output.width,
+                self.overlay.state.output.height
+            ));
+            ui.label(if self.shared.client_connected() {
+                "Tablet connected"
+            } else if self.shared.lan_enabled.load(Ordering::SeqCst) {
+                "Connect by USB or use the Wi-Fi / LAN address below"
+            } else {
+                "Connect your tablet by USB and open DeskInk"
+            });
+            ui.label(format!(
+                "Pairing code: {:06}",
+                self.shared.pairing.lock().code()
+            ));
+            ui.small("Enter the code once per PC. Registered tablets reconnect automatically.");
+            self.lan.show(ui, &self.shared, &self.supervisor_tx);
+            let remembered = self.shared.pairing.lock().remembered_count();
+            if remembered > 0
+                && ui
+                    .button(format!("Forget paired tablets ({remembered})"))
+                    .clicked()
+            {
+                if let Err(error) = self.shared.pairing.lock().regenerate_token() {
+                    self.error = Some(error.to_string());
+                }
             }
-        }
-        ui.label(format!(
-            "Monitor: {} ({} x {})",
-            self.overlay.state.output.device_name,
-            self.overlay.state.output.width,
-            self.overlay.state.output.height
-        ));
-        ui.label(if self.shared.client_connected() {
-            "Tablet connected"
-        } else {
-            "Connect your tablet by USB and open DeskInk"
-        });
-        ui.label(format!(
-            "Pairing code: {:06}",
-            self.shared.pairing.lock().code()
-        ));
-        ui.small("Enter the code once per PC. Registered tablets reconnect automatically.");
-        let remembered = self.shared.pairing.lock().remembered_count();
-        if remembered > 0
-            && ui
-                .button(format!("Forget paired tablets ({remembered})"))
-                .clicked()
-        {
-            if let Err(error) = self.shared.pairing.lock().regenerate_token() {
-                self.error = Some(error.to_string());
+            let stats = PIPELINE_STATS.lock();
+            ui.label(format!(
+                "Capture {:.0} fps   Encode {:.0} fps",
+                stats.capture_fps, stats.encode_fps
+            ));
+            ui.label(format!("Stream: {}", stats.codec_name));
+            drop(stats);
+            ui.add_space(12.0);
+            ui.label("Choose your pen, eraser, laser and colors on your tablet.");
+            ui.label("Screen shortcuts switch here. Each screen keeps its own ink.");
+            ui.label("Closing this app clears ink on all screens.");
+            if let Some(error) = &self.error {
+                ui.colored_label(egui::Color32::LIGHT_RED, error);
             }
-        }
-        let stats = PIPELINE_STATS.lock();
-        ui.label(format!(
-            "Capture {:.0} fps   Encode {:.0} fps",
-            stats.capture_fps, stats.encode_fps
-        ));
-        ui.label(format!("Stream: {}", stats.codec_name));
-        drop(stats);
-        ui.add_space(12.0);
-        ui.label("Choose your pen, eraser, laser and colors on your tablet.");
-        ui.label("Screen shortcuts switch here. Each screen keeps its own ink.");
-        ui.label("Closing this app clears ink on all screens.");
-        if let Some(error) = &self.error {
-            ui.colored_label(egui::Color32::LIGHT_RED, error);
-        }
+        });
     }
 }
 
@@ -298,7 +314,7 @@ mod tests {
     #[ignore = "interactive desktop diagnostic; briefly shows a 64px synthetic ink marker"]
     fn real_controller_window_keeps_ink_fresh_when_minimized() {
         use std::{
-            sync::{Mutex, atomic::AtomicBool},
+            sync::{atomic::AtomicBool, Mutex},
             time::Instant,
         };
         use windows::Win32::Graphics::Gdi::{GetDC, GetPixel, ReleaseDC};
@@ -361,6 +377,7 @@ mod tests {
                 let annotation = overlay.state.clone();
                 *annotation.repaint.lock() = Some(cc.egui_ctx.clone());
                 let app = DeskInk {
+                    lan: eternal_host::lan::LanPanel::new(std::path::PathBuf::new()),
                     shared: SharedControl::new(0, 15_000_000),
                     overlay,
                     error: None,
@@ -492,6 +509,7 @@ mod tests {
             serde_json::json!({"type":"begin","id":1001,"brush":{"color":[255,80,40,255],"width":2},"point":{"x":40,"y":300,"pressure":0.5}}),
         );
         let mut app = DeskInk {
+            lan: eternal_host::lan::LanPanel::new(std::path::PathBuf::new()),
             shared: SharedControl::new(0, 15_000_000),
             overlay,
             error: None,
@@ -547,7 +565,7 @@ mod tests {
         use eternal_wire::v2::control::{ControlMessage, Hello2, StreamConfig};
         use std::{os::windows::process::CommandExt, time::Instant};
         use windows::Win32::UI::WindowsAndMessaging::{
-            DispatchMessageW, MSG, PM_REMOVE, PeekMessageW,
+            DispatchMessageW, PeekMessageW, MSG, PM_REMOVE,
         };
         assert!(
             !deskink_windows::monitor_control::is_running(),
@@ -637,6 +655,7 @@ mod tests {
         .unwrap();
         let (supervisor_tx, _supervisor_rx) = mpsc::channel();
         let mut app = DeskInk {
+            lan: eternal_host::lan::LanPanel::new(std::path::PathBuf::new()),
             shared,
             overlay,
             error: None,
