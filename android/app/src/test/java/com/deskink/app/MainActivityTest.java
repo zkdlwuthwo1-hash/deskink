@@ -9,6 +9,19 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class MainActivityTest {
+    @Test public void lanEntryShowsThePortAndRejectsAnInvalidAddressWithoutLeavingUsb() {
+        try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
+            View network=controller.get().getWindow().getDecorView().findViewWithTag("network");
+            assertNotNull("LAN connection must be available beside the USB controls",network); network.performClick();
+            android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            View root=dialog.getWindow().getDecorView();
+            android.widget.EditText address=root.findViewWithTag("network.address"),port=root.findViewWithTag("network.port");
+            assertEquals("9876",port.getText().toString()); address.setText("999.1.1.1");
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+            assertEquals(View.VISIBLE,root.findViewWithTag("network.error").getVisibility());
+            assertTrue(dialog.isShowing()); dialog.dismiss();
+        }
+    }
     @Test @Config(qualifiers="mdpi")
     public void pairingErrorCanBeBroughtIntoViewInAShortWindow() {
         try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {

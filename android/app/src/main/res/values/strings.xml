@@ -1,4 +1,16 @@
 <resources>
+    <string name="network_short">Wi-Fi</string>
+    <string name="network">Connect over Wi-Fi / IP</string>
+    <string name="network_address">PC IP address</string><string name="network_port">Port</string>
+    <string name="network_hint">Enable LAN / Wi-Fi in Windows DeskInk. Connect the tablet and PC to the same trusted network, then enter the address shown on the PC.</string>
+    <string name="network_note">Default port: 9876. Enter the PC’s pairing code on the next screen. A 5 or 6 GHz Wi-Fi connection and a PC connected by Ethernet help reduce delay. Network conditions can still affect latency.</string>
+    <string name="network_usb">Use USB</string><string name="network_disconnect">Disconnect</string>
+    <string name="network_invalid">Enter the PC’s IPv4 address and a port from 1 to 65535.</string>
+    <string name="network_connecting">Connecting to your PC · LAN</string>
+    <string name="network_disconnected">LAN disconnected · tap Wi-Fi to reconnect</string>
+    <string name="network_details">LAN · %1$d × %2$d</string>
+    <string name="network_unreachable">Check the PC address, LAN setting, same network and Windows firewall permission.</string>
+    <string name="network_ink_delay">The network delayed pen input. Disconnected to prevent old strokes arriving late. Reconnect with Wi-Fi or use USB.</string>
     <string name="registration_load_failed">Could not read saved PCs. Reopen DeskInk. If this continues, reset its storage in Android Settings.</string>
     <string name="registration_save_failed">Could not save this PC. You may need its code on reconnect.</string>
     <string name="app_name" translatable="false">DeskInk</string>

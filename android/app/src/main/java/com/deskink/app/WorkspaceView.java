@@ -32,7 +32,7 @@ final class WorkspaceView extends LinearLayout {
     private AlertDialog sheet;
     private static final int[][] COLORS={{255,80,40,255},{245,45,65,255},{255,210,35,255},{25,190,100,255},{35,125,255,255},{255,255,255,255},{25,30,40,255}};
 
-    WorkspaceView(Activity activity,Runnable pair) {
+    WorkspaceView(Activity activity,Runnable pair,Runnable network) {
         super(activity); this.activity=activity; ui=new DeskInkUi(activity);
         setOrientation(VERTICAL); setBackgroundColor(DeskInkUi.CANVAS);
         LinearLayout header=ui.row(); header.setPadding(ui.dp(14),ui.dp(4),ui.dp(12),ui.dp(4));
@@ -47,6 +47,8 @@ final class WorkspaceView extends LinearLayout {
         FrameLayout connectionArea=new FrameLayout(activity);
         connectionArea.addView(ui.limited(connection,300),new FrameLayout.LayoutParams(-1,-2));
         header.addView(connectionArea,new LayoutParams(0,-2,1));
+        ToolButton lan=new ToolButton(activity,R.string.network_short,R.string.network,R.drawable.ic_wifi,"network",network);
+        lan.compact(); header.addView(lan,new LayoutParams(ui.dp(56),ui.dp(48)));
         ink=new InkCanvas(activity); ink.setTag("ink");
         fit=new ToolButton(activity,R.string.fit_short,R.string.fit,R.drawable.ic_fit,"fit",ink::resetZoom);
         fit.compact();
@@ -59,7 +61,7 @@ final class WorkspaceView extends LinearLayout {
         FrameLayout workspace=new FrameLayout(activity); workspace.setTag("workspace");
         video=new TextureView(activity); video.setTag("video"); video.setOpaque(false);
         workspace.addView(video,new FrameLayout.LayoutParams(-1,-1)); workspace.addView(ink,new FrameLayout.LayoutParams(-1,-1));
-        welcome=welcome(pair); workspace.addView(welcome,new FrameLayout.LayoutParams(-1,-1));
+        welcome=welcome(pair,network); workspace.addView(welcome,new FrameLayout.LayoutParams(-1,-1));
         addView(workspace,new LayoutParams(-1,0,1));
 
         LinearLayout dock=ui.row(); dock.setTag("toolbar"); dock.setGravity(Gravity.CENTER); dock.setPadding(ui.dp(6),ui.dp(6),ui.dp(6),ui.dp(6));
@@ -107,7 +109,7 @@ final class WorkspaceView extends LinearLayout {
         View line=new View(activity); line.setBackgroundColor(DeskInkUi.BORDER);
         LayoutParams lp=new LayoutParams(ui.dp(1),ui.dp(28)); lp.setMargins(ui.dp(6),0,ui.dp(6),0); dock.addView(line,lp);
     }
-    private View welcome(Runnable pair) {
+    private View welcome(Runnable pair,Runnable network) {
         ScrollView scroll=new ScrollView(activity); scroll.setTag("welcome"); scroll.setFillViewport(true);
         scroll.setBackgroundColor(DeskInkUi.CANVAS); scroll.setVerticalScrollBarEnabled(false);
         FrameLayout center=new FrameLayout(activity); center.setPadding(ui.dp(28),ui.dp(28),ui.dp(28),ui.dp(24));
@@ -123,7 +125,9 @@ final class WorkspaceView extends LinearLayout {
         step(steps,"3",R.string.setup_pair,R.string.setup_pair_detail);
         content.addView(steps); content.addView(ui.space(20));
         Button button=ui.action(R.string.pair,true,pair); button.setTag("welcome.pair");
-        content.addView(button,new LayoutParams(-1,-2)); content.addView(ui.space(20));
+        content.addView(button,new LayoutParams(-1,-2)); content.addView(ui.space(10));
+        Button wireless=ui.action(R.string.network,false,network); wireless.setTag("welcome.network");
+        content.addView(wireless,new LayoutParams(-1,-2)); content.addView(ui.space(20));
         hint(content,R.drawable.ic_zoom,R.string.gesture_zoom); content.addView(ui.space(10)); hint(content,R.drawable.ic_button,R.string.gesture_erase);
         center.addView(ui.limited(content,500),new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER));
         scroll.addView(center,new ScrollView.LayoutParams(-1,-1)); return scroll;
