@@ -23,15 +23,15 @@ final class AutomaticConnectionTests: XCTestCase {
         UserDefaults.standard.set(Int(port), forKey: "lastPort")
         let address = PairingStore.address(host: "127.0.0.1", port: port)
         let token = Data(1...16)
-        try PairingStore.shared.save(token: token, hostName: "Remembered PC", address: address)
-        defer { try? PairingStore.shared.remove(address: address) }
+        let pairings = PairingStore(storage: AutomaticPairingStorage())
+        try pairings.save(token: token, hostName: "Remembered PC", address: address)
         let hello = expectation(description: "App automatically contacts the remembered paired PC")
         peer.onHello = { message in
             XCTAssertEqual(message.authToken, token)
             XCTAssertEqual(message.pairingCode, 0, "Automatic connection must not bypass pairing")
             hello.fulfill()
         }
-        let manager = ConnectionManager()
+        let manager = ConnectionManager(pairingStore: pairings, usbPort: 0)
         defer { manager.cancel() }
 
         // This is the same entry point used when the app launches.
@@ -57,6 +57,20 @@ final class AutomaticConnectionTests: XCTestCase {
 
     private static let settingsKeys = ["allowUSB", "autoReconnect", "autoResumeOnForeground",
         "playPCaudio", "lastHost", "lastPort", "lastLANPCID", "lastLANAuthToken"]
+}
+
+/// Keychain is an external system seam; unsigned simulator apps have no
+/// Keychain entitlement. The real PairingStore still handles all credentials.
+private final class AutomaticPairingStorage: PairingStorage {
+    private var values: [String: Data] = [:]
+    func records() throws -> [PairingRecord] {
+        values.map { PairingRecord(account: $0.key, token: $0.value) }
+    }
+    func save(account: String, token: Data) throws { values[account] = token }
+    func remove(account: String?) throws {
+        if let account { values.removeValue(forKey: account) }
+        else { values.removeAll() }
+    }
 }
 
 /// The remote PC lives on the other side of a real UDP socket, so HELLO

@@ -77,7 +77,8 @@ final class ConnectionManager: ObservableObject {
     @Published var pairingPrompt: PairingSheetModel?
     private var awaitingPairing = false
     private var explicitPairingToken: Data?
-    private let pairingStore = PairingStore.shared
+    private let pairingStore: PairingStore
+    private let usbPort: UInt16
     @Published private(set) var diagnostics: [DiagnosticEntry] = []
     /// Live stream health for the HUD, recomputed at the 4 Hz flush.
     @Published private(set) var stats = StreamStats()
@@ -140,6 +141,11 @@ final class ConnectionManager: ObservableObject {
 
     static let connectionTimeoutSeconds: UInt64 = 10
 
+    init(pairingStore: PairingStore? = nil, usbPort: UInt16 = 9877) {
+        self.pairingStore = pairingStore ?? .shared
+        self.usbPort = usbPort
+    }
+
     func refreshUSBAvailability() {
         let allowed = UserDefaults.standard.flag(forKey: "allowUSB")
         guard allowed, isForeground, !usbPaused else {
@@ -150,7 +156,7 @@ final class ConnectionManager: ObservableObject {
             return
         }
         guard usbListener == nil else { return }
-        let listener = USBListener()
+        let listener = USBListener(port: usbPort)
         usbListener = listener
         listener.onState = { [weak self, weak listener] state in
             Task { @MainActor in
