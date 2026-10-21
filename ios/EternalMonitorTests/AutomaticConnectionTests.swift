@@ -191,6 +191,60 @@ final class AutomaticConnectionTests: XCTestCase {
         XCTAssertEqual(manager.videoSize, .zero)
     }
 
+    @MainActor func testAnIncompatibleRememberedPCStopsRetriesAndKeepsTheUpdateExplanation() async throws {
+        let settings = saveSettings()
+        defer { restoreSettings(settings) }
+        let token = Data(1...16)
+        let peer = try AutomaticLANPeer(token: token, pcID: Data(65...80), rejection: .versionUnsupported)
+        let port = try await start(peer)
+        defer { peer.stop() }
+        let pairings = try prepare(port: port, token: token)
+        let manager = ConnectionManager(pairingStore: pairings, usbPort: 0)
+        defer { manager.cancel() }
+        let rejected = expectation(description: "The user sees how to update both DeskInk apps")
+        let observation = manager.$connectionError.compactMap { $0 }.filter { $0.contains("IPA") }
+            .first().sink { _ in rejected.fulfill() }
+        defer { observation.cancel() }
+        manager.refreshUSBAvailability()
+        await fulfillment(of: [rejected], timeout: 5)
+        let explanation = manager.connectionError
+        let unexpected = expectation(description: "A terminal version error does not retry automatically")
+        unexpected.isInverted = true
+        peer.observeNewHellos { _ in unexpected.fulfill() }
+        await fulfillment(of: [unexpected], timeout: 2.5)
+        XCTAssertEqual(manager.connectionError, explanation)
+        XCTAssertEqual(manager.state, .disconnected)
+        XCTAssertEqual(manager.reconnectAttempt, 0)
+    }
+
+    @MainActor func testBackgroundingAManualUnansweredPCDoesNotSelectAnOlderRememberedPC() async throws {
+        let settings = saveSettings()
+        defer { restoreSettings(settings) }
+        let oldPC = try AutomaticLANPeer()
+        let oldPort = try await start(oldPC)
+        defer { oldPC.stop() }
+        let selectedPC = try AutomaticLANPeer()
+        let selectedPort = try await start(selectedPC)
+        defer { selectedPC.stop() }
+        let pairings = try prepare(port: oldPort, token: Data(1...16))
+        let selected = expectation(description: "Only the manually selected PC receives HELLO")
+        selectedPC.observeNewHellos { _ in selected.fulfill() }
+        let unexpected = expectation(description: "App resume must not switch to an older saved PC")
+        unexpected.isInverted = true
+        oldPC.observeNewHellos { _ in unexpected.fulfill() }
+        let manager = ConnectionManager(pairingStore: pairings, usbPort: 0)
+        defer { manager.cancel() }
+        manager.connect(host: "127.0.0.1", port: selectedPort)
+        await fulfillment(of: [selected], timeout: 3)
+        XCTAssertNil(manager.hostInfo, "The selected PC has not authenticated or displayed any picture")
+
+        manager.handleAppBackgrounded()
+        manager.handleAppForegrounded()
+
+        await fulfillment(of: [unexpected], timeout: 2.5)
+        XCTAssertNil(manager.hostInfo)
+    }
+
     @MainActor func testTheRealWirelessDisplayAllowsPencilInkToReachThePC() async throws {
         let settings = saveSettings()
         defer { restoreSettings(settings) }
@@ -313,8 +367,8 @@ private final class AutomaticLANPeer {
     private var onInk: (() -> Void)?
     private var observedInk = false
 
-    init(token: Data? = nil, pcID: Data = Data()) throws {
-        stream = try token.map { try AutomaticStreamPeer(token: $0, pcID: pcID) }
+    init(token: Data? = nil, pcID: Data = Data(), rejection: HelloStatus? = nil) throws {
+        stream = try token.map { try AutomaticStreamPeer(token: $0, pcID: pcID, rejection: rejection) }
         let parameters = NWParameters.udp
         parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
         listener = try NWListener(using: parameters)
@@ -423,22 +477,24 @@ private final class AutomaticUSBPeer {
 private final class AutomaticStreamPeer {
     private let token: Data
     private let pcID: Data
+    private let rejection: HelloStatus?
     private let frame: Data
     private var timer: DispatchSourceTimer?
     private var frameSequence: UInt32 = 0
     private var session: UInt32 = 100
 
-    init(token: Data, pcID: Data) throws {
+    init(token: Data, pcID: Data, rejection: HelloStatus? = nil) throws {
         self.token = token
         self.pcID = pcID
+        self.rejection = rejection
         let url = try XCTUnwrap(Bundle(for: AutomaticConnectionTests.self).url(
             forResource: "single_idr_64x64", withExtension: "h264", subdirectory: "Fixtures"))
         frame = try Data(contentsOf: url)
     }
 
     func hello(_ hello: Hello2, queue: DispatchQueue, send: @escaping (Data) -> Void) {
-        let accepted = hello.authToken == token
-        var ack = HelloAck(status: accepted ? .ok : .unauthorized, acceptedVersion: 2,
+        let accepted = hello.authToken == token && rejection == nil
+        var ack = HelloAck(status: rejection ?? (accepted ? .ok : .unauthorized), acceptedVersion: 2,
             clientNonce: hello.clientNonce, sessionId: accepted ? session : 0,
             heartbeatIntervalMs: 500, reportIntervalMs: 500, livenessTimeoutMs: 3000,
             streamConfig: StreamConfig(streamEpoch: 1), hostName: "PC · DISPLAY1", authToken: accepted ? token : Data(repeating: 0, count: 16),

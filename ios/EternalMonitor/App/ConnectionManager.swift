@@ -540,6 +540,8 @@ final class ConnectionManager: ObservableObject {
                 }
                 if !isUSB, info.hostCaps & 0x1000 != 0,
                    info.hostCaps & HelloAck.hostCapReliableInk == 0 {
+                    self.reconnectTask?.cancel()
+                    self.reconnectAttempt = 0
                     self.connectionError = "이 Windows 버전은 무선 필기를 지원하지 않습니다. Windows DeskInk를 0.5.0 이상으로 업데이트하거나 USB로 연결하세요."
                     self.disconnect(reason: .error)
                     return
@@ -598,6 +600,10 @@ final class ConnectionManager: ObservableObject {
                 default:
                     self.connectionError = "Your PC turned down the connection."
                 }
+                // Busy/incompatible hosts need a user action. Retrying them
+                // would overwrite the actionable explanation every few seconds.
+                self.reconnectTask?.cancel()
+                self.reconnectAttempt = 0
                 self.record(.error, "ctrl", self.connectionError ?? "rejected")
                 self.disconnect()
             }
@@ -928,6 +934,7 @@ final class ConnectionManager: ObservableObject {
         reconnectGeneration = UUID()
         reconnectAttempt = 0
         disconnect()
+        connectionError = nil
     }
 
     func refreshAudioPreference(_ enabled: Bool) {
