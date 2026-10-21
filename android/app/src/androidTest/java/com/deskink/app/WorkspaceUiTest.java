@@ -25,7 +25,16 @@ public class WorkspaceUiTest {
                     View address=window.findViewWithTag("network.address"); if(address==null) continue;
                     found=true; Rect visible=new Rect(); assertTrue("The initial PC address must be visible above the help",address.getGlobalVisibleRect(visible));
                     android.widget.EditText port=window.findViewWithTag("network.port"); assertEquals("9876",port.getText().toString());
-                    assertTrue(window.findViewById(android.R.id.button1).getGlobalVisibleRect(visible));
+                    Rect available=new Rect(); window.getWindowVisibleDisplayFrame(available);
+                    for(int id:new int[]{android.R.id.button1,android.R.id.button2,android.R.id.button3}) {
+                        android.widget.Button action=window.findViewById(id);
+                        if(action==null||action.getVisibility()!=View.VISIBLE) continue;
+                        String label=action.getText().toString();
+                        assertTrue(label+" must remain visible",action.getGlobalVisibleRect(visible));
+                        assertEquals(label+" must not be clipped vertically",action.getHeight(),visible.height());
+                        assertEquals(label+" must not be clipped horizontally",action.getWidth(),visible.width());
+                        assertTrue(label+" must fit inside the visible window",available.contains(visible));
+                    }
                 }
                 assertTrue("IP entry must open from the toolbar",found);
             });
