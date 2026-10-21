@@ -32,6 +32,7 @@ final class ControlChannel {
     var onStreamConfig: ((StreamConfig) -> Void)?
     var onBye: ((ByeReason) -> Void)?
     var onDiagnostic: ((String) -> Void)?
+    var onInkFailure: ((String) -> Void)?
     /// Snapshot provider for periodic receiver reports.
     var reportProvider: (() -> ReceiverReport)?
 
@@ -41,6 +42,9 @@ final class ControlChannel {
     private var sessionId: UInt32 = 0
     private var inkSequence: UInt64 = 0
     private var inkBinding: (UInt32, UInt32) = (0, 0)
+    private var reliableInk: ReliableInkSender?
+    private var inkRetryTimer: DispatchSourceTimer?
+    private var usesReliableInk = false
     private var hostCaps: UInt16 = 0
     private var msgSeq: UInt32 = 0
     private var clientNonce: UInt32 = 0
@@ -115,6 +119,8 @@ final class ControlChannel {
     /// the media stream should target.
     func startHandshake(listenPort: UInt16, identity: ClientIdentity) {
         queue.async { [self] in
+            stopReliableInk()
+            usesReliableInk = identity.featureCaps & Hello2.featureReliableInk != 0
             sessionId = 0
             hostCaps = 0
             msgSeq = 0
@@ -209,6 +215,7 @@ final class ControlChannel {
             handleAck(ack)
         case .heartbeat(let heartbeat):
             guard header.sessionId == sessionId, sessionId != 0 else { return }
+            reliableInk?.start(session: sessionId, epoch: heartbeat.streamConfig.streamEpoch)
             lastHeartbeatAtUs.withLock { $0 = Self.clientNowUs() }
             onHeartbeat?(heartbeat)
         case .bye(let reason):
@@ -227,6 +234,7 @@ final class ControlChannel {
             // catch up. Dropping it made the host's immediate notify dead
             // traffic.
             guard header.sessionId == sessionId, sessionId != 0 else { return }
+            reliableInk?.start(session: sessionId, epoch: config.streamEpoch)
             onStreamConfig?(config)
         default:
             break
@@ -257,6 +265,18 @@ final class ControlChannel {
 
         sessionId = ack.sessionId
         hostCaps = ack.hostCaps
+        if usesReliableInk, hostCaps & HelloAck.hostCapReliableInk != 0 {
+            let delivery = ReliableInkSender(nowUs: nowUs, send: send, failed: { [weak self] message in
+                self?.onInkFailure?(message)
+            })
+            delivery.start(session: sessionId, epoch: ack.streamConfig.streamEpoch)
+            reliableInk = delivery
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            timer.schedule(deadline: .now() + .milliseconds(20), repeating: .milliseconds(20), leeway: .milliseconds(1))
+            timer.setEventHandler { [weak delivery] in delivery?.tick() }
+            inkRetryTimer = timer
+            timer.resume()
+        }
         onDiagnostic?("Session \(ack.sessionId) established with \(ack.hostName)")
         lastHeartbeatAtUs.withLock { $0 = Self.clientNowUs() }
         startReportTimer(intervalMs: max(ack.reportIntervalMs, 100))
@@ -367,6 +387,8 @@ final class ControlChannel {
 
     func stop() {
         queue.async { [self] in
+            stopReliableInk()
+            usesReliableInk = false
             helloTimer?.cancel()
             helloTimer = nil
             reportTimer?.cancel()
@@ -408,9 +430,28 @@ final class ControlChannel {
         send(Wire.encodeControl(sessionId: sessionId, msgSeq: msgSeq, message: message))
     }
 
+    /// Called on the same serial link queue as handleControl(_:).
+    func handleInkAcknowledgement(_ bytes: Data) {
+        reliableInk?.acknowledge(bytes)
+    }
+
+    private func stopReliableInk() {
+        inkRetryTimer?.cancel()
+        inkRetryTimer = nil
+        reliableInk?.stop()
+        reliableInk = nil
+    }
+
     func sendInk(_ commands: [DeskInkCommand], epoch: UInt32) {
         queue.async { [self] in
             guard sessionId != 0, hostCaps & 0x1000 != 0 else { return }
+            if usesReliableInk {
+                // A delayed UI sample from the previous stream cannot reset
+                // the sender to a retired epoch. Config messages own its binding.
+                guard reliableInk?.accepts(session: sessionId, epoch: epoch) == true else { return }
+                reliableInk?.send(commands)
+                return
+            }
             if inkBinding != (sessionId, epoch) {
                 inkBinding = (sessionId, epoch)
                 inkSequence = 0

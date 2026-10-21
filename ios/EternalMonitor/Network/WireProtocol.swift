@@ -254,6 +254,7 @@ struct Hello2: Equatable {
     static let featureWantsAudio: UInt16 = 1 << 1
     static let featureSupportsNack: UInt16 = 1 << 2
     static let featureMonitorBoards: UInt16 = 1 << 3
+    static let featureReliableInk: UInt16 = 1 << 4
     static let maxNameLength = 64
 
     var protoMin: UInt8 = 2
@@ -289,6 +290,7 @@ struct HelloAck: Equatable {
     static let hostCapUSB: UInt16 = 1 << 2
     static let hostCapKeyboard: UInt16 = 1 << 3
     static let hostCapPen: UInt16 = 1 << 4
+    static let hostCapReliableInk: UInt16 = 1 << 15
     var status: HelloStatus
     var acceptedVersion: UInt8
     var clientNonce: UInt32

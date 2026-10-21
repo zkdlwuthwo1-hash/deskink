@@ -165,7 +165,7 @@ struct ConnectView: View {
                 Text("DeskInk")
                     .font(.app(30, .semibold, relativeTo: .largeTitle))
                     .foregroundStyle(Theme.text)
-                Text("Windows 화면을 보며 펜으로 설명하세요. 이 개발 버전은 USB로 연결합니다.")
+                Text("Windows 화면을 보며 펜으로 설명하세요. USB 또는 같은 네트워크로 연결할 수 있습니다.")
                     .font(.app(16, relativeTo: .body))
                     .foregroundStyle(Theme.textMuted)
                     .multilineTextAlignment(.center)
@@ -191,7 +191,7 @@ struct ConnectView: View {
                 .accessibilityLabel("Dismiss tips")
             }
             onboardingStep(1, "Windows PC에서 DeskInk를 실행하세요.")
-            onboardingStep(2, "iPad를 데이터 전송이 가능한 USB 케이블로 PC에 연결하세요.")
+            onboardingStep(2, "USB 케이블을 연결하거나, 같은 공유기에 연결한 뒤 PC의 QR 또는 IP 주소로 연결하세요.")
             onboardingStep(3, "연결 코드 입력창이 나오면 Windows 화면의 6자리 코드를 입력하세요.")
         }
         .card()
@@ -250,10 +250,10 @@ struct ConnectView: View {
     private var connectCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Connect to a PC")
+                Text("무선 / IP 연결")
                     .font(.app(20, .semibold, relativeTo: .title3))
                     .foregroundStyle(Theme.text)
-                Text("Enter the address shown in EternalMonitor on your PC.")
+                Text("Windows DeskInk의 무선 연결을 켜고, 표시된 IP 주소와 포트를 입력하세요. PC는 같은 공유기의 유선 LAN에 연결해도 됩니다.")
                     .font(.app(14, relativeTo: .callout))
                     .foregroundStyle(Theme.textMuted)
             }
@@ -265,6 +265,11 @@ struct ConnectView: View {
                 field(label: "Port", placeholder: "9876", text: $port, field: .port, keyboard: .numberPad)
                     .frame(width: 104)
             }
+
+            Text("포트는 기본 9876입니다. iPad의 ‘로컬 네트워크’ 권한을 허용하세요. 지연이 생기면 공유기 가까이에서 5GHz Wi-Fi를 사용하거나 USB로 연결하세요.")
+                .font(.app(12, relativeTo: .footnote))
+                .foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
 
             if !settings.lastHost.isEmpty && settings.lastHost != normalizedHostIP {
                 Button {

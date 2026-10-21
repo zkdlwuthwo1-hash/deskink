@@ -26,6 +26,10 @@ extension MediaLink {
         get { datagrams.onControlDatagram }
         set { datagrams.onControlDatagram = newValue }
     }
+    var onInkAcknowledgement: ((Data) -> Void)? {
+        get { datagrams.onInkAcknowledgement }
+        set { datagrams.onInkAcknowledgement = newValue }
+    }
     var onDatagramReceived: ((Int) -> Void)? {
         get { datagrams.onDatagramReceived }
         set { datagrams.onDatagramReceived = newValue }
@@ -45,6 +49,7 @@ extension MediaLink {
 final class MediaDatagrams {
     var assembler: FrameAssembler?
     var onControlDatagram: ((Data) -> Void)?
+    var onInkAcknowledgement: ((Data) -> Void)?
     var onDatagramReceived: ((Int) -> Void)?
     var onDatagramIgnored: ((String) -> Void)?
     var onAudioPacket: ((AudioHeader, Data) -> Void)?
@@ -59,6 +64,11 @@ final class MediaDatagrams {
     }
 
     func handle(_ data: Data) {
+        if data.prefix(4) == Data("DA02".utf8) {
+            guard data.count == 20 else { return }
+            onInkAcknowledgement?(data)
+            return
+        }
         switch Wire.classify(data) {
         case .media:
             onDatagramReceived?(data.count)

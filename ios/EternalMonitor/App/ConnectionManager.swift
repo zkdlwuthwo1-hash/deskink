@@ -210,7 +210,8 @@ final class ConnectionManager: ObservableObject {
     }
 
     func sendInk(_ commands: [DeskInkCommand]) {
-        guard mediaLink?.isUSB == true, !signalLost, let config = hostStreamConfig,
+        guard mediaLink?.isUSB == true || (hostInfo?.hostCaps ?? 0) & HelloAck.hostCapReliableInk != 0,
+              !signalLost, let config = hostStreamConfig,
               (hostInfo?.hostCaps ?? 0) & 0x1000 != 0 else { return }
         controlChannelBox.value?.sendInk(commands, epoch: config.streamEpoch)
     }
@@ -431,12 +432,26 @@ final class ConnectionManager: ObservableObject {
                 self.record(.info, "ctrl", message)
             }
         }
+        channel.onInkFailure = { [weak self] message in
+            Task { @MainActor in
+                guard let self, self.currentAttempt.withLock({ $0 == connectionID }) else { return }
+                self.connectionError = message
+                self.record(.error, "ink", message)
+                self.disconnect(reason: .error)
+            }
+        }
         channel.onSessionEstablished = { [weak self, weak receiver, weak assembler] info in
             assembler?.repairEnabled = !isUSB && info.hostCaps & HelloAck.hostCapNack != 0
             assembler?.framePeriodUs = 1_000_000 / UInt64(max(1, info.streamConfig.fps))
             receiver?.setAcceptedSessionId(info.sessionId)
             Task { @MainActor in
                 guard let self, self.currentAttempt.withLock({ $0 == connectionID }) else { return }
+                if !isUSB, info.hostCaps & 0x1000 != 0,
+                   info.hostCaps & HelloAck.hostCapReliableInk == 0 {
+                    self.connectionError = "이 Windows 버전은 무선 필기를 지원하지 않습니다. Windows DeskInk를 0.5.0 이상으로 업데이트하거나 USB로 연결하세요."
+                    self.disconnect(reason: .error)
+                    return
+                }
                 self.livenessTimeoutUs = UInt64(info.livenessTimeoutMs) * 1000
                 self.reconnectAttempt = 0
                 if info.hostCaps & 0x1000 != 0 {
@@ -537,6 +552,9 @@ final class ConnectionManager: ObservableObject {
         receiver.onControlDatagram = { [weak channel] data in
             channel?.handleControl(data)
         }
+        receiver.onInkAcknowledgement = { [weak channel] data in
+            channel?.handleInkAcknowledgement(data)
+        }
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive }
         let screen = scene?.screen ?? UIScreen.main
@@ -550,7 +568,7 @@ final class ConnectionManager: ObservableObject {
             decoderCaps: Hello2.capDecodeH264 | Hello2.capDecodeHEVC,
             featureCaps: (wantsInput ? Hello2.featureWantsInput : 0)
                 | (wantsAudio ? Hello2.featureWantsAudio : 0) | (isUSB ? 0 : Hello2.featureSupportsNack)
-                | Hello2.featureMonitorBoards,
+                | Hello2.featureMonitorBoards | (isUSB ? 0 : Hello2.featureReliableInk),
             deviceId: DeviceIdentity.load(),
             preferredFPS: drawing.preferredFPS(UserDefaults.standard.frameRatePreference(), maximum: screen.maximumFramesPerSecond),
             authToken: pairingToken,
