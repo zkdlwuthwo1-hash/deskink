@@ -265,6 +265,7 @@ pub async fn start_sender(
     // pre-IDR leftovers; a new session must begin with a keyframe.
     let mut last_session_id: Option<u32> = None;
     let mut awaiting_keyframe = true;
+    let mut lan_frame_sequence = 0u32;
 
     let mut retransmit_ring = RetransmitRing::default();
     let mut audio_sender = audio::AudioSender::default();
@@ -445,6 +446,7 @@ pub async fn start_sender(
                 if last_session_id != Some(session_id) {
                     last_session_id = Some(session_id);
                     awaiting_keyframe = true;
+                    lan_frame_sequence = 0;
                 }
                 if awaiting_keyframe {
                     if !nal.is_keyframe {
@@ -467,6 +469,15 @@ pub async fn start_sender(
                 }
                 let frag_count = frag_count_usize as u16;
                 let capture_ts_us = crate::clock::instant_to_us(nal.timestamp);
+                // Capture drops superseded frames before encoding. LAN clients
+                // need consecutive encoded-unit IDs to distinguish those skips
+                // from lost video. Preserve USB/upstream sequence semantics.
+                let frame_sequence = if target_addr.link == LinkId::Udp && shared.annotation.is_some() {
+                    lan_frame_sequence = lan_frame_sequence.wrapping_add(1);
+                    lan_frame_sequence
+                } else {
+                    nal.sequence as u32
+                };
 
                 let mut send_failed = false;
                 let keep_for_repair = shared.session.lock().client_supports_nack();
@@ -475,7 +486,7 @@ pub async fn start_sender(
                     let header = MediaHeader {
                         session_id,
                         stream_epoch,
-                        frame_seq: nal.sequence as u32,
+                        frame_seq: frame_sequence,
                         frag_index: index as u16,
                         frag_count,
                         is_keyframe: nal.is_keyframe,
@@ -493,7 +504,7 @@ pub async fn start_sender(
                 // are still paced. Make this frame repairable before sending
                 // its first batch, so a delayed pacing timer cannot hold NACKs.
                 if keep_for_repair {
-                    retransmit_ring.insert(stream_epoch, nal.sequence as u32, stored.clone());
+                    retransmit_ring.insert(stream_epoch, frame_sequence, stored.clone());
                 }
 
                 let mut frame_pacer = FramePacer::new(frag_count_usize, Instant::now());

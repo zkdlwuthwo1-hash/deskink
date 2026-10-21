@@ -303,7 +303,7 @@ async fn lan_is_opt_in_and_pairs_streams_and_applies_only_authenticated_ordered_
         .expect("paired client did not receive synthetic video");
         assert_eq!(header.session_id, session);
         assert_eq!(header.stream_epoch, epoch);
-        assert_eq!(header.frame_seq, 7);
+        assert_eq!(header.frame_seq, 1);
         assert_eq!(header.frag_count, 3);
         assert_eq!(
             header.capture_ts_us,
@@ -317,6 +317,31 @@ async fn lan_is_opt_in_and_pairs_streams_and_applies_only_authenticated_ordered_
         fragments.into_values().flatten().collect::<Vec<_>>(),
         payload
     );
+
+    // Capture may discard frames before encoding. These are two consecutive
+    // encoded access units, so a receiver must not wait for capture IDs 8..18.
+    let next_payload = vec![0, 0, 0, 1, 0x41, 9];
+    enabled
+        .nal
+        .send(NALUnit {
+            data: next_payload.clone(),
+            sequence: 19,
+            timestamp: Instant::now(),
+            encode_duration_us: 0,
+            is_keyframe: false,
+        })
+        .await
+        .unwrap();
+    let (next_header, next_bytes) =
+        receive_matching(&client, target, Duration::from_secs(1), |bytes| {
+            let (header, body) = MediaHeader::decode(bytes).ok()?;
+            Some((header, body.to_vec()))
+        })
+        .await
+        .expect("next encoded frame was not sent");
+    assert_eq!(next_header.frame_seq, 2);
+    assert!(!next_header.is_keyframe);
+    assert_eq!(next_bytes, next_payload);
 
     let begin = json!({"type":"begin","id":7,"brush":{"color":[255,80,40,255],"width":4},
         "point":{"x":100,"y":200,"pressure":0.4}});

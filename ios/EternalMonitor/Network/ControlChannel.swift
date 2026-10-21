@@ -109,6 +109,8 @@ final class ControlChannel {
     private let nowUs: () -> UInt64
     private var lastKeyframeRequestUs: UInt64?
 
+    /// The injected monotonic clock must be thread-safe: LAN ingress reads it
+    /// on the caller's thread, and retries/ACK handling read it on the link queue.
     init(queue: DispatchQueue, nowUs: @escaping () -> UInt64 = ControlChannel.clientNowUs,
          send: @escaping (Data) -> Void) {
         self.queue = queue
