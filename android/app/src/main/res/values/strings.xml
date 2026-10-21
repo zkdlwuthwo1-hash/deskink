@@ -2,9 +2,10 @@
     <string name="network_short">Wi-Fi</string>
     <string name="network">Connect over Wi-Fi / IP</string>
     <string name="network_address">PC IP address</string><string name="network_port">Port</string>
-    <string name="network_hint">Enable LAN / Wi-Fi in Windows DeskInk. Connect the tablet and PC to the same trusted network, then enter the address shown on the PC.</string>
+    <string name="network_hint">USB connects first when its tunnel is ready. Without USB, DeskInk reconnects to the last successfully paired LAN PC. For the first LAN connection, enable LAN / Wi-Fi on Windows and enter its address while both devices use the same trusted network.</string>
     <string name="network_note">Default port: 9876. Enter the PC’s pairing code on the next screen. A 5 or 6 GHz Wi-Fi connection and a PC connected by Ethernet help reduce delay. Network conditions can still affect latency.</string>
-    <string name="network_usb">Use USB</string><string name="network_disconnect">Disconnect</string>
+    <string name="network_usb">Auto connect</string><string name="network_disconnect">Disconnect</string>
+    <string name="auto_paused">Automatic connection paused · tap Wi-Fi to reconnect</string>
     <string name="network_invalid">Enter the PC’s IPv4 address and a port from 1 to 65535.</string>
     <string name="network_connecting">Connecting to your PC · LAN</string>
     <string name="network_disconnected">LAN disconnected · tap Wi-Fi to reconnect</string>

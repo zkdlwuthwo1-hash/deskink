@@ -19,6 +19,7 @@ public final class PcRegistration {
     boolean matches(byte[] presented,byte[] issued,byte[] identity) {
         return Arrays.equals(token,presented)||Arrays.equals(token,issued)||(valid(identity)&&Arrays.equals(pcId,identity));
     }
+    boolean samePc(PcRegistration other) { return other!=null&&matches(other.token,other.token,other.pcId); }
     public String encode() {
         char[] alphabet="0123456789abcdef".toCharArray(); StringBuilder text=new StringBuilder(64);
         for(byte[] part:new byte[][]{token,pcId}) for(byte b:part) text.append(alphabet[(b&255)>>4]).append(alphabet[b&15]);
