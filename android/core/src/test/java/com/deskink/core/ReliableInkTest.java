@@ -7,6 +7,11 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.Assert.*;
 
 public class ReliableInkTest {
+    @Test public void aLateAcknowledgementCannotRescueExpiredPenInputBeforeTheTimerRuns() {
+        ReliableInk ink=new ReliableInk(42,3); ink.offer(Ink.command("clear"),0);
+        ink.acknowledge(ack(42,3,1),250);
+        assertTrue(ink.expired(250)); assertNull(ink.offer(Ink.command("undo"),251));
+    }
     @Test public void unacknowledgedInkFailsAt250MillisecondsInsteadOfReplayingLate() {
         ReliableInk ink=new ReliableInk(42,3);
         assertNotNull(ink.offer(Ink.command("clear"),100));
@@ -15,7 +20,7 @@ public class ReliableInkTest {
     }
     @Test public void staleEpochAndImpossibleFutureAcknowledgementsCannotDiscardPendingInk() {
         ReliableInk ink=new ReliableInk(42,3); byte[] packet=ink.offer(Ink.command("clear"),0);
-        ink.acknowledge(ack(42,2,1)); ink.acknowledge(ack(42,3,2));
+        ink.acknowledge(ack(42,2,1),1); ink.acknowledge(ack(42,3,2),1);
         assertArrayEquals(packet,ink.retry(20).get(0));
     }
     @Test public void thePendingWindowIsBoundedEvenWhenTheNetworkStopsReading() {
@@ -29,9 +34,9 @@ public class ReliableInkTest {
         assertTrue(new String(sent,StandardCharsets.UTF_8).startsWith("DI02{"));
         assertTrue(ink.retry(19).isEmpty());
         assertArrayEquals(sent,ink.retry(20).get(0));
-        ink.acknowledge(ack(99,3,1));
+        ink.acknowledge(ack(99,3,1),20);
         assertArrayEquals(sent,ink.retry(40).get(0));
-        ink.acknowledge(ack(42,3,1));
+        ink.acknowledge(ack(42,3,1),40);
         assertTrue(ink.retry(60).isEmpty());
     }
     static byte[] ack(long session,long epoch,long sequence) {

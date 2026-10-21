@@ -14,6 +14,7 @@ public class MainActivityTest {
             View network=controller.get().getWindow().getDecorView().findViewWithTag("network");
             assertNotNull("LAN connection must be available beside the USB controls",network); network.performClick();
             android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
             View root=dialog.getWindow().getDecorView();
             android.widget.EditText address=root.findViewWithTag("network.address"),port=root.findViewWithTag("network.port");
             assertEquals("9876",port.getText().toString()); address.setText("999.1.1.1");

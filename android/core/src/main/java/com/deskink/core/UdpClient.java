@@ -31,7 +31,7 @@ public final class UdpClient implements AutoCloseable {
     private long nonce,controlSequence,lastPacket,lastHello,lastReport,lastKeyframe,highest,reportedDecoded=-1,reportedAt;
     private int tokenIndex,pairingCode,helloAttempts;
     private boolean awaitingPairing;
-    private byte[] pendingHello;
+    private byte[] pendingHello,resumeToken;
     private static long now() { return System.nanoTime()/1_000_000; }
     private static Thread daemon(Runnable task,String name) { Thread t=new Thread(task,name); t.setDaemon(true); return t; }
     public UdpClient(String host,int port,long device,int width,int height,List<PcRegistration> saved,Listener listener) {
@@ -74,7 +74,12 @@ public final class UdpClient implements AutoCloseable {
                 byte[] bytes=new byte[2048]; DatagramPacket packet=new DatagramPacket(bytes,bytes.length); socket.receive(packet);
                 bytes=Arrays.copyOf(bytes,packet.getLength());
                 if(bytes.length>=4&&bytes[0]=='D'&&bytes[1]=='A'&&bytes[2]=='0'&&bytes[3]=='2') {
-                    synchronized(lock) { if(ink!=null) ink.acknowledge(bytes); }
+                    synchronized(lock) {
+                        if(ink!=null) {
+                            long at=now(); ink.acknowledge(bytes,at);
+                            if(ink.expired(at)) fail(Failure.INK_DELAY);
+                        }
+                    }
                     continue;
                 }
                 try { receive(Wire.decode(bytes)); } catch(IOException ignored) { /* malformed LAN traffic cannot reset the live stream */ }
@@ -87,6 +92,7 @@ public final class UdpClient implements AutoCloseable {
         fail(Failure.INK_DELAY); return false;
     }
     private byte[] presentedToken() {
+        if(pairingCode==0&&resumeToken!=null) return resumeToken.clone();
         return pairingCode==0&&!registrations.isEmpty()?registrations.get(tokenIndex).token():new byte[16];
     }
     private void hello() {
@@ -130,6 +136,7 @@ public final class UdpClient implements AutoCloseable {
             Wire.Ack ack=packet.ack(); if(ack.nonce!=nonce) return null;
             lastPacket=now();
             if(ack.status!=0) {
+                if(ack.status==2) return () -> { listener.state(UsbClient.State.INCOMPATIBLE); close(); };
                 awaitingPairing=true;
                 if((ack.status==4||ack.status==5)&&pairingCode==0&&tokenIndex+1<registrations.size()) { tokenIndex++; hello(); return null; }
                 UsbClient.State state=ack.status==5?UsbClient.State.RATE_LIMITED:ack.status==1?UsbClient.State.BUSY:UsbClient.State.PAIRING;
@@ -158,8 +165,11 @@ public final class UdpClient implements AutoCloseable {
         if(packet.type==0x12||packet.type==0x18) {
             Wire.Config config=packet.config();
             if(config.epoch!=binding.config.epoch&&(int)(config.epoch-binding.config.epoch)>0) {
-                UsbClient.Binding next=new UsbClient.Binding(binding.session,config,binding.host,binding.token);
-                configure(next); return () -> listener.stream(next);
+                // UDP survives a PC monitor restart. Fetch the new authenticated
+                // monitor label before choosing a board or accepting more ink.
+                resumeToken=binding.token.clone(); pairingCode=0;
+                binding=null; ink=null; outgoing.clear(); frames.reset(0,0); hello();
+                return null;
             }
         } else if(packet.type==0x13) { return () -> fail(Failure.CONNECTION_LOST); }
         else if(packet.type==0x16) {

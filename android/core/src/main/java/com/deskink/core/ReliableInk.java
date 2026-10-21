@@ -32,7 +32,8 @@ public final class ReliableInk {
         pending.put(++sequence,new Pending(bytes,nowMs));
         return bytes.clone();
     }
-    public void acknowledge(byte[] bytes) {
+    public void acknowledge(byte[] bytes,long nowMs) {
+        if(expired(nowMs)) return;
         if(bytes.length!=20||bytes[0]!='D'||bytes[1]!='A'||bytes[2]!='0'||bytes[3]!='2') return;
         ByteBuffer b=ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN); b.position(4);
         if(Integer.toUnsignedLong(b.getInt())!=session||Integer.toUnsignedLong(b.getInt())!=epoch) return;
