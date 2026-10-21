@@ -46,3 +46,11 @@ Orca의 창 목록은 실제 앱의 필기층만 반환하고 컨트롤러를 �
 별도로 보고된 무선 전용 필기 가림 증상은 원인 미확정 상태다.
 이 UI 릴리스에서 수정했다고 주장하지 않는다. 관측 내용은
 [무선 검증 기록](wireless-verification.md)에 남겼다.
+
+## 배포 파일
+
+- Windows 0.5.2 ZIP은 clean source `dc4ff60`에서 만들어 566개 manifest 파일을 검증했다.
+- 공개 v0.5.2의 Windows ZIP·IPA·APK·HTML·APK 서명 안내·체크섬 파일을 다시 다운로드하여
+  로컬 원본과 바이트 해시가 같음을 확인했다. IPA·APK는 공개 0.5.1과 같은 파일이다.
+- Windows ZIP SHA256: `6393c17cacbdc2cdef3d000a12e18750072a535630591e33d07e98e437431f16`.
+- Windows 실행 파일 SHA256: `906875ff2e1b40bce163653f930a0d0402b79fc7447bd15b0781d64447ea608d`.
