@@ -104,6 +104,18 @@ final class LanInkIngressTests: XCTestCase {
         XCTAssertTrue(result.failures.isEmpty)
     }
 
+    func testStopDuringAnExecutingBatchPreventsLaterPacketsFromEscaping() {
+        let connection = ConnectedInkChannel(test: self)
+        defer { connection.stop() }
+        connection.queue.sync {
+            connection.onFirstInk = { connection.channel.stop() }
+        }
+        connection.channel.sendInk([.clear, .undo, .redo], epoch: 3)
+        let result = connection.snapshot()
+        XCTAssertEqual(result.packets.count, 1, "A stop also fences a batch that already entered the queue")
+        XCTAssertTrue(result.failures.isEmpty)
+    }
+
     private static func ack(sequence: UInt64) -> Data {
         var bytes = Data([68,65,48,50,41,0,0,0,3,0,0,0])
         for shift in stride(from: 0, to: 64, by: 8) {
@@ -118,6 +130,7 @@ private final class ConnectedInkChannel {
     let clock = OSAllocatedUnfairLock<UInt64>(initialState: 1_000_000)
     let wireless: Bool
     var channel: ControlChannel!
+    var onFirstInk: (() -> Void)?
     private var packets: [Data] = []
     private var failures: [String] = []
     private var session: UInt32 = 40
@@ -135,6 +148,9 @@ private final class ConnectedInkChannel {
                         hostName: "Test PC", authToken: Data(17...32), hostCaps: 0xF000))))
             } else if bytes.prefix(2) == Data("DI".utf8) {
                 self.packets.append(bytes)
+                let callback = self.onFirstInk
+                self.onFirstInk = nil
+                callback?()
             }
         }
         channel.onInkFailure = { [weak self] in self?.failures.append($0) }
@@ -158,6 +174,6 @@ private final class ConnectedInkChannel {
 
     func stop() {
         channel.stop()
-        queue.sync { }
+        queue.sync { onFirstInk = nil }
     }
 }
