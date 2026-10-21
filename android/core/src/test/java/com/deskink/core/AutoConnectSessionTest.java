@@ -179,4 +179,13 @@ public class AutoConnectSessionTest {
             assertNull(observed.remembered.poll(150,TimeUnit.MILLISECONDS));
         }
     }
+    @Test public void stoppingWhileAUsbPeerHasNotSentItsPreambleClosesThePeerImmediately() throws Exception {
+        try(AutoConnectSession app=new AutoConnectSession(0,123,1920,1080,Collections.emptyList(),null,new Observed());
+                Socket peer=new Socket("127.0.0.1",app.start())) {
+            // The PC tunnel has connected, but has not yet sent its EMLINK preamble.
+            peer.setSoTimeout(500);
+            app.close();
+            assertEquals("Backgrounding must close even a pre-handshake USB socket",-1,peer.getInputStream().read());
+        }
+    }
 }

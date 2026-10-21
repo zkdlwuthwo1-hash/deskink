@@ -50,6 +50,7 @@ public final class UsbClient implements AutoCloseable {
     private final ScheduledExecutorService timer=Executors.newSingleThreadScheduledExecutor(r -> daemon(r,"DeskInk heartbeat"));
     private volatile boolean closed;
     private ServerSocket server;
+    private Socket accepted;
     private Connection current;
     private Binding binding;
     private long inkSequence,controlSequence,nonce,lastKeyframe;
@@ -77,8 +78,14 @@ public final class UsbClient implements AutoCloseable {
     private void accept() {
         while(!closed) {
             Connection candidate=null;
+            Socket socket=null;
             try {
-                Socket socket=server.accept();
+                socket=server.accept();
+                synchronized(lock) {
+                    if(closed) { socket.close(); return; }
+                    // Own the socket before reading a preamble that may never arrive.
+                    accepted=socket;
+                }
                 FramedConnection link=new FramedConnection(socket);
                 socket.setSoTimeout(0); // handshake and session liveness are checked by the timer
                 if(!listener.usbAvailable()) { link.close(); continue; }
@@ -92,8 +99,10 @@ public final class UsbClient implements AutoCloseable {
                 // USB removal, host switch and shutdown all close the framed socket.
             } finally {
                 if(candidate!=null) candidate.close();
+                if(socket!=null) try { socket.close(); } catch(IOException ignored) { }
                 boolean disconnected=false;
                 synchronized(lock) {
+                    if(accepted==socket) accepted=null;
                     if(current==candidate) { current=null; binding=null; disconnected=!closed; }
                 }
                 if(disconnected) listener.state(State.DISCONNECTED);
@@ -253,6 +262,7 @@ public final class UsbClient implements AutoCloseable {
     @Override public void close() {
         synchronized(lock) {
             closed=true; binding=null; if(current!=null) current.close();
+            try { if(accepted!=null) accepted.close(); } catch(IOException ignored) { }
             try { if(server!=null) server.close(); } catch(IOException ignored) { }
             timer.shutdownNow();
         }
