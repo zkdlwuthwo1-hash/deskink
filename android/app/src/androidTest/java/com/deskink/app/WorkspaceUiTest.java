@@ -18,17 +18,17 @@ public class WorkspaceUiTest {
         try(ActivityScenario<MainActivity> activity=ActivityScenario.launch(MainActivity.class)) {
             activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("network").performClick());
             InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            capture("network"); // Keep the actual layout even when a reachability assertion fails.
             activity.onActivity(a -> {
                 boolean found=false;
                 for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
                     View address=window.findViewWithTag("network.address"); if(address==null) continue;
-                    found=true; Rect visible=new Rect(); assertTrue(address.getGlobalVisibleRect(visible));
+                    found=true; Rect visible=new Rect(); assertTrue("The initial PC address must be visible above the help",address.getGlobalVisibleRect(visible));
                     android.widget.EditText port=window.findViewWithTag("network.port"); assertEquals("9876",port.getText().toString());
                     assertTrue(window.findViewById(android.R.id.button1).getGlobalVisibleRect(visible));
                 }
                 assertTrue("IP entry must open from the toolbar",found);
             });
-            capture("network");
         }
     }
     static void capture(String name) throws Exception {

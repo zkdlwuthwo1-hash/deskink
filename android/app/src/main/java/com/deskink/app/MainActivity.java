@@ -196,14 +196,15 @@ public final class MainActivity extends Activity {
         if(networkDialog!=null&&networkDialog.isShowing()) return;
         workspace.closeSheet(); DeskInkUi ui=new DeskInkUi(this);
         LinearLayout content=ui.sheetContent(R.string.network,R.drawable.ic_wifi);
-        TextView hint=ui.text(R.string.network_hint,14,DeskInkUi.MUTED,false); hint.setLineSpacing(dp(4),1);
-        content.addView(hint); content.addView(ui.space(20));
+        // Keep the address above the longer help in short windows and at large font sizes.
         EditText address=networkField(content,ui,R.string.network_address,"network.address",preferences.getString("lan-address",""));
         address.setHint("192.168.1.20"); address.setKeyListener(DigitsKeyListener.getInstance("0123456789."));
         EditText port=networkField(content,ui,R.string.network_port,"network.port",Integer.toString(preferences.getInt("lan-port",9876)));
         port.setKeyListener(DigitsKeyListener.getInstance("0123456789")); port.setFilters(new InputFilter[]{new InputFilter.LengthFilter(5)});
         TextView error=ui.text("",13,DeskInkUi.DANGER,false); error.setTag("network.error"); error.setVisibility(View.GONE);
         error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); content.addView(error); content.addView(ui.space(12));
+        TextView hint=ui.text(R.string.network_hint,14,DeskInkUi.MUTED,false); hint.setLineSpacing(dp(4),1);
+        content.addView(hint); content.addView(ui.space(12));
         content.addView(ui.text(R.string.network_note,12,DeskInkUi.MUTED,false));
         AlertDialog.Builder builder=new AlertDialog.Builder(this).setView(ui.scroll(content))
             .setNegativeButton(R.string.network_usb,(dialog,which) -> {
