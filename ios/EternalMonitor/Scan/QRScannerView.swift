@@ -62,7 +62,7 @@ final class QRScannerViewController: UIViewController, AVCaptureMetadataOutputOb
         ])
 
         let hint = UILabel()
-        hint.text = "Point at the QR code in EternalMonitor on your PC"
+        hint.text = "Windows DeskInk에서 Wi-Fi/LAN을 켜고 표시되는 QR 코드를 비춰주세요."
         hint.font = UIFont(name: "Geist-Medium", size: 17) ?? .systemFont(ofSize: 17, weight: .medium)
         hint.textColor = .white
         hint.textAlignment = .center

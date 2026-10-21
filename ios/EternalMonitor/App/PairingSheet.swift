@@ -31,7 +31,7 @@ struct PairingSheet: View {
                         Text("Pair with your PC")
                             .font(.app(24, .semibold, relativeTo: .title2))
                             .foregroundStyle(Theme.text)
-                        Text("Enter the 6-digit code shown in EternalMonitor on your PC. You only need to do this once.")
+                        Text("Windows DeskInk의 ‘Pairing code’에 표시된 6자리 숫자를 입력하세요. 등록 정보는 이 iPad에 저장됩니다.")
                             .font(.app(15, relativeTo: .body))
                             .foregroundStyle(Theme.textMuted)
                             .multilineTextAlignment(.center)
@@ -97,7 +97,7 @@ struct PairingSheet: View {
                         .accessibilityIdentifier("pairing.submit")
                     }
 
-                    Text("Can't see a code? Open EternalMonitor on the PC and look on the Stream page, or connect with a USB cable instead.")
+                    Text("코드가 보이지 않으면 Windows의 DeskInk 창을 여세요. USB로 연결할 때도 최초 페어링은 필요합니다.")
                         .font(.app(13, relativeTo: .footnote))
                         .foregroundStyle(Theme.textFaint)
                         .multilineTextAlignment(.center)

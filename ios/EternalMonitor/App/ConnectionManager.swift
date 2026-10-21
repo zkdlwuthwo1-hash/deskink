@@ -236,6 +236,18 @@ final class ConnectionManager: ObservableObject {
         startReconnectCycle(to: target)
     }
 
+    private func rememberedLANForCurrentSelection() -> RememberedLAN? {
+        if mediaLink?.isUSB == true {
+            return hostInfo.flatMap { rememberedLAN(matching: $0) }
+        }
+        guard let remembered = rememberedLAN(matching: hostInfo) else { return nil }
+        if let selected = lastTarget {
+            guard PairingStore.address(host: selected.host, port: selected.port) ==
+                    PairingStore.address(host: remembered.host, port: remembered.port) else { return nil }
+        }
+        return remembered
+    }
+
     // MARK: - Frame slot (thread-safe single-slot)
 
     var latestFrame: CVPixelBuffer? {
@@ -845,9 +857,7 @@ final class ConnectionManager: ObservableObject {
     private func beginReconnect(reason: String) {
         // Losing USB must never return to a different PC that happened to be
         // the last Wi-Fi address. The USB ACK identifies the PC just unplugged.
-        let target = mediaLink?.isUSB == true
-            ? hostInfo.flatMap { rememberedLAN(matching: $0) }
-            : rememberedLAN(matching: hostInfo)
+        let target = rememberedLANForCurrentSelection()
         let auto = UserDefaults.standard.flag(forKey: "autoReconnect")
         record(.warning, "ctrl", "Connection lost (\(reason))")
         disconnect()
@@ -860,6 +870,10 @@ final class ConnectionManager: ObservableObject {
 
     private func startReconnectCycle(to target: RememberedLAN) {
         reconnectTask?.cancel()
+        // Pin the selected endpoint even during the USB-first grace/backoff.
+        // Backgrounding an unanswered manual selection must not revive a
+        // different, older saved PC just because hostInfo is still nil.
+        lastTarget = (target.host, target.port)
         let generation = UUID()
         reconnectGeneration = generation
         reconnectTask = Task { @MainActor [weak self] in
@@ -978,9 +992,7 @@ final class ConnectionManager: ObservableObject {
         // Fallback for a transition that did not send willResignActive.
         prepareForBackground()
         isForeground = false
-        foregroundTarget = mediaLink?.isUSB == true
-            ? hostInfo.flatMap { rememberedLAN(matching: $0) }
-            : rememberedLAN(matching: hostInfo)
+        foregroundTarget = rememberedLANForCurrentSelection()
         resumeOnForeground = state != .disconnected || reconnectTask != nil
         reconnectTask?.cancel()
         reconnectTask = nil
