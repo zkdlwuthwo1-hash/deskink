@@ -1,7 +1,9 @@
 # Wi-Fi / LAN connection
 
-Status: implementing
-Blocked by: none for implementation; real tablet/radio latency verification requires devices
+Status: ready-for-human
+Automated status: implementation, targeted regression checks, final iPad/Android CI and two-axis follow-up review complete
+Packaging status: Windows Release, IPA and signed APK ready; Windows ZIP verification and published-download checks pending
+Human verification: physical tablet/radio latency, pen feel and Zoom checks not performed; requires devices
 Baseline: 36a09eeb022b6ab951808a66dfdb7de2ca7bf0a9
 
 ## Requested outcome
@@ -33,4 +35,13 @@ Continue docs/verification-plan.md (previously approved): connection input -> re
 
 ## Verification
 
-Pending implementation, red/green evidence, two-axis review, packaged builds and real-device checklist.
+See [wireless-verification.md](../../../docs/wireless-verification.md) for evidence and the physical-device checklist.
+
+- Host integration: 20 checks passed; final transport library: 54 checks passed. The actual UDP frame-sequence regression failed with expected 1 / actual 7, then passed in the final unfiltered run.
+- Rust core/wire: 20 + 55 passed. Packaged video/decode paths: 2 passed.
+- Final iPad CI [39540343857](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39540343857): 190 passed, source `b90617a`, IPA 0.5.0 (15).
+- Final Android CI [39540516892](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39540516892): 37 core + 11 View + 5 full-screen + 2 compact-window checks passed, lint 0 errors, source `b90617a`. Signed APK 0.5.0 (4) keeps the previous certificate; v2/v3 and zip alignment verified.
+- Windows Release built from `71d1561`. Final ZIP verification and upload/download checks remain pending; this status is not a claim that public release work is complete.
+- Both independent reviewers confirmed the LAN frame-ID P1 and pre-dispatch ink-queue P2 corrected, with no additional findings. The low-priority Android repeated USB/LAN branch advisory is deferred to preserve the working USB implementation.
+- HTML passed sequential browser checks at 1440/820/390/320px, with additional wireless/deep-link visual checks at 320/390/1440px.
+- No physical Wi-Fi/Pencil/S Pen/Zoom latency measurement has been performed. No zero-delay claim is made.

@@ -1,8 +1,9 @@
 # DeskInk 0.5.0 Wi-Fi/LAN 검증 기록
 
-2026-10-21 기준 진행 중인 검증 기록이다. **아래의 통과 결과는 각 실행 시점의
-소스에 대한 결과이며, 검토 후 수정·최종 패키지·실기기 검증까지 완료했다는 뜻이
-아니다.** 공개 배포 전 마지막 수정에 영향을 받는 검사를 다시 실행한다.
+2026-10-21 기준 구현·자동 검사·두 축의 후속 코드 검토를 마쳤다. Windows Release,
+iPad IPA, 서명한 Android APK를 준비했다. **Windows ZIP의 최종 패키지 검사와
+업로드 후 다운로드 확인은 남아 있고, 실제 무선 지연·펜 감각은 아직 측정하지
+않았다.** 아래 결과는 명시한 소스·실행 범위에 대한 결과다.
 
 요구사항은 [무선 연결 티켓](../.scratch/desk-ink/issues/11-wireless.md), 기존 승인된
 검사 경계는 [검증 계획](verification-plan.md)에 있다. 비교 기준은
@@ -43,13 +44,16 @@ Windows에서 `Wi-Fi / LAN`을 펼쳐 `Allow Wi-Fi / LAN`을 켰을 때만 네�
 | 실행 범위 | 현재 확인된 결과 | 확인하는 내용과 한계 |
 | --- | --- | --- |
 | 호스트 통합 검사 | 20개 통과 | 무선 필기 3, 실제 LAN 전송 1, USB 필기 세션 6, Android USB 2, 등록 유지 4, usbmuxd 4. 기본 비활성화, 인증된 순서 입력, 기존 USB 경계 |
-| 호스트 transport 라이브러리 | 54개 통과 | 세션·등록·재전송·혼잡 처리·USB 링크·대기열 회귀 검사. 이후 LAN 영상 순번 수정의 재검사는 별도 필요 |
+| 호스트 transport 라이브러리 | 최종 수정 후 54개 통과 | 세션·등록·재전송·혼잡 처리·USB 링크·대기열 회귀 검사 |
+| LAN 영상 순번 회귀 검사 | 수정 후 1개 통과 | 실제 UDP 전송에서 캡처 순번의 빈칸이 LAN 영상의 가짜 손실로 전달되지 않음. 별도 필터 없는 실행으로 확인 |
 | Rust 필기 core | 20개 통과 | 필기 3, 세션 6, 도구 9, 공통 wire fixture 2 |
 | Rust wire | 55개 통과 | 라이브러리 51, golden fixture 4. 잘못된 패킷·재조립·기존 프로토콜 호환 |
 | 배포 FFmpeg 영상 경로 | 2개 통과 | 실제 NV12 변환·H.264 복원, QSV가 없는 PC에서 OpenH264 대체 및 새 디코더 재접속. Intel 하드웨어 자체의 실측은 아님 |
-| iPad 시뮬레이터 | 초기 179개, 두 번째 182개 통과 | 전체 `EternalMonitorTests`. 각각 아래에 기록한 서로 다른 소스·실행 결과이며 최종 입력 대기열 수정의 CI는 진행 중 |
-| Android core / View | 37개 / 11개 통과 | Java 코어와 Robolectric 검사. 후속 수정의 최종 재실행 전 결과 |
-| Android API 35 에뮬레이터 | 5개 중 4개 통과, 1개 실패 | 기존 USB 영상·MediaCodec·UI 검사는 통과. 새 무선 영상/clear 검사에서 `SocketTimeoutException` 발생; 수정·재실행 중 |
+| iPad 시뮬레이터 | 최종 190개 통과 | 전체 `EternalMonitorTests`. 입력 큐 진입 검사 8개, 모니터 3개, reliable ink 7개 포함 |
+| Android core / View | 최종 37개 / 11개 통과 | Java 코어와 Robolectric 검사 |
+| Android API 35 에뮬레이터 | 전체 화면 5개 + 작은 창 2개 통과 | 실제 USB·무선 영상, MediaCodec, 무선 IP/포트 입력·필기 명령, UI·키보드 확인 |
+| Android lint | 오류 0개 | 기존 SDK·테스트 의존성 관련 경고 4개는 유지 |
+| Windows Release | 빌드 통과 | 소스 `71d156122f1c0710ffbaf2563f982ac10bba5564`, 별도 대상 경로에서 1분 48초 |
 | HTML 안내 | 통과 | 1440·820·390·320px, 오프라인 자산, 탭·키보드·딥링크, 이미지 확대·복구·JS 없는 경우. 추가로 320·390·1440px의 무선 안내 시각 확인 |
 
 iPad 최초 179개 실행은 [39536331875](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39536331875),
@@ -59,19 +63,23 @@ iPad 최초 179개 실행은 [39536331875](https://github.com/zkdlwuthwo1-hash/d
 소스 `353d91f795469de5e679c171ecef0b35088a71fd`다. 서명·프로비저닝 없는
 장치용 IPA도 생성했으나, 최종 수정본의 출시 IPA로 확정한 것은 아니다.
 
-Android 최초 실행은 [39538627972](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39538627972)다.
-무선 통합 검사가 실패했으므로 **Android CI 전체 통과로 기록하지 않는다.**
-실패가 테스트 설정 문제인지 제품 문제인지와 수정 결과는 후속 실행에서 확인한다.
+Android 최초 실행 [39538627972](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39538627972)의
+무선 통합 검사는 `SocketTimeoutException`으로 실패했다. 테스트의 `onShow` 완료
+대기와 IPv6 루프백 `::1` / IPv4 `127.0.0.1` 바인딩 불일치를 바로잡았다. 이 실패를
+해결하기 위해 제품 코드를 바꾸거나 테스트 제한 시간을 늘리지 않았다. 최초
+실패 기록을 최종 통과 결과로 덮어쓰지 않는다.
 
-후속 소스 `b90617a39b25adef87781d34ee00e4a363eb3e69`의 iPad CI
+최종 태블릿 소스 `b90617a39b25adef87781d34ee00e4a363eb3e69`의 iPad CI
 [39540343857](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39540343857)와
-Android CI [39540516892](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39540516892)는
-이 기록을 갱신한 시점에 진행 중이다. 이전 실행의 검사 수를 최종 실행의 결과로
-옮겨 적지 않는다.
+Android CI [39540516892](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39540516892)가
+모두 통과했다. 위 표는 이 최종 태블릿 실행의 검사 수다. 초기 iPad 179개와 두 번째
+182개는 구현 진행 중의 별도 실행이며 최종 190개에 중복 합산하지 않는다.
 
 로컬 근거는 `artifacts/local/wireless-transport-green.log`,
 `wireless-transport-regression.log`, `wireless-core-regression.log`,
-`wireless-video-regression.log`, `wireless-ipad-ci/`, `wireless-android-ci16/`에 있다.
+`wireless-video-regression.log`, `wireless-frame-sequence-final.log`,
+`wireless-frame-sequence-green.log`, `wireless-release-build.log`, 초기
+`wireless-ipad-ci/`·`wireless-android-ci16/` 및 최종 CI 아티팩트에 있다.
 HTML 검사 결과·캡처는 `artifacts/local/guide-wireless-check/`에 있다. 로그와 개인
 기기 정보·서명 자료는 공개 패키지에 넣지 않는다.
 
@@ -86,10 +94,13 @@ HTML 검사 결과·캡처는 `artifacts/local/guide-wireless-check/`에 있다.
 - `wireless-frame-sequence-red.log`: 실제 UDP 전송 검사에서 LAN 프레임 순번의
   기대값 `1` 대신 캡처 순번 `7`을 받아 실패했다. 컴파일은 6분 38초 걸렸고
   검사는 실행 후 0.56초에 실패했다. LAN에 별도 연속 순번을 부여하는 수정 후
-  `wireless-frame-sequence-green.log`의 재검사는 아직 진행 중이다.
+  `wireless-frame-sequence-final.log`에서 동일 실제 UDP 검사가 1개 통과했다.
+  `wireless-frame-sequence-green.log`는 transport 라이브러리 54개가 통과했지만
+  통합 검사 1개는 필터로 제외되어 있었으므로, 그 실행만으로 회귀 검사 통과를
+  주장하지 않고 별도 필터 없는 최종 실행을 확인했다.
 - iPad 입력 대기열은 큐 진입 전 개수·입력 시각을 제한하고 공개 경계 검사를
-  추가했다. 코드 후속 검토는 통과했으나, 최종 수정본의 CI 결과가 나오기 전에는
-  해당 검사의 실패→통과 결과를 확정하지 않는다.
+  추가했다. 코드 후속 검토와 입력 큐 진입 검사 8개를 포함한 최종 190개 검사가
+  통과했다. USB는 기존 프레이밍 경로를 유지한다.
 
 첫 두 항목은 새 공개 경계가 존재하지 않아 실패한 기록이다. 이미 존재하던 기능의
 실행 중 오류를 재현한 것처럼 해석하지 않는다.
@@ -104,7 +115,7 @@ HTML 검사 결과·캡처는 `artifacts/local/guide-wireless-check/`에 있다.
    작업이 실행된 뒤 시작한다. 송신 창의 256개·250ms 제한만으로는 앞단 대기를
    제한하지 못하던 문제였다. 무선 입력을 큐에 넣기 전부터 개수와 최초 입력
    시각을 추적하고, 그 시각을 송신 창까지 전달한다. 후속 검토에서 수정됨을
-   확인했으며 공개 경계 회귀 검사를 포함한 최종 CI 결과는 기다리고 있다.
+   확인했고 공개 경계 회귀 검사를 포함한 최종 CI도 통과했다.
 2. **낮은 우선순위 권고, 유지:** Android `MainActivity`에서 USB/LAN에 따른
    종료·키프레임 요청·필기 바인딩·클라이언트 생성 분기가 반복된다. 공통
    인터페이스가 분기를 줄일 수 있으나, 동작이 좋은 USB 경로를 보존하는 이번
@@ -113,7 +124,7 @@ HTML 검사 결과·캡처는 `artifacts/local/guide-wireless-check/`에 있다.
 검토에서 다른 인증·세션·스트림 세대·모니터·기본 비활성화·USB 보존 문제는
 추가로 보고하지 않았다. 후속 검토에서도 새 문제를 보고하지 않았다.
 
-Standards: 총 2개 중 가장 높은 P2는 코드 수정·후속 검토 완료, 낮은 우선순위 권고 1개는 유지한다. 최종 CI는 별도로 확인한다.
+Standards: 총 2개 중 가장 높은 P2는 코드 수정·후속 검토·관련 검사 완료, 낮은 우선순위 권고 1개는 유지한다.
 
 ## Spec
 
@@ -124,7 +135,7 @@ Standards: 총 2개 중 가장 높은 P2는 코드 수정·후속 검토 완료,
    정상 영상이 10 → 12로 전송되면 클라이언트가 손실로 판단해 약 50ms 뒤
    폐기·키프레임 요청을 반복할 수 있던 문제였다. LAN 전송 영상에 연속된 순번을
    붙이고 USB 번호 동작은 유지하도록 수정했다. 실제 UDP 회귀 검사는 수정 전
-   실패를 확인했으며 수정 후 재검사 결과는 아직 기다리고 있다.
+   실패와 수정 후 통과를 확인했다.
 2. **P2, 코드 수정·후속 검토 완료:** iPad의 무제한 앞단 입력 큐와 늦게 시작하는 나이 측정이
    “대기를 제한하고 오래된 필기를 재생하지 않는다”는 요구사항을 충족하지 못한다.
    큐 진입 전부터 제한하도록 수정했다. 같은 결함을 Standards에서도
@@ -135,22 +146,26 @@ Standards: 총 2개 중 가장 높은 P2는 코드 수정·후속 검토 완료,
 추가 문제 없음을 확인했다. 이 검토 통과를 최종 자동 검사나 실기기 확인의
 통과로 대신하지 않는다.
 
-Spec: 총 2개 중 가장 높은 P1과 P2 모두 코드 수정·후속 검토 완료다. 관련 재검사는 진행 중이다.
+Spec: 총 2개 중 가장 높은 P1과 P2 모두 코드 수정·후속 검토·관련 재검사를 완료했다.
 
 ## 패키지와 공개 배포 전 확인
 
-아래 항목은 현재 미완료다. 기존 0.4.4 패키지의 검증 결과를 0.5.0에 재사용하지 않는다.
+완료와 남은 항목을 구분한다. 기존 0.4.4 패키지의 검증 결과를 0.5.0에 재사용하지 않는다.
 
-- 최종 수정본의 Windows Release 빌드와 새 ZIP을 생성한다. 실행 중인 사용자의
-  기존 DeskInk를 중단하거나 파일을 덮어쓰지 않고 별도 빌드 경로를 사용한다.
-- ZIP 무결성·허용 파일 목록·모든 manifest 해시·빌드 소스·실제 exe 일치·포함 HTML을
-  확인한다. 공백이 있는 새 경로에서 개발 SDK 없는 환경의 `-CheckOnly`를 실행한다.
-- 최종 iPad CI와 IPA의 버전·번들 ID·빌드 정보, Android 최종 CI 및 APK의 버전·기존
-  서명 인증서 일치·서명·정렬을 확인한다. 실패한 CI에서 나온 파일을 출시본으로
-  확정하지 않는다.
-- Windows ZIP·IPA·APK·안내서의 SHA-256을 확정하고 업로드 후 실제 다운로드와
-  대조한다. GitHub Pages의 기본 링크와 기존 공유 링크에 최신 안내가 나오는지
-  확인한다. 원본 개인 화면·접속 주소·계정·토큰·서명 키는 공개하지 않는다.
+- **완료:** Windows Release를 소스 `71d156122f1c0710ffbaf2563f982ac10bba5564`에서
+  별도 대상 경로로 빌드했다. 실행 중인 사용자의 기존 앱을 중단하거나 교체하지 않았다.
+- **완료:** 최종 iPad IPA는 `0.5.0 (15)`, arm64, 최소 iPadOS 17,
+  번들 ID `com.deskink.personal`이며 서명·프로비저닝 없이 제공하여 사용자가
+  iloader로 본인 계정으로 설치한다.
+- **완료:** 최종 Android APK는 `0.5.0 (4)`, 최소 API 26이다. v2/v3 서명과
+  zip alignment를 확인했고, 기존 인증서 SHA-256
+  `d6839b84a1e2e019e546ecbef57747de5fa07483024828770bdd09c23bd1aa02`가 유지된다.
+- **남음:** Windows ZIP 무결성·허용 파일 목록·모든 manifest 해시·빌드 소스·실제
+  exe 일치·포함 HTML 확인. 공백이 있는 새 경로에서 개발 SDK 없는 환경의
+  `-CheckOnly` 실행.
+- **남음:** Windows ZIP·IPA·APK·안내서의 SHA-256 확정 및 업로드 후 실제 다운로드
+  대조, GitHub Pages 기본 링크와 기존 공유 링크의 최신 안내 확인. 원본 개인
+  화면·접속 주소·계정·토큰·서명 키는 공개하지 않는다.
 
 ## 실제 기기 확인 목록
 
