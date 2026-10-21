@@ -54,3 +54,20 @@ Orca의 창 목록은 실제 앱의 필기층만 반환하고 컨트롤러를 �
   로컬 원본과 바이트 해시가 같음을 확인했다. IPA·APK는 공개 0.5.1과 같은 파일이다.
 - Windows ZIP SHA256: `6393c17cacbdc2cdef3d000a12e18750072a535630591e33d07e98e437431f16`.
 - Windows 실행 파일 SHA256: `906875ff2e1b40bce163653f930a0d0402b79fc7447bd15b0781d64447ea608d`.
+- 기존 다운로드 별칭 `v0.4.0-lab.1`도 갱신했다. GitHub API에서 두 릴리스의 6개 자산
+  파일명·크기·SHA256 digest가 모두 같음을 확인했다.
+- 공개 GitHub Pages의 `README.html`과 기존 `?guide=f335f2d` 주소 모두 새 HTML과
+  바이트 해시가 같았다. Windows 링크는 0.5.2, 태블릿 링크는 0.5.1을 가리킨다.
+
+## 실제 설치 확인
+
+- 설치된 updater의 Stage로 공개 GitHub 패키지를 다운로드·검증하고 Apply로
+  기존 설치 폴더에 적용했다. 결과는 `installed`, 버전은 `v0.5.2`였으며 시작 확인도 받았다.
+- 실행 중인 프로세스가 기존 바탕화면 DeskInk 폴더의 새 바이너리임을 확인했다.
+  설치 manifest의 버전·소스 commit과 실제 실행 파일 해시는 위 배포 값과 일치했다.
+- 실제 설정 경로인 `%LOCALAPPDATA%/DeskInk`의 `lan-setting.txt`와
+  `paired-tablets.bin`은 업데이트 전후 해시가 같았다.
+- 바탕화면 화면 1·2 바로가기의 대상은 기존 launcher이며 인자는 각각
+  `--monitor 0`, `--monitor 1`로 유지됐다.
+- 설치 후 LAN의 인증 전 HELLO 요청에 ACK(status 4)가 도착했다. 이 확인은
+  페어링하거나 영상을 시작하지 않으며, 실물 태블릿의 영상·필기 지연 검증을 대체하지 않는다.
