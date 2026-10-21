@@ -49,18 +49,33 @@ final class USBListenerTests: XCTestCase {
     func testInvalidAndMissingPreamblesCloseWithoutAccepting() async throws {
         for badPreamble in [Data("BADBYTES".utf8), Data()] {
             let listener = USBListener(port: 0)
-            let ready = expectation(description: "listener ready")
+            let scenario = badPreamble.isEmpty ? "missing preamble" : "invalid preamble"
+            let ready = expectation(description: "listener ready: \(scenario)")
             let closed = expectation(description: "invalid peer closed")
             let accepted = expectation(description: "invalid peer never accepted")
             accepted.isInverted = true
             let port = OSAllocatedUnfairLock<UInt16>(initialState: 0)
             listener.onState = { state in
-                if case .listening(let value) = state { port.withLock { $0 = value }; ready.fulfill() }
+                switch state {
+                case .listening(let value): port.withLock { $0 = value }; ready.fulfill()
+                case .failed(let message):
+                    XCTFail("USB listener failed before \(scenario): \(message)")
+                    ready.fulfill()
+                case .stopped: break
+                }
             }
             listener.onAccepted = { _ in accepted.fulfill() }
             listener.start()
             await fulfillment(of: [ready], timeout: 3)
-            let client = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port.withLock { $0 })!, using: .tcp)
+            let actualPort = port.withLock { $0 }
+            XCTAssertGreaterThan(actualPort, 0, "USB listener must bind a usable port before \(scenario)")
+            guard actualPort > 0 else {
+                listener.stop()
+                // A missing/failed listener is already a failure. Do not open
+                // port zero and turn it into an unrelated connect error too.
+                return
+            }
+            let client = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: actualPort)!, using: .tcp)
             client.stateUpdateHandler = { state in
                 guard case .ready = state else { return }
                 if !badPreamble.isEmpty { client.send(content: badPreamble, completion: .contentProcessed { XCTAssertNil($0) }) }
