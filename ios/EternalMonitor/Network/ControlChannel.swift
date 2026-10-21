@@ -5,7 +5,9 @@ import os
 /// Owns the HELLO2 handshake (retry until acked), periodic receiver reports
 /// (which double as the client's liveness signal), keyframe requests, and BYE.
 ///
-/// Threading: all state lives on `queue`; inbound datagrams are handed over
+/// Threading: protocol state lives on `queue`; the small ingress budget is
+/// locked so callers cannot create unbounded work before reaching that queue.
+/// Inbound datagrams are handed over
 /// via `handleControl`, callbacks fire on `queue` — the ConnectionManager hops
 /// to the MainActor itself.
 final class ControlChannel {
@@ -40,6 +42,22 @@ final class ControlChannel {
 
     private let queue: DispatchQueue
     private let send: (Data) -> Void
+
+    private struct InkIngress {
+        var reliable = false
+        var generation: UInt64 = 0
+        var session: UInt32 = 0
+        var epoch: UInt32 = 0
+        var outstanding = 0
+        var failed = false
+    }
+    private enum InkAdmission {
+        case legacy
+        case discard
+        case accepted(UInt64)
+        case overflow(UInt64)
+    }
+    private let inkIngress = OSAllocatedUnfairLock(initialState: InkIngress())
 
     private var sessionId: UInt32 = 0
     private var inkSequence: UInt64 = 0
@@ -123,6 +141,7 @@ final class ControlChannel {
     /// Begin the HELLO2 retry loop. `listenPort` is the ephemeral local port
     /// the media stream should target.
     func startHandshake(listenPort: UInt16, identity: ClientIdentity) {
+        resetInkIngress(reliable: identity.featureCaps & Hello2.featureReliableInk != 0)
         queue.async { [self] in
             stopReliableInk()
             usesReliableInk = identity.featureCaps & Hello2.featureReliableInk != 0
@@ -311,14 +330,23 @@ final class ControlChannel {
         authenticatedToken = ack.authToken
         refreshingSession = false
         if usesReliableInk, hostCaps & HelloAck.hostCapReliableInk != 0 {
-            let delivery = ReliableInkSender(nowUs: nowUs, send: send, failed: { [weak self] message in
-                self?.onInkFailure?(message)
+            let generation = resetInkIngress(reliable: true, session: sessionId, epoch: authenticatedEpoch)
+            let delivery = ReliableInkSender(nowUs: nowUs, send: { [weak self] packet in
+                // Stop/overflow may arrive from the pen thread while a coalesced
+                // batch is already running. Recheck before each actual send.
+                guard let self, self.isCurrentInkIngress(generation) else { return }
+                self.send(packet)
+            }, failed: { [weak self] message in
+                self?.reportInkFailure(generation: generation, message: message)
             })
             delivery.start(session: sessionId, epoch: ack.streamConfig.streamEpoch)
             reliableInk = delivery
             let timer = DispatchSource.makeTimerSource(queue: queue)
             timer.schedule(deadline: .now() + .milliseconds(20), repeating: .milliseconds(20), leeway: .milliseconds(1))
-            timer.setEventHandler { [weak delivery] in delivery?.tick() }
+            timer.setEventHandler { [weak self, weak delivery] in
+                guard self?.isCurrentInkIngress(generation) == true else { return }
+                delivery?.tick()
+            }
             inkRetryTimer = timer
             timer.resume()
         }
@@ -431,6 +459,8 @@ final class ControlChannel {
     }
 
     func stop() {
+        // Invalidate admissions immediately, even if the link queue is stalled.
+        resetInkIngress()
         queue.async { [self] in
             stopReliableInk()
             usesReliableInk = false
@@ -480,26 +510,79 @@ final class ControlChannel {
 
     /// Called on the same serial link queue as handleControl(_:).
     func handleInkAcknowledgement(_ bytes: Data) {
-        reliableInk?.acknowledge(bytes)
+        let generation = inkIngress.withLock { $0.generation }
+        let released = reliableInk?.acknowledge(bytes) ?? 0
+        inkIngress.withLock { state in
+            guard state.generation == generation, !state.failed else { return }
+            state.outstanding -= min(state.outstanding, released)
+        }
     }
 
     private func stopReliableInk() {
+        resetInkIngress()
         inkRetryTimer?.cancel()
         inkRetryTimer = nil
         reliableInk?.stop()
         reliableInk = nil
     }
 
+    @discardableResult
+    private func resetInkIngress(reliable: Bool? = nil, session: UInt32 = 0, epoch: UInt32 = 0) -> UInt64 {
+        inkIngress.withLock { state in
+            state.generation &+= 1
+            if let reliable { state.reliable = reliable }
+            state.session = session
+            state.epoch = epoch
+            state.outstanding = 0
+            state.failed = false
+            return state.generation
+        }
+    }
+
+    private func isCurrentInkIngress(_ generation: UInt64) -> Bool {
+        inkIngress.withLock { $0.generation == generation && $0.session != 0 && !$0.failed }
+    }
+
+    /// Always called on the link queue, once per failed admission generation.
+    private func reportInkFailure(generation: UInt64, message: String) {
+        guard inkIngress.withLock({ $0.reliable && $0.generation == generation }) else { return }
+        stopReliableInk()
+        onInkFailure?(message)
+    }
+
     func sendInk(_ commands: [DeskInkCommand], epoch: UInt32) {
-        queue.async { [self] in
-            guard sessionId != 0, hostCaps & 0x1000 != 0 else { return }
-            if usesReliableInk {
-                // A delayed UI sample from the previous stream cannot reset
-                // the sender to a retired epoch. Config messages own its binding.
-                guard reliableInk?.accepts(session: sessionId, epoch: epoch) == true else { return }
-                reliableInk?.send(commands)
-                return
+        guard !commands.isEmpty else { return }
+        let submittedUs = nowUs()
+        let admission: InkAdmission = inkIngress.withLock { state in
+            guard state.reliable else { return .legacy }
+            guard state.session != 0, state.epoch == epoch, !state.failed else { return .discard }
+            guard commands.count <= ReliableInkSender.maxPending - state.outstanding else {
+                state.failed = true
+                return .overflow(state.generation)
             }
+            state.outstanding += commands.count
+            return .accepted(state.generation)
+        }
+        switch admission {
+        case .discard:
+            return
+        case .overflow(let generation):
+            queue.async { [self] in
+                reportInkFailure(generation: generation, message: ReliableInkSender.failureMessage)
+            }
+            return
+        case .accepted(let generation):
+            queue.async { [self] in
+                guard isCurrentInkIngress(generation),
+                      reliableInk?.accepts(session: sessionId, epoch: epoch) == true else { return }
+                reliableInk?.send(commands, enqueuedUs: submittedUs)
+            }
+            return
+        case .legacy:
+            break
+        }
+        queue.async { [self] in
+            guard !usesReliableInk, sessionId != 0, hostCaps & 0x1000 != 0 else { return }
             if inkBinding != (sessionId, epoch) {
                 inkBinding = (sessionId, epoch)
                 inkSequence = 0
