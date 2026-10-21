@@ -13,9 +13,9 @@
     panels.forEach(panel => { panel.hidden = panel.dataset.devicePanel !== device; });
   }
   function revealDestination(hash) {
-    if (['#install', '#lightning', '#apple-devices', '#iloader', '#developer', '#renew'].includes(hash)) selectDevice('ipad');
-    if (hash === '#android') selectDevice('android');
     const destination = document.getElementById(hash.slice(1));
+    const panel = destination?.closest('[data-device-panel]');
+    if (panel) selectDevice(panel.dataset.devicePanel);
     if (destination?.matches('details')) destination.open = true;
   }
   if (controls) {
@@ -23,7 +23,11 @@
     selectDevice('ipad');
     revealDestination(window.location.hash);
     tabs.forEach((tab, index) => {
-      tab.addEventListener('click', () => selectDevice(tab.dataset.deviceTab));
+      const choose = (device, focus = false) => {
+        selectDevice(device, focus);
+        history.replaceState(null, '', '#downloads-' + device);
+      };
+      tab.addEventListener('click', () => choose(tab.dataset.deviceTab));
       tab.addEventListener('keydown', event => {
         let next;
         if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
@@ -32,7 +36,7 @@
         else if (event.key === 'End') next = tabs.length - 1;
         else return;
         event.preventDefault();
-        selectDevice(tabs[next].dataset.deviceTab, true);
+        choose(tabs[next].dataset.deviceTab, true);
       });
     });
     document.querySelectorAll('a[href^="#"]').forEach(link => {

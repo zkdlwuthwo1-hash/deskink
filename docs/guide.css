@@ -85,3 +85,7 @@ dialog{width:min(1120px,calc(100vw - 32px));max-height:94dvh;border:1px solid va
 @media(max-width:374px){.hero h1{font-size:33px}.top-nav{gap:10px;font-size:11px}.art-stage{padding:18px;min-height:300px}.art-screen{width:89%}.art-tablet{margin-left:22%;width:78%}.download-row{grid-template-columns:minmax(0,1fr) auto}.download-icon{display:none}.demo-caption{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
 @media print{.site-header,.side-nav,.actions,.platform-controls,dialog,.next-link,.download-row .button{display:none!important}.wrap{width:100%}.hero,.guide-layout,.site-footer{display:block}.hero-art{max-width:420px}.hero{padding-block:16px}body{background:#fff;font-size:10pt}.platform-panel[hidden]{display:block!important}section{padding-block:20px;break-inside:avoid}.figure img{max-height:320px;object-fit:contain}.pairing-demo{max-width:650px}*{animation:none!important}}
+
+/* One device choice controls both downloads and installation instructions. */
+.device-tab span{display:block;font-size:12px;font-weight:400;margin-top:3px}.download-panel .platform-heading{margin-top:8px}.download-panel .callout{margin:0 0 10px}.category-intro{font-size:14px;color:var(--muted)}
+@media print{[data-device-panel][hidden]{display:block!important}}
