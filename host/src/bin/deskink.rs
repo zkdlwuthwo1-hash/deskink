@@ -97,11 +97,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = eframe::run_native(
         "DeskInk",
         eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default().with_inner_size([580.0, 600.0]),
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([640.0, 760.0])
+                .with_min_inner_size([480.0, 560.0]),
             ..Default::default()
         },
         Box::new(move |cc| {
-            cc.egui_ctx.set_visuals(egui::Visuals::light());
+            eternal_host::deskink_ui::install(&cc.egui_ctx);
             *annotation.repaint.lock() = Some(cc.egui_ctx.clone());
             let (selection_tx, selection_rx) = mpsc::channel();
             let repaint = cc.egui_ctx.clone();
@@ -234,79 +236,81 @@ impl eframe::App for DeskInk {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        ui.painter()
-            .rect_filled(ui.max_rect(), 0.0, egui::Color32::from_rgb(248, 249, 251));
-        ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(25, 31, 42));
-        ui.spacing_mut().item_spacing.y = 9.0;
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.heading("DeskInk");
-            ui.label("Write on Windows from iPad or Android tablet");
-            ui.add_space(12.0);
-            let mut selected = None;
-            ui.horizontal_wrapped(|ui| {
-                for (index, output) in self.outputs.iter().enumerate() {
-                    let active = output.device_name == self.overlay.state.output.device_name;
-                    if ui
-                        .selectable_label(active, format!("Screen {}", index + 1))
-                        .clicked()
-                    {
-                        selected = Some(index);
-                    }
-                }
-            });
-            if let Some(index) = selected {
+        use eternal_host::deskink_ui::{self, Action, Connection, DashboardSnapshot, Monitor};
+
+        // Copy observed state, then release every shared lock before layout or
+        // interaction. The native controller never holds up the ink pipeline.
+        let connection = {
+            let session = self.shared.session.lock();
+            session
+                .client_info()
+                .zip(session.peer())
+                .map(|(client, peer)| Connection {
+                    device_name: client.device_name,
+                    usb: peer.link.is_usb(),
+                })
+        };
+        let (pairing_code, remembered) = {
+            let pairing = self.shared.pairing.lock();
+            (pairing.code(), pairing.remembered_count())
+        };
+        let (capture_fps, encode_fps, codec) = {
+            let stats = PIPELINE_STATS.lock();
+            (
+                stats.capture_fps,
+                stats.encode_fps,
+                stats.codec_name.clone(),
+            )
+        };
+        let state = DashboardSnapshot {
+            monitors: self
+                .outputs
+                .iter()
+                .map(|output| Monitor {
+                    name: output.device_name.clone(),
+                    width: output.width,
+                    height: output.height,
+                    primary: output.is_primary,
+                    active: output.device_name == self.overlay.state.output.device_name,
+                })
+                .collect(),
+            connection,
+            lan_enabled: self.shared.lan_enabled.load(Ordering::SeqCst),
+            pairing_code,
+            remembered,
+            capture_fps,
+            encode_fps,
+            codec,
+            error: self.error.clone(),
+        };
+        let monitor = state
+            .monitors
+            .iter()
+            .position(|output| output.active)
+            .unwrap_or(0);
+        let mut close = false;
+        let action = deskink_ui::dashboard(
+            ui,
+            &state,
+            |ui| self.lan.show(ui, &self.shared, &self.supervisor_tx),
+            |ui| close = self.updates.show(ui, monitor),
+        );
+        match action {
+            Some(Action::SelectMonitor(index)) => {
                 if let Err(error) = self.select_monitor(index) {
                     self.error = Some(error.to_string());
                 }
             }
-            ui.label(format!(
-                "Monitor: {} ({} x {})",
-                self.overlay.state.output.device_name,
-                self.overlay.state.output.width,
-                self.overlay.state.output.height
-            ));
-            ui.label(if self.shared.client_connected() {
-                "Tablet connected"
-            } else if self.shared.lan_enabled.load(Ordering::SeqCst) {
-                "Connect by USB or use the Wi-Fi / LAN address below"
-            } else {
-                "Connect your tablet by USB and open DeskInk"
-            });
-            ui.label(format!(
-                "Pairing code: {:06}",
-                self.shared.pairing.lock().code()
-            ));
-            ui.small("Enter the code once per PC. Registered tablets reconnect automatically.");
-            self.lan.show(ui, &self.shared, &self.supervisor_tx);
-            let remembered = self.shared.pairing.lock().remembered_count();
-            if remembered > 0
-                && ui
-                    .button(format!("Forget paired tablets ({remembered})"))
-                    .clicked()
-            {
+            Some(Action::ForgetTablets) => {
                 if let Err(error) = self.shared.pairing.lock().regenerate_token() {
                     self.error = Some(error.to_string());
                 }
             }
-            let stats = PIPELINE_STATS.lock();
-            ui.label(format!(
-                "Capture {:.0} fps   Encode {:.0} fps",
-                stats.capture_fps, stats.encode_fps
-            ));
-            ui.label(format!("Stream: {}", stats.codec_name));
-            drop(stats);
-            ui.add_space(12.0);
-            ui.label("Choose your pen, eraser, laser and colors on your tablet.");
-            ui.label("Screen shortcuts switch here. Each screen keeps its own ink.");
-            ui.label("Closing this app clears ink on all screens.");
-            let monitor = self.outputs.iter().position(|output| output.device_name == self.overlay.state.output.device_name).unwrap_or(0);
-            if self.updates.show(ui, monitor) {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            }
-            if let Some(error) = &self.error {
-                ui.colored_label(egui::Color32::LIGHT_RED, error);
-            }
-        });
+            None => {}
+        }
+        if close {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        }
     }
 }
 
@@ -367,6 +371,7 @@ mod tests {
             },
             Box::new(move |cc| {
                 eternal_host::clock::init();
+                eternal_host::deskink_ui::install(&cc.egui_ctx);
                 let start = Instant::now();
                 let output = capture::OutputInfo {
                     adapter_index: 0,

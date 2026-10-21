@@ -24,6 +24,7 @@ pub mod supervisor;
 pub mod transport;
 pub mod updates;
 pub mod deskink_updates;
+pub mod deskink_ui;
 pub mod vdd;
 pub mod vdd_settings;
 

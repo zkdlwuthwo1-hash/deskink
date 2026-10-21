@@ -9,12 +9,12 @@
 //!   (or "Waiting for an iPad" when nobody is connected);
 //! - on Settings, the "Encoder input" row.
 
-mod icons;
+pub(crate) mod icons;
 mod page_performance;
 mod page_settings;
 mod page_stream;
-mod theme;
-mod widgets;
+pub(crate) mod theme;
+pub(crate) mod widgets;
 
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;

@@ -20,16 +20,18 @@ USB 또는 같은 로컬 네트워크의 Wi-Fi/LAN으로 연결한 태블릿에 
 
 | 다운로드 | 사용 방법 |
 | --- | --- |
-| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-Windows-x64.zip?v=0.5.1) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
+| [**Windows 앱 ZIP 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.2/DeskInk-Windows-x64.zip?v=0.5.2) | 전체 압축을 풀고 아래의 기기별 설치 순서에 따라 실행 |
 | [**Android 앱 APK 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-Android.apk?v=0.5.1) | 갤럭시탭 등 Android 8 이상 태블릿에서 파일을 열고 **설치** |
 | [**iPad 앱 IPA 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-iPad-unsigned.ipa?v=0.5.1) | PC의 iloader에서 불러와 아이패드에 설치 |
 | [**iloader Windows 설치 파일 다운로드**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | iPad 앱 설치용 도구. 공식 배포처의 EXE를 받아 PC에서 실행 |
 | [**Apple 기기 설치 · Microsoft Store**](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR) | iPad 첫 USB 연결 준비·기기 인식 확인. 이미 정상 인식되는 PC는 생략 가능 |
-| [**설치·사용 안내 HTML 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/README.html) | 캡처가 포함된 안내서를 브라우저에서 열기 |
+| [**설치·사용 안내 HTML 다운로드**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.2/README.html) | 캡처가 포함된 안내서를 브라우저에서 열기 |
 
-**0.5.1에는 USB 우선 자동 연결과 Windows 앱 내 업데이트가 추가됩니다.** 새 자동 연결을 쓰려면 Windows와 태블릿 앱을 모두 업데이트하세요. 이전 Windows 버전은 한 번 종료하고 새 ZIP의 전체 내용을 기존 DeskInk 폴더에 덮어씁니다. 폴더 위치를 유지해야 기존 모니터 아이콘도 그대로 쓸 수 있습니다. 그 폴더의 DeskInk.exe를 실행하세요. 이후에는 앱이 새 버전을 자동으로 확인하며, **Download update → Install and restart**를 누를 때 설치·재시작합니다. 페어링 정보와 기존 모니터 아이콘은 유지되지만, 재시작하면 현재 필기는 지워집니다. iPad는 iloader로 새 IPA를 설치하고, Android는 새 APK를 기존 앱 위에 설치합니다. 장시간 사용 시 양쪽 기기가 함께 느려지는 문제는 별도로 조사 중입니다.
+**Windows 0.5.2는 PC 앱의 화면 구성을 개선하며, iPad·Android 0.5.1과 호환됩니다.** 태블릿이 이미 0.5.1이면 그대로 사용하세요. 이번 Windows UI 업데이트 때문에 태블릿 앱을 다시 설치할 필요는 없습니다.
 
-준비물: 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜. USB 연결과 iPad 설치에는 데이터 USB 케이블을, 무선 연결에는 신뢰하는 로컬 네트워크를 사용합니다. **Mac이나 개발 도구 없이 설치할 수 있습니다.** 첫 PC 설정에는 인터넷이 필요합니다. [전체 다운로드 파일](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.5.1) · [iloader 공식 안내](https://iloader.app/)
+USB 우선 자동 연결과 Windows 앱 내 업데이트는 **0.5.1부터** 지원합니다. Windows가 0.5.1보다 이전이면 한 번 종료하고 최신 ZIP의 전체 내용을 기존 DeskInk 폴더에 덮어씁니다. 폴더 위치를 유지해야 기존 모니터 아이콘도 그대로 쓸 수 있습니다. 그 폴더의 DeskInk.exe를 실행하세요. Windows 0.5.1 이상은 새 버전을 자동으로 확인하며, **App updates**를 펼쳐 **Download update → Install and restart (clears ink)**를 누를 때 설치·재시작합니다. 페어링 정보와 기존 모니터 아이콘은 유지되지만, 재시작하면 현재 필기는 지워집니다. 태블릿도 0.5.1보다 이전이라면 iPad는 iloader로 새 IPA를 설치하고, Android는 새 APK를 기존 앱 위에 설치합니다. 장시간 사용 시 양쪽 기기가 함께 느려지는 문제는 별도로 조사 중입니다.
+
+준비물: 최신 Windows x64 PC, iPadOS 17 이상 또는 Android 8 이상 태블릿, 호환 펜. USB 연결과 iPad 설치에는 데이터 USB 케이블을, 무선 연결에는 신뢰하는 로컬 네트워크를 사용합니다. **Mac이나 개발 도구 없이 설치할 수 있습니다.** 첫 PC 설정에는 인터넷이 필요합니다. [최신 배포 안내](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.5.2) · [iloader 공식 안내](https://iloader.app/)
 
 ## 아이패드에 처음 설치하기
 
@@ -57,9 +59,9 @@ USB 또는 같은 로컬 네트워크의 Wi-Fi/LAN으로 연결한 태블릿에 
 
 ## Wi-Fi/LAN으로 연결하기
 
-**Windows와 태블릿 앱을 모두 0.5.1으로 업데이트**하세요. USB가 기본이며, 네트워크 연결은 처음에는 꺼져 있습니다. **같은 공유기에 PC는 유선 이더넷, 태블릿은 Wi-Fi로 연결해도 됩니다.** 두 기기가 서로 통신할 수 있는 로컬 네트워크여야 하며, 인터넷을 통한 외부 원격 접속은 지원하지 않습니다.
+**현재 권장 조합은 Windows 0.5.2와 태블릿 앱 0.5.1입니다. 0.5.1보다 이전인 앱은 먼저 업데이트하세요.** USB가 기본이며, 네트워크 연결은 처음에는 꺼져 있습니다. **같은 공유기에 PC는 유선 이더넷, 태블릿은 Wi-Fi로 연결해도 됩니다.** 두 기기가 서로 통신할 수 있는 로컬 네트워크여야 하며, 인터넷을 통한 외부 원격 접속은 지원하지 않습니다.
 
-1. USB를 빼고 태블릿 연결을 종료합니다. Windows DeskInk의 **Wi-Fi / LAN** 항목을 펼쳐 **Allow Wi-Fi / LAN**을 켭니다. 연결 중에는 이 설정을 바꿀 수 없습니다. 아래 표시되는 PC의 **IPv4 주소와 Port**를 확인하세요. 기본 포트는 **9876**입니다. VPN·가상 어댑터 대신 태블릿과 같은 네트워크의 주소인지 확인하고, 네트워크를 바꿨다면 **Refresh IP**를 누릅니다.
+1. USB를 빼고 태블릿 연결을 종료합니다. Windows DeskInk의 **Wi-Fi / LAN** 카드에서 **Allow Wi-Fi / LAN**을 켭니다. 연결 중에는 이 설정을 바꿀 수 없습니다. 아래 표시되는 PC의 **IPv4 주소와 Port**를 확인하세요. 기본 포트는 **9876**입니다. VPN·가상 어댑터 대신 태블릿과 같은 네트워크의 주소인지 확인하고, 네트워크를 바꿨다면 **Refresh IP**를 누릅니다.
 2. **iPad:** Windows에서 **QR code (iPad)**를 누르고, iPad DeskInk의 **Scan QR code**로 읽습니다. 직접 입력하려면 **PC address**에 PC 주소를, **Port**에 표시된 포트를 넣고 **Connect**를 누르세요. **로컬 네트워크 접근**을 요청하면 허용합니다. QR에는 접속 주소만 들어 있으며, 처음 등록할 때는 페어링 코드도 입력합니다.
 3. **Android:** **Wi-Fi / LAN** 연결을 선택하고 PC의 IP 주소와 포트를 직접 입력해 연결합니다. Android에는 QR 스캔 기능이 없습니다. 이번 버전은 **Find PCs** 대신 QR·IP 입력으로 연결하세요.
 4. 처음 사용하는 PC라면 아래 안내대로 **6자리 페어링 코드**를 입력합니다. 이전에 등록한 PC 정보는 유지됩니다. 태블릿에 Windows 화면이 나타나면 필기를 시작하세요.
@@ -108,8 +110,8 @@ Zoom에서는 직접 **필기하는 모니터 전체**를 공유하고 다른 �
 
 ## 막힐 때
 
-- **“Different versions — update both” / “EternalMonitor”가 나옴:** PC와 태블릿의 연결 방식이 서로 호환되지 않는다는 뜻입니다. Windows만 바꾸지 말고 태블릿 앱도 최신으로 설치하세요. iPad는 새 IPA를 iloader에 불러와 같은 Apple 계정으로 기존 DeskInk 위에 설치합니다. 그다음 **Scan QR code** 또는 PC의 **IP·포트**로 다시 연결하세요.
-- **무선 연결이 안 됨:** 양쪽 앱이 0.5.1인지, Windows의 **Allow Wi-Fi / LAN**이 켜져 있는지, 현재 PC 주소·포트가 맞는지 확인합니다. iPad 로컬 네트워크 권한, 같은 네트워크인지, 게스트 Wi-Fi·기기 간 통신 차단, 방화벽의 개인 네트워크·로컬 서브넷 허용을 확인하세요. 페어링 코드만으로 PC를 찾을 수는 없으므로 먼저 IP 입력이나 QR 스캔으로 선택합니다. [연결 순서 보기](#wi-filan으로-연결하기)
+- **“Different versions — update both” / “EternalMonitor”가 나옴:** PC와 태블릿의 연결 방식이 서로 호환되지 않는다는 뜻입니다. 양쪽 앱 중 0.5.1보다 이전인 앱이 있으면 업데이트하세요. Windows 0.5.2와 태블릿 0.5.1은 호환되므로 버전 숫자를 똑같이 맞출 필요는 없습니다. iPad 업데이트가 필요하면 새 IPA를 iloader에 불러와 같은 Apple 계정으로 기존 DeskInk 위에 설치합니다. 그다음 **Scan QR code** 또는 PC의 **IP·포트**로 다시 연결하세요.
+- **무선 연결이 안 됨:** 현재 배포 조합인 Windows 0.5.2·태블릿 0.5.1을 사용하는지, Windows의 **Allow Wi-Fi / LAN**이 켜져 있는지, 현재 PC 주소·포트가 맞는지 확인합니다. iPad 로컬 네트워크 권한, 같은 네트워크인지, 게스트 Wi-Fi·기기 간 통신 차단, 방화벽의 개인 네트워크·로컬 서브넷 허용을 확인하세요. 페어링 코드만으로 PC를 찾을 수는 없으므로 먼저 IP 입력이나 QR 스캔으로 선택합니다. [연결 순서 보기](#wi-filan으로-연결하기)
 - **iPad가 PC·iloader에 안 보임:** [Apple 기기 앱에서 먼저 확인](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices)합니다. 왼쪽 목록에도 안 보이면 iPad 잠금 해제 → 컴퓨터 신뢰 → 데이터 케이블·다른 USB 포트를 확인하세요. Apple 기기에는 보이면 iloader에서 **Refresh Devices / 기기 새로고침(Ctrl+R)**을 누르고, 계속 없으면 iloader를 다시 실행합니다. Apple 구성요소가 없다는 오류는 [iloader 공식 설치 안내](https://iloader.app/)를 따르세요.
 - **Apple Devices 상시 실행 여부:** 앱을 열지 않아도 연결된다면 그대로 사용합니다. 해당 앱을 닫으면 연결이 끊기는 PC에서만 사용 중 최소화해 두세요.
 - **Android가 안 보임:** `DeskInk-Android.exe` 실행 → USB 디버깅 켜기 → 태블릿에서 PC 허용 → 데이터 케이블·삼성 USB 드라이버를 확인합니다. 앱을 태블릿 화면에 열어 두세요.

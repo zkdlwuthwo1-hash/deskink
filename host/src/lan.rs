@@ -1,5 +1,6 @@
 //! Opt-in LAN setup for the DeskInk controller. No work runs on the ink/video path.
 use crate::control::{SharedControl, SupervisorCommand};
+use crate::deskink_ui as design;
 use eframe::egui;
 use std::{
     net::SocketAddr,
@@ -52,13 +53,35 @@ impl LanPanel {
         shared: &SharedControl,
         commands: &Sender<SupervisorCommand>,
     ) {
-        ui.collapsing("Wi-Fi / LAN", |ui| {
+        design::card().show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(design::heading("Wi-Fi / LAN"));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    design::badge(
+                        ui,
+                        if self.enabled { "Enabled" } else { "Off" },
+                        if self.enabled {
+                            design::ACCENT
+                        } else {
+                            design::TEXT_MUTED
+                        },
+                    );
+                });
+            });
+            if !self.enabled {
+                design::paragraph(
+                    ui,
+                    design::muted("An optional connection through your local network."),
+                );
+            }
+            ui.add_space(4.0);
             let connected = shared.client_connected();
             let mut enabled = self.enabled;
             if ui
                 .add_enabled(
                     !connected,
-                    egui::Checkbox::new(&mut enabled, "Allow Wi-Fi / LAN"),
+                    egui::Checkbox::new(&mut enabled, design::strong("Allow Wi-Fi / LAN")),
                 )
                 .changed()
             {
@@ -87,70 +110,172 @@ impl LanPanel {
                 }
             }
             if connected {
-                ui.small("Disconnect the tablet before changing network access.");
+                design::paragraph(
+                    ui,
+                    design::muted("Disconnect the tablet before changing network access."),
+                );
             }
             if self.enabled {
-                ui.small("Use DeskInk 0.5.0+ on your tablet, on the same trusted router.");
-                ui.small("PC Ethernet + tablet Wi-Fi works. Traffic is not encrypted.");
+                ui.add_space(4.0);
+                design::divider(ui);
+                design::section_label(ui, "PC address");
                 if let Some(address) = self.address {
-                    ui.horizontal(|ui| {
-                        ui.label(format!(
-                            "PC address: {}    Port: {}",
-                            address.ip(),
-                            address.port()
-                        ));
-                        if ui.button("Copy IP").clicked() {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(design::mono(address.ip().to_string(), 22.0));
+                        if design::button(
+                            ui,
+                            design::Tone::Secondary,
+                            Some(design::Icon::Copy),
+                            "Copy IP",
+                        )
+                        .clicked()
+                        {
                             ui.ctx().copy_text(address.ip().to_string());
                         }
                     });
-                    ui.horizontal(|ui| {
-                        if ui.button("QR code (iPad)").clicked() {
+                    ui.label(
+                        design::mono(format!("Port {}", address.port()), 12.5)
+                            .color(design::TEXT_MUTED),
+                    );
+                    ui.add_space(2.0);
+                    ui.horizontal_wrapped(|ui| {
+                        if design::button(
+                            ui,
+                            design::Tone::Secondary,
+                            Some(design::Icon::Qr),
+                            "QR code (iPad)",
+                        )
+                        .clicked()
+                        {
                             self.refresh();
                             self.show_qr = true;
                         }
-                        if ui.button("Refresh IP").clicked() {
+                        if design::button(
+                            ui,
+                            design::Tone::Ghost,
+                            Some(design::Icon::Refresh),
+                            "Refresh IP",
+                        )
+                        .clicked()
+                        {
                             self.refresh();
                         }
                     });
                 } else {
-                    ui.label("No LAN address found. Connect Wi-Fi or Ethernet.");
-                    if ui.button("Refresh IP").clicked() {
+                    design::paragraph(ui, design::strong("No LAN address found"));
+                    design::paragraph(
+                        ui,
+                        design::muted("Connect this PC to Wi-Fi or Ethernet, then refresh."),
+                    );
+                    if design::button(
+                        ui,
+                        design::Tone::Secondary,
+                        Some(design::Icon::Refresh),
+                        "Refresh IP",
+                    )
+                    .clicked()
+                    {
                         self.refresh();
                     }
                 }
-                ui.small("iPad: Scan QR code or enter IP. Android: Wi-Fi / LAN, then IP.");
-                ui.small(
-                    "First connection asks for the pairing code above. Unplug USB to use Wi-Fi.",
+                ui.add_space(4.0);
+                design::paragraph(
+                    ui,
+                    design::muted(
+                        "First connection: enter the pairing code above. Unplug USB to use Wi-Fi.",
+                    ),
                 );
-                ui.hyperlink_to(
-                    "Connection and Windows firewall help",
-                    "https://zkdlwuthwo1-hash.github.io/deskink/README.html#wireless",
-                );
+                egui::CollapsingHeader::new(design::muted("Connection help"))
+                    .id_salt("deskink-lan-help")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        design::paragraph(
+                            ui,
+                            design::muted(
+                                "iPad: scan the QR code or enter the IP. Android: choose Wi-Fi / LAN, then enter the IP.",
+                            ),
+                        );
+                        design::paragraph(
+                            ui,
+                            design::muted(
+                                "Requires DeskInk 0.5.0+ on your tablet and the same trusted router. PC Ethernet + tablet Wi-Fi works. Traffic is not encrypted.",
+                            ),
+                        );
+                        ui.hyperlink_to(
+                            design::muted("Connection and Windows firewall help")
+                                .color(design::ACCENT),
+                            "https://zkdlwuthwo1-hash.github.io/deskink/README.html#wireless",
+                        );
+                    });
             } else {
-                ui.small("USB works as before. Network access is off by default.");
+                design::paragraph(
+                    ui,
+                    design::muted("USB is ready to use. Network access is off by default."),
+                );
             }
             if let Some(error) = &self.error {
-                ui.colored_label(egui::Color32::RED, error);
+                ui.add_space(4.0);
+                design::paragraph(ui, design::muted(error).color(design::DANGER));
             }
         });
         if self.show_qr {
-            egui::Window::new("Scan with DeskInk on iPad").open(&mut self.show_qr).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
-                if let Some(code) = &self.qr {
-                    let cells = code.width();
-                    let size = 280.0;
-                    let (rect, _) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
-                    ui.painter().rect_filled(rect, 0.0, egui::Color32::WHITE);
-                    let module = (size / (cells + 8) as f32).floor();
-                    let origin = rect.min + egui::Vec2::splat((size - cells as f32 * module) / 2.0);
-                    for y in 0..cells { for x in 0..cells {
-                        if code[(x, y)] == qrcode::Color::Dark {
-                            ui.painter().rect_filled(egui::Rect::from_min_size(origin + egui::vec2(x as f32 * module, y as f32 * module), egui::Vec2::splat(module)), 0.0, egui::Color32::BLACK);
+            egui::Window::new("Connect your iPad")
+                .open(&mut self.show_qr)
+                .collapsible(false)
+                .resizable(false)
+                .default_width(320.0)
+                .show(ui.ctx(), |ui| {
+                    ui.set_width(320.0);
+                    if let Some(code) = &self.qr {
+                        design::paragraph(
+                            ui,
+                            design::muted("Open DeskInk on your iPad and scan this code."),
+                        );
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 0.0;
+                            ui.add_space(20.0);
+                            let cells = code.width();
+                            let size = 280.0;
+                            let (rect, _) = ui.allocate_exact_size(
+                                egui::vec2(size, size),
+                                egui::Sense::hover(),
+                            );
+                            ui.painter().rect_filled(rect, 0.0, egui::Color32::WHITE);
+                            let module = (size / (cells + 8) as f32).floor();
+                            let origin =
+                                rect.min + egui::Vec2::splat((size - cells as f32 * module) / 2.0);
+                            for y in 0..cells {
+                                for x in 0..cells {
+                                    if code[(x, y)] == qrcode::Color::Dark {
+                                        ui.painter().rect_filled(
+                                            egui::Rect::from_min_size(
+                                                origin
+                                                    + egui::vec2(
+                                                        x as f32 * module,
+                                                        y as f32 * module,
+                                                    ),
+                                                egui::Vec2::splat(module),
+                                            ),
+                                            0.0,
+                                            egui::Color32::BLACK,
+                                        );
+                                    }
+                                }
+                            }
+                        });
+                        ui.add_space(8.0);
+                        if let Some(address) = self.address {
+                            ui.label(design::mono(address.to_string(), 13.5));
                         }
-                    }}
-                    if let Some(address) = self.address { ui.label(address.to_string()); }
-                    ui.label("This QR contains the address only. Enter the PC pairing code when asked.");
-                }
-            });
+                        design::paragraph(
+                            ui,
+                            design::muted(
+                                "This QR contains the address only. Enter the PC pairing code when asked.",
+                            ),
+                        );
+                    }
+                });
         }
     }
 }

@@ -1,5 +1,6 @@
 //! Portable DeskInk updates. Network and package work run off the ink, capture,
 //! transport, and GUI threads. Only an explicit install click requests exit.
+use crate::deskink_ui as design;
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -174,46 +175,136 @@ impl UpdatePanel {
         }
         let mut prepare = None;
         let mut install = None;
-        ui.group(|ui| {
-            ui.label("App updates");
-            match &self.state {
-                State::Unmanaged => {
-                    ui.small("Updates are available in the portable Windows package.");
+        let (status, color) = match &self.state {
+            State::Unmanaged => ("Portable only", design::TEXT_MUTED),
+            State::Checking => ("Checking", design::TEXT_MUTED),
+            State::Current => ("Up to date", design::TEXT_MUTED),
+            State::Available(_) => ("Update available", design::ACCENT),
+            State::Preparing => ("Downloading", design::TEXT_MUTED),
+            State::Ready(_) => ("Ready to install", design::ACCENT),
+            State::Installing => ("Restarting", design::WARNING),
+            State::Failed(_) => ("Unavailable", design::WARNING),
+        };
+        let needs_action = matches!(self.state, State::Available(_) | State::Ready(_));
+        design::card()
+            .inner_margin(egui::Margin::symmetric(16, 10))
+            .stroke(egui::Stroke::new(
+                1.0,
+                if needs_action {
+                    design::tint_border(design::ACCENT)
+                } else {
+                    design::BORDER
+                },
+            ))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                let mut toggle = false;
+                let mut header = egui::collapsing_header::CollapsingState::load_with_default_open(
+                    ui.ctx(),
+                    ui.make_persistent_id("deskink-app-updates"),
+                    false,
+                )
+                .show_header(ui, |ui| {
+                    toggle = design::button(ui, design::Tone::Ghost, None, "App updates").clicked();
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        design::badge(ui, status, color);
+                    });
+                });
+                if toggle {
+                    header.toggle();
                 }
-                State::Checking => {
-                    ui.small("Checking for updates in the background...");
-                }
-                State::Current => {
-                    ui.small("DeskInk is up to date.");
-                }
-                State::Available(offer) => {
-                    ui.label(format!("DeskInk {} is available", offer.version));
-                    if ui.button("Download update").clicked() {
-                        prepare = Some(offer.clone());
+                header.body_unindented(|ui| {
+                    design::divider(ui);
+                    ui.add_space(4.0);
+                    match &self.state {
+                        State::Unmanaged => {
+                            design::paragraph(
+                                ui,
+                                design::muted("Updates are available in the portable Windows package."),
+                            );
+                        }
+                        State::Checking => {
+                            design::paragraph(
+                                ui,
+                                design::muted("Checking for updates in the background..."),
+                            );
+                        }
+                        State::Current => {
+                            design::paragraph(ui, design::muted("DeskInk is up to date."));
+                        }
+                        State::Available(offer) => {
+                            ui.label(design::strong(format!(
+                                "DeskInk {} is available",
+                                offer.version
+                            )));
+                            design::paragraph(
+                                ui,
+                                design::muted(
+                                    "You can keep writing while it downloads. Install when ready.",
+                                ),
+                            );
+                            ui.add_space(2.0);
+                            if design::button(
+                                ui,
+                                design::Tone::Primary,
+                                Some(design::Icon::Download),
+                                "Download update",
+                            )
+                            .clicked()
+                            {
+                                prepare = Some(offer.clone());
+                            }
+                        }
+                        State::Preparing => {
+                            design::paragraph(
+                                ui,
+                                design::strong("Downloading and verifying update"),
+                            );
+                            design::paragraph(
+                                ui,
+                                design::muted("DeskInk stays open. You can keep writing."),
+                            );
+                        }
+                        State::Ready(job) => {
+                            ui.label(design::strong("Update verified and ready."));
+                            design::paragraph(
+                                ui,
+                                design::muted(
+                                    "Installing closes DeskInk and clears the current ink on every screen.",
+                                )
+                                .color(design::WARNING),
+                            );
+                            ui.add_space(2.0);
+                            if design::button(
+                                ui,
+                                design::Tone::Secondary,
+                                Some(design::Icon::Refresh),
+                                "Install and restart (clears ink)",
+                            )
+                            .clicked()
+                            {
+                                install = Some(job.clone());
+                            }
+                        }
+                        State::Installing => {
+                            design::paragraph(
+                                ui,
+                                design::muted(
+                                    "Preparing installer. DeskInk will restart when it is ready.",
+                                ),
+                            );
+                        }
+                        State::Failed(error) => {
+                            design::paragraph(
+                                ui,
+                                design::strong("Update unavailable. DeskInk keeps working."),
+                            );
+                            design::paragraph(ui, design::muted(error).color(design::WARNING));
+                        }
                     }
-                    ui.small("You can keep writing while it downloads. Install when ready.");
-                }
-                State::Preparing => {
-                    ui.small("Downloading and verifying update. DeskInk stays open.");
-                }
-                State::Ready(job) => {
-                    ui.label("Update verified and ready.");
-                    ui.small(
-                        "Installing closes DeskInk and clears the current ink on every screen.",
-                    );
-                    if ui.button("Install and restart (clears ink)").clicked() {
-                        install = Some(job.clone());
-                    }
-                }
-                State::Installing => {
-                    ui.small("Preparing installer. DeskInk will restart when it is ready.");
-                }
-                State::Failed(error) => {
-                    ui.small("Update unavailable. DeskInk keeps working.");
-                    ui.small(error);
-                }
-            }
-        });
+                    ui.add_space(4.0);
+                });
+            });
         if let Some(offer) = prepare {
             if let Some(root) = self.root.clone() {
                 let sender = self.sender.clone();
