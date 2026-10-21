@@ -449,9 +449,9 @@ struct ConnectView: View {
             port = String(target.port)
             connectionManager.connect(host: target.host, port: target.port, token: target.token)
         case .failure(.wrongScheme):
-            connectionManager.connectionError = "That QR code isn't from EternalMonitor. Scan the code shown on the PC’s Stream page."
+            connectionManager.connectionError = "DeskInk 연결용 QR 코드가 아닙니다. Windows DeskInk의 Wi-Fi/LAN 영역에 표시된 QR 코드를 스캔하세요."
         case .failure:
-            connectionManager.connectionError = "That QR code couldn't be read. Try again, or type the address instead."
+            connectionManager.connectionError = "QR 코드를 읽지 못했습니다. 다시 스캔하거나 Windows DeskInk에 표시된 IP 주소와 포트를 입력하세요."
         }
     }
 

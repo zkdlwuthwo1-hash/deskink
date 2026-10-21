@@ -111,6 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })?;
             Ok(Box::new(DeskInk {
                 lan,
+                updates: eternal_host::deskink_updates::UpdatePanel::start(&cc.egui_ctx),
                 shared: controller,
                 overlay,
                 error: None,
@@ -135,6 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 struct DeskInk {
     lan: eternal_host::lan::LanPanel,
+    updates: eternal_host::deskink_updates::UpdatePanel,
     shared: SharedControl,
     overlay: AnnotationSurface,
     error: Option<String>,
@@ -297,6 +299,10 @@ impl eframe::App for DeskInk {
             ui.label("Choose your pen, eraser, laser and colors on your tablet.");
             ui.label("Screen shortcuts switch here. Each screen keeps its own ink.");
             ui.label("Closing this app clears ink on all screens.");
+            let monitor = self.outputs.iter().position(|output| output.device_name == self.overlay.state.output.device_name).unwrap_or(0);
+            if self.updates.show(ui, monitor) {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
             if let Some(error) = &self.error {
                 ui.colored_label(egui::Color32::LIGHT_RED, error);
             }
@@ -378,6 +384,7 @@ mod tests {
                 *annotation.repaint.lock() = Some(cc.egui_ctx.clone());
                 let app = DeskInk {
                     lan: eternal_host::lan::LanPanel::new(std::path::PathBuf::new()),
+                    updates: eternal_host::deskink_updates::UpdatePanel::disabled(),
                     shared: SharedControl::new(0, 15_000_000),
                     overlay,
                     error: None,
@@ -510,6 +517,7 @@ mod tests {
         );
         let mut app = DeskInk {
             lan: eternal_host::lan::LanPanel::new(std::path::PathBuf::new()),
+            updates: eternal_host::deskink_updates::UpdatePanel::disabled(),
             shared: SharedControl::new(0, 15_000_000),
             overlay,
             error: None,
@@ -656,6 +664,7 @@ mod tests {
         let (supervisor_tx, _supervisor_rx) = mpsc::channel();
         let mut app = DeskInk {
             lan: eternal_host::lan::LanPanel::new(std::path::PathBuf::new()),
+            updates: eternal_host::deskink_updates::UpdatePanel::disabled(),
             shared,
             overlay,
             error: None,

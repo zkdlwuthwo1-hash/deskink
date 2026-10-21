@@ -146,7 +146,7 @@ public final class UdpClient implements AutoCloseable {
                 return () -> { listener.state(UsbClient.State.INCOMPATIBLE); close(); };
             }
             if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return null;
-            UsbClient.Binding next=new UsbClient.Binding(ack.session,ack.config,ack.host,ack.token);
+            UsbClient.Binding next=new UsbClient.Binding(ack.session,ack.config,ack.host,ack.token,ack.pcId);
             configure(next);
             List<PcRegistration> saved=new ArrayList<>(registrations);
             if(PcRegistration.valid(ack.token)) {
@@ -228,6 +228,17 @@ public final class UdpClient implements AutoCloseable {
     private void fail(Failure failure) {
         synchronized(lock) { if(closed) return; close(); }
         listener.state(UsbClient.State.DISCONNECTED); listener.failure(failure);
+    }
+    /** Best-effort session release off the UI/pen thread; 4 retains the host display for USB takeover. */
+    public void disconnect(int reason) {
+        synchronized(lock) {
+            if(!closed&&binding!=null&&socket!=null) {
+                byte[] goodbye=Wire.control(0x13,binding.session,++controlSequence,new byte[]{(byte)reason});
+                try { socket.send(new DatagramPacket(goodbye,goodbye.length)); }
+                catch(IOException ignored) { /* USB HELLO can supersede this same device if BYE is lost. */ }
+            }
+            close();
+        }
     }
     @Override public void close() {
         synchronized(lock) {

@@ -23,6 +23,7 @@ pub mod stats;
 pub mod supervisor;
 pub mod transport;
 pub mod updates;
+pub mod deskink_updates;
 pub mod vdd;
 pub mod vdd_settings;
 

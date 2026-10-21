@@ -77,7 +77,8 @@ final class ConnectionManager: ObservableObject {
     @Published var pairingPrompt: PairingSheetModel?
     private var awaitingPairing = false
     private var explicitPairingToken: Data?
-    private let pairingStore = PairingStore.shared
+    private let pairingStore: PairingStore
+    private let usbPort: UInt16
     @Published private(set) var diagnostics: [DiagnosticEntry] = []
     /// Live stream health for the HUD, recomputed at the 4 Hz flush.
     @Published private(set) var stats = StreamStats()
@@ -101,10 +102,22 @@ final class ConnectionManager: ObservableObject {
     @Published private(set) var hostStreamConfig: StreamConfig?
 
     @Published private(set) var usbStatus = "USB: waiting for a cable"
+    /// The actual loopback listening endpoint, also useful for diagnostics when
+    /// the operating system assigns an ephemeral port.
+    @Published private(set) var usbListeningPort: UInt16?
     private var mediaLink: (any MediaLink)?
     private var usbListener: USBListener?
     private var isForeground = true
     private var usbPaused = false
+    private var automaticStartupStarted = false
+    private var nextAutomaticPCID: Data?
+    private var reconnectGeneration = UUID()
+    private struct RememberedLAN {
+        let host: String
+        let port: UInt16
+        let pcID: Data?
+    }
+    private var foregroundTarget: RememberedLAN?
     private let currentAttempt = OSAllocatedUnfairLock<UUID?>(initialState: nil)
     private var frameAssembler: FrameAssembler?
     private var controlChannel: ControlChannel?
@@ -140,26 +153,33 @@ final class ConnectionManager: ObservableObject {
 
     static let connectionTimeoutSeconds: UInt64 = 10
 
+    init(pairingStore: PairingStore? = nil, usbPort: UInt16 = 9877) {
+        self.pairingStore = pairingStore ?? .shared
+        self.usbPort = usbPort
+    }
+
     func refreshUSBAvailability() {
+        defer { startAutomaticConnectionIfNeeded() }
         let allowed = UserDefaults.standard.flag(forKey: "allowUSB")
         guard allowed, isForeground, !usbPaused else {
             usbListener?.stop()
             usbListener = nil
+            usbListeningPort = nil
             usbStatus = allowed ? "USB: disconnected" : "USB: off"
             if !allowed, mediaLink?.isUSB == true { beginReconnect(reason: "USB connections turned off") }
             return
         }
         guard usbListener == nil else { return }
-        let listener = USBListener()
+        let listener = USBListener(port: usbPort)
         usbListener = listener
         listener.onState = { [weak self, weak listener] state in
             Task { @MainActor in
                 guard let self, let listener, self.usbListener === listener else { return }
                 if self.mediaLink?.isUSB == true { return }
                 switch state {
-                case .listening: self.usbStatus = "USB: waiting for a cable"
-                case .failed(let message): self.usbStatus = "USB: unavailable"; self.record(.warning, "usb", message)
-                case .stopped: self.usbStatus = "USB: disconnected"
+                case .listening(let port): self.usbListeningPort = port; self.usbStatus = "USB: waiting for a cable"
+                case .failed(let message): self.usbListeningPort = nil; self.usbStatus = "USB: unavailable"; self.record(.warning, "usb", message)
+                case .stopped: self.usbListeningPort = nil; self.usbStatus = "USB: disconnected"
                 }
             }
         }
@@ -168,6 +188,8 @@ final class ConnectionManager: ObservableObject {
                 guard let self, let listener, self.usbListener === listener,
                       self.isForeground, !self.usbPaused, self.mediaLink?.isUSB != true else { link.stop(); return }
                 self.reconnectTask?.cancel()
+                self.reconnectTask = nil
+                self.reconnectGeneration = UUID()
                 self.reconnectAttempt = 0
                 if self.state != .disconnected {
                     E2E.linkSwitch(from: "udp", to: "usb")
@@ -181,7 +203,49 @@ final class ConnectionManager: ObservableObject {
 
     func resumeUSBConnections() {
         usbPaused = false
+        automaticStartupStarted = false
         refreshUSBAvailability()
+    }
+
+    /// Only addresses that actually displayed video and still have a saved
+    /// pairing may be contacted without a user selecting a PC again.
+    private func rememberedLAN(matching session: ControlChannel.SessionInfo? = nil) -> RememberedLAN? {
+        let defaults = UserDefaults.standard
+        guard let host = defaults.string(forKey: "lastHost"), !host.isEmpty,
+              let port = UInt16(exactly: defaults.integer(forKey: "lastPort")), port > 0,
+              let token = try? pairingStore.token(address: PairingStore.address(host: host, port: port))
+        else { return nil }
+        let savedID = defaults.data(forKey: "lastLANPCID").flatMap { PairingStore.valid($0) ? $0 : nil }
+        if let session {
+            if let savedID, PairingStore.valid(session.pcID) {
+                guard savedID == session.pcID else { return nil }
+            } else {
+                // Older hosts did not advertise a PC ID. Never guess from a
+                // display name: only the existing Keychain credential can match.
+                guard token == session.authToken else { return nil }
+            }
+        }
+        return RememberedLAN(host: host, port: port, pcID: savedID)
+    }
+
+    private func startAutomaticConnectionIfNeeded() {
+        guard !automaticStartupStarted, isForeground, !usbPaused else { return }
+        automaticStartupStarted = true
+        guard state == .disconnected, UserDefaults.standard.flag(forKey: "autoReconnect"),
+              let target = rememberedLAN() else { return }
+        startReconnectCycle(to: target)
+    }
+
+    private func rememberedLANForCurrentSelection() -> RememberedLAN? {
+        if mediaLink?.isUSB == true {
+            return hostInfo.flatMap { rememberedLAN(matching: $0) }
+        }
+        guard let remembered = rememberedLAN(matching: hostInfo) else { return nil }
+        if let selected = lastTarget {
+            guard PairingStore.address(host: selected.host, port: selected.port) ==
+                    PairingStore.address(host: remembered.host, port: remembered.port) else { return nil }
+        }
+        return remembered
     }
 
     // MARK: - Frame slot (thread-safe single-slot)
@@ -220,6 +284,14 @@ final class ConnectionManager: ObservableObject {
 
     func connect(host: String, port: UInt16, token: Data? = nil) {
         guard state == .disconnected else { return }
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectGeneration = UUID()
+        reconnectAttempt = 0
+        nextAutomaticPCID = nil
+        automaticStartupStarted = true
+        usbPaused = false
+        refreshUSBAvailability()
         explicitPairingToken = token
         if let token {
             do { try pairingStore.save(token: token, hostName: "", address: PairingStore.address(host: host, port: port)) }
@@ -238,12 +310,15 @@ final class ConnectionManager: ObservableObject {
     }
 
     func forgetPairedHosts() {
+        cancel()
         do { try pairingStore.forgetAll() }
         catch { connectionError = "Could not remove saved pairings from this iPad." }
     }
 
     func connect(target: ConnectionTarget) {
         guard state == .disconnected else { return }
+        let expectedPCID = nextAutomaticPCID
+        nextAutomaticPCID = nil
         let normalizedHost: String
         let port: UInt16
         let receiver: any MediaLink
@@ -258,10 +333,6 @@ final class ConnectionManager: ObservableObject {
             normalizedHost = "USB"
             port = 9877
             receiver = link
-            if lastTarget == nil, let host = UserDefaults.standard.string(forKey: "lastHost"), !host.isEmpty {
-                let savedPort = UserDefaults.standard.integer(forKey: "lastPort")
-                lastTarget = (host, UInt16(exactly: savedPort).flatMap { $0 == 0 ? nil : $0 } ?? 9876)
-            }
         }
         let isUSB = receiver.isUSB
         let pairingAddress = isUSB ? "USB" : PairingStore.address(host: normalizedHost, port: port)
@@ -342,6 +413,11 @@ final class ConnectionManager: ObservableObject {
                     if !isUSB {
                         UserDefaults.standard.set(normalizedHost, forKey: "lastHost")
                         UserDefaults.standard.set(Int(port), forKey: "lastPort")
+                        if let pcID = self.hostInfo?.pcID, PairingStore.valid(pcID) {
+                            UserDefaults.standard.set(pcID, forKey: "lastLANPCID")
+                        } else {
+                            UserDefaults.standard.removeObject(forKey: "lastLANPCID")
+                        }
                     }
                 }
                 self.fpsCounter.tick()
@@ -467,8 +543,17 @@ final class ConnectionManager: ObservableObject {
             Task { @MainActor in
                 guard let self, self.currentAttempt.withLock({ $0 == connectionID }),
                       monitorIdentityRevision.withLock({ $0 == revision }) else { return }
+                if !isUSB, let expectedPCID, expectedPCID != info.pcID {
+                    self.reconnectTask?.cancel()
+                    self.reconnectAttempt = 0
+                    self.connectionError = "저장된 주소에서 다른 PC가 응답했습니다. 연결할 PC의 주소와 페어링 코드를 다시 확인하세요."
+                    self.disconnect(reason: .error)
+                    return
+                }
                 if !isUSB, info.hostCaps & 0x1000 != 0,
                    info.hostCaps & HelloAck.hostCapReliableInk == 0 {
+                    self.reconnectTask?.cancel()
+                    self.reconnectAttempt = 0
                     self.connectionError = "이 Windows 버전은 무선 필기를 지원하지 않습니다. Windows DeskInk를 0.5.0 이상으로 업데이트하거나 USB로 연결하세요."
                     self.disconnect(reason: .error)
                     return
@@ -523,10 +608,14 @@ final class ConnectionManager: ObservableObject {
                 case .busy:
                     self.connectionError = "Your PC is already streaming to another device."
                 case .versionUnsupported:
-                    self.connectionError = "This app and EternalMonitor on your PC are different versions. Update both, then try again."
+                    self.connectionError = "Windows와 iPad의 DeskInk 연결 방식이 호환되지 않습니다. 두 기기 모두 최신 버전으로 업데이트하세요. iPad는 새 IPA를 iloader로 다시 설치한 뒤 연결하세요."
                 default:
                     self.connectionError = "Your PC turned down the connection."
                 }
+                // Busy/incompatible hosts need a user action. Retrying them
+                // would overwrite the actionable explanation every few seconds.
+                self.reconnectTask?.cancel()
+                self.reconnectAttempt = 0
                 self.record(.error, "ctrl", self.connectionError ?? "rejected")
                 self.disconnect()
             }
@@ -636,7 +725,7 @@ final class ConnectionManager: ObservableObject {
             Task { @MainActor in
                 guard let self, self.currentAttempt.withLock({ $0 == connectionID }) else { return }
                 if isUSB { self.usbStatus = "USB: waiting for a cable" }
-                self.beginReconnect(reason: "USB disconnected")
+                self.beginReconnect(reason: isUSB ? "USB disconnected" : "network disconnected")
             }
         }
 
@@ -766,30 +855,53 @@ final class ConnectionManager: ObservableObject {
     }
 
     private func beginReconnect(reason: String) {
-        let target = lastTarget
+        // Losing USB must never return to a different PC that happened to be
+        // the last Wi-Fi address. The USB ACK identifies the PC just unplugged.
+        let target = rememberedLANForCurrentSelection()
         let auto = UserDefaults.standard.flag(forKey: "autoReconnect")
         record(.warning, "ctrl", "Connection lost (\(reason))")
         disconnect()
-        guard auto, let target else {
+        guard auto, isForeground, !usbPaused, let target else {
             connectionError = "Connection lost — \(reason)."
             return
         }
         startReconnectCycle(to: target)
     }
 
-    private func startReconnectCycle(to target: (host: String, port: UInt16)) {
+    private func startReconnectCycle(to target: RememberedLAN) {
         reconnectTask?.cancel()
+        // Pin the selected endpoint even during the USB-first grace/backoff.
+        // Backgrounding an unanswered manual selection must not revive a
+        // different, older saved PC just because hostInfo is still nil.
+        lastTarget = (target.host, target.port)
+        let generation = UUID()
+        reconnectGeneration = generation
         reconnectTask = Task { @MainActor [weak self] in
+            defer {
+                if let self, self.reconnectGeneration == generation {
+                    self.reconnectAttempt = 0
+                    self.reconnectTask = nil
+                }
+            }
             for attempt in 1...6 {
-                guard let self, !Task.isCancelled else { return }
+                guard let self, !Task.isCancelled, self.isForeground, !self.usbPaused,
+                      UserDefaults.standard.flag(forKey: "autoReconnect") else { return }
                 self.reconnectAttempt = attempt
-                self.connectionError = "Connection lost — reconnecting (attempt \(attempt)/6)…"
+                self.connectionError = "저장된 PC에 연결 중 (\(attempt)/6)… USB가 연결되면 USB를 우선 사용합니다."
                 let backoff = min(1 << (attempt - 1), 15)
+                // The first second also gives the USB tunnel an opportunity to
+                // arrive before opening LAN. A later USB arrival still wins.
                 try? await Task.sleep(for: .seconds(Double(backoff)))
-                guard !Task.isCancelled, self.state == .disconnected else { return }
-                self.connect(host: target.host, port: target.port)
-                // Give the attempt its connect-timeout window to succeed.
-                try? await Task.sleep(for: .seconds(Double(Self.connectionTimeoutSeconds) + 2))
+                guard !Task.isCancelled, self.isForeground, !self.usbPaused,
+                      self.state == .disconnected else { return }
+                self.nextAutomaticPCID = target.pcID
+                self.connect(target: .udp(host: target.host, port: target.port))
+                // The picture watchdog may grant one extension. Observe its
+                // completion instead of abandoning a still-connecting attempt
+                // after an unrelated fixed twelve-second sleep.
+                while self.state == .connecting && !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
                 guard !Task.isCancelled else { return }
                 if self.state == .connected {
                     self.reconnectAttempt = 0
@@ -799,7 +911,7 @@ final class ConnectionManager: ObservableObject {
             }
             guard let self, !Task.isCancelled else { return }
             self.reconnectAttempt = 0
-            self.connectionError = "Couldn't reach your PC after 6 tries. Check that EternalMonitor is running on it."
+            self.connectionError = "저장된 PC에 연결하지 못했습니다. Windows DeskInk의 Wi-Fi/LAN, PC 주소와 같은 네트워크 연결을 확인하세요."
         }
     }
 
@@ -819,16 +931,24 @@ final class ConnectionManager: ObservableObject {
     }
 
     func cancel() {
-        if mediaLink?.isUSB == true {
-            usbPaused = true
-            usbListener?.stop()
-            usbListener = nil
-            usbStatus = "USB: disconnected"
-        }
+        // X is a deliberate pause, including while waiting for a cable or
+        // retrying LAN. Returning from the app switcher must respect it.
+        usbPaused = true
+        automaticStartupStarted = true
+        resumeOnForeground = false
+        foregroundTarget = nil
+        nextAutomaticPCID = nil
+        usbListener?.stop()
+        usbListener = nil
+        usbListeningPort = nil
+        usbStatus = "USB: disconnected"
         timeoutTask?.cancel()
         reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectGeneration = UUID()
         reconnectAttempt = 0
         disconnect()
+        connectionError = nil
     }
 
     func refreshAudioPreference(_ enabled: Bool) {
@@ -872,13 +992,19 @@ final class ConnectionManager: ObservableObject {
         // Fallback for a transition that did not send willResignActive.
         prepareForBackground()
         isForeground = false
+        foregroundTarget = rememberedLANForCurrentSelection()
+        resumeOnForeground = state != .disconnected || reconnectTask != nil
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectGeneration = UUID()
+        reconnectAttempt = 0
         usbListener?.stop()
         usbListener = nil
+        usbListeningPort = nil
         guard state != .disconnected else {
             endBackgroundGoodbye()
             return
         }
-        resumeOnForeground = true
         record(.info, "ctrl", "App backgrounded — sending BYE and disconnecting")
         let goodbye = backgroundGoodbyeTask
         disconnect(reason: .appBackground)
@@ -892,16 +1018,21 @@ final class ConnectionManager: ObservableObject {
     func handleAppForegrounded() {
         endBackgroundGoodbye()
         isForeground = true
-        usbPaused = false
-        refreshUSBAvailability()
-        guard resumeOnForeground else { return }
+        let shouldResume = resumeOnForeground
         resumeOnForeground = false
-        guard UserDefaults.standard.flag(forKey: "autoResumeOnForeground"),
+        let target = foregroundTarget
+        foregroundTarget = nil
+        if shouldResume && !UserDefaults.standard.flag(forKey: "autoResumeOnForeground") {
+            usbPaused = true
+        }
+        refreshUSBAvailability()
+        guard shouldResume, !usbPaused,
+              UserDefaults.standard.flag(forKey: "autoResumeOnForeground"),
               state == .disconnected,
-              let target = lastTarget
+              let target
         else { return }
         record(.info, "ctrl", "App foregrounded — resuming the interrupted session")
-        connect(host: target.host, port: target.port)
+        startReconnectCycle(to: target)
     }
 
     func disconnect(reason: ByeReason = .userDisconnect) {

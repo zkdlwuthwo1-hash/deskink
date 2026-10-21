@@ -1,4 +1,4 @@
-param([ValidateRange(0, 32)][int]$Monitor = 0, [switch]$CheckOnly)
+param([ValidateRange(0, 32)][int]$Monitor = 0, [switch]$CheckOnly, [string]$UpdateReceipt)
 $ErrorActionPreference = 'Stop'
 $packageRoot = Split-Path -Parent $PSScriptRoot
 $app = Join-Path $packageRoot 'bin/deskink.exe'
@@ -15,7 +15,10 @@ $temporaryZip = $null
 try {
     # One first-run download even when several shortcuts are clicked together.
     $acquired = $launchLock.WaitOne(0)
-    if (-not $acquired) { exit 0 }
+    if (-not $acquired) {
+        if ($UpdateReceipt) { throw 'Another DeskInk launcher is running. Update startup was not confirmed.' }
+        exit 0
+    }
     if (-not (Test-Path -LiteralPath $app)) { throw 'Extract the entire DeskInk ZIP before running DeskInk.exe.' }
     [void](New-Item -ItemType Directory -Path $logDir -Force)
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
@@ -98,13 +101,19 @@ try {
         }
     }
     $running = Get-Process deskink -ErrorAction SilentlyContinue
+    if ($UpdateReceipt -and $running) { throw 'Another DeskInk is running. Close it before installing the update.' }
     $arguments = if ($running) { "--monitor $Monitor --switch-only" } else { "--monitor $Monitor" }
     $process = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory $packageRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errorLog
-    if ($process.WaitForExit(900) -and $process.ExitCode -ne 0) {
+    $startupWait = if ($UpdateReceipt) { 2500 } else { 900 }
+    if ($process.WaitForExit($startupWait) -and ($process.ExitCode -ne 0 -or $UpdateReceipt)) {
         throw "DeskInk could not start ($($process.ExitCode)). See $errorLog"
+    }
+    if ($UpdateReceipt) {
+        @{process_id=$process.Id; path=$app} | ConvertTo-Json | Set-Content -LiteralPath $UpdateReceipt -Encoding UTF8
     }
 } catch {
     if ($CheckOnly) { Write-Error $_; exit 1 }
+    if ($UpdateReceipt) { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
     $notice = New-Object -ComObject WScript.Shell
     [void]$notice.Popup($_.Exception.Message, 0, 'DeskInk', 16)
     exit 1

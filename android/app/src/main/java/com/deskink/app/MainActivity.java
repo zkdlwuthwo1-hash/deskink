@@ -25,8 +25,7 @@ public final class MainActivity extends Activity {
     private TextureView video;
     private WorkspaceView workspace;
     private final MonitorDocuments documents=new MonitorDocuments();
-    private volatile UsbClient client;
-    private volatile UdpClient networkClient;
+    private volatile AutoConnectSession client;
     private boolean lanMode;
     private volatile VideoDecoder decoder;
     private volatile int runId;
@@ -77,18 +76,19 @@ public final class MainActivity extends Activity {
         matrix.postTranslate(ink.viewport.x(),ink.viewport.y()); video.setTransform(matrix);
     }
     @Override public void onStart() {
-        super.onStart(); startSession(null,9876);
+        super.onStart();
+        if(preferences.getBoolean("auto-paused",false)) {
+            workspace.showConnection(getString(R.string.app_name),getString(R.string.auto_paused),false);
+        } else startSession(null,9876);
     }
     private void stopTransport() {
         ink.disconnect(); binding=null;
-        UsbClient previous=client; client=null; if(previous!=null) previous.close();
-        UdpClient previousNetwork=networkClient; networkClient=null; if(previousNetwork!=null) previousNetwork.close();
+        AutoConnectSession previous=client; client=null; if(previous!=null) previous.close();
         VideoDecoder previousDecoder=decoder; decoder=null; if(previousDecoder!=null) previousDecoder.close();
     }
     private void startSession(String address,int port) {
         final int generation=++runId; stopTransport(); lanMode=address!=null;
-        final boolean lan=lanMode;
-        workspace.showConnection(getString(R.string.app_name),getString(lan?R.string.network_connecting:R.string.waiting),false);
+        workspace.showConnection(getString(R.string.app_name),getString(lanMode?R.string.network_connecting:R.string.waiting),false);
         long device=preferences.getLong("device",0);
         if(device==0) { device=new SecureRandom().nextLong()&Long.MAX_VALUE; if(device==0) device=1; preferences.edit().putLong("device",device).apply(); }
         PcPairingStore pairingStore=new PcPairingStore(new java.io.File(getFilesDir(),"pc-registrations").toPath());
@@ -101,9 +101,25 @@ public final class MainActivity extends Activity {
                 return;
             }
         }
-        decoder=new VideoDecoder(() -> { UsbClient c=client; if(c!=null) c.requestKeyframe(); UdpClient n=networkClient; if(n!=null) n.requestKeyframe(); },() -> { });
+        decoder=new VideoDecoder(() -> { AutoConnectSession c=client; if(c!=null) c.requestKeyframe(); },() -> { });
         if(video.isAvailable()) attachSurface(video.getSurfaceTexture());
-        UdpClient.Listener listener=new UdpClient.Listener() {
+        AutoConnectSession.Listener listener=new AutoConnectSession.Listener() {
+            public void transport(boolean lan) { runOnUiThread(() -> {
+                if(generation!=runId) return;
+                lanMode=lan; binding=null; ink.disconnect();
+                if(pairingDialog!=null) pairingDialog.dismiss();
+                workspace.showConnection(getString(R.string.app_name),getString(lan?R.string.network_connecting:R.string.waiting),false);
+            }); }
+            public void remember(AutoConnectSession.Endpoint endpoint) {
+                synchronized(pairingStorageLock) {
+                    if(generation!=runId) return;
+                    SharedPreferences.Editor edit=preferences.edit();
+                    if(endpoint==null) edit.remove("auto-lan-address").remove("auto-lan-port").remove("auto-lan-registration");
+                    else edit.putString("auto-lan-address",endpoint.address).putInt("auto-lan-port",endpoint.port)
+                        .putString("auto-lan-registration",endpoint.registration.encode());
+                    edit.commit();
+                }
+            }
             public boolean savePairings(List<PcRegistration> saved) {
                 synchronized(pairingStorageLock) {
                     if(generation!=runId) return false;
@@ -119,13 +135,14 @@ public final class MainActivity extends Activity {
             public void state(UsbClient.State state) { runOnUiThread(() -> { if(generation==runId) showState(state); }); }
             public void stream(UsbClient.Binding next) {
                 if(generation!=runId) return;
+                AutoConnectSession owner=client; if(owner==null||!owner.owns(next)) return;
+                final boolean lan=owner.isLan();
                 VideoDecoder d=decoder; if(d!=null) d.configure(next.config);
                 runOnUiThread(() -> {
-                    if(generation!=runId) return;
+                    if(generation!=runId||!owner.owns(next)) return;
                     binding=next; String token=hex(next.token);
                     InkDocument document=documents.select(token,next.host);
-                    UsbClient owner=client; UdpClient networkOwner=networkClient;
-                    ink.bind(document,c -> lan?networkOwner!=null&&networkOwner.ink(next,c):owner!=null&&owner.ink(next,c),next.config.width,next.config.height);
+                    ink.bind(document,c -> owner.ink(next,c),next.config.width,next.config.height);
                     workspace.showConnection(next.host,getString(lan?R.string.network_details:R.string.usb_details,next.config.width,next.config.height),true);
                     if(pairingDialog!=null) pairingDialog.dismiss(); transformVideo();
                 });
@@ -141,16 +158,22 @@ public final class MainActivity extends Activity {
                 Toast.makeText(MainActivity.this,message,Toast.LENGTH_LONG).show();
             }); }
         };
-        final UsbClient usb=lan?null:new UsbClient(9877,device,getResources().getDisplayMetrics().widthPixels,getResources().getDisplayMetrics().heightPixels,tokens,listener);
-        final UdpClient network=lan?new UdpClient(address,port,device,getResources().getDisplayMetrics().widthPixels,getResources().getDisplayMetrics().heightPixels,tokens,listener):null;
-        client=usb; networkClient=network;
+        AutoConnectSession.Endpoint remembered=null;
+        try {
+            PcRegistration registration=PcRegistration.decode(preferences.getString("auto-lan-registration",""));
+            if(registration!=null) remembered=new AutoConnectSession.Endpoint(preferences.getString("auto-lan-address",""),
+                preferences.getInt("auto-lan-port",9876),registration);
+        } catch(IllegalArgumentException invalid) { /* An incomplete saved endpoint never becomes a guessed address. */ }
+        final AutoConnectSession session=new AutoConnectSession(9877,device,getResources().getDisplayMetrics().widthPixels,
+            getResources().getDisplayMetrics().heightPixels,tokens,remembered,listener);
+        client=session;
         Thread start=new Thread(() -> {
-            try { if(network!=null) network.start(); else usb.start(); }
+            try { session.start(); if(address!=null) session.connectLan(address,port); }
             catch(java.io.IOException|IllegalArgumentException e) {
-                if(network!=null) network.close(); else usb.close();
-                runOnUiThread(() -> { if(generation==runId) workspace.showConnection(getString(R.string.app_name),getString(lan?R.string.network_unreachable:R.string.not_connected),false); });
+                session.close();
+                runOnUiThread(() -> { if(generation==runId) workspace.showConnection(getString(R.string.app_name),getString(address!=null?R.string.network_unreachable:R.string.not_connected),false); });
             }
-        },lan?"DeskInk LAN start":"DeskInk USB start"); start.setDaemon(true); start.start();
+        },"DeskInk connection start"); start.setDaemon(true); start.start();
     }
     private static String hex(byte[] token) {
         char[] alphabet="0123456789abcdef".toCharArray(); StringBuilder text=new StringBuilder(32);
@@ -183,17 +206,21 @@ public final class MainActivity extends Activity {
         error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); content.addView(error); content.addView(ui.space(12));
         content.addView(ui.text(R.string.network_note,12,DeskInkUi.MUTED,false));
         AlertDialog.Builder builder=new AlertDialog.Builder(this).setView(ui.scroll(content))
-            .setNegativeButton(R.string.network_usb,(dialog,which) -> startSession(null,9876)).setPositiveButton(R.string.connect,null);
-        if(lanMode) builder.setNeutralButton(R.string.network_disconnect,(dialog,which) -> {
-            ++runId; stopTransport(); workspace.showConnection(getString(R.string.app_name),getString(R.string.network_disconnected),false);
+            .setNegativeButton(R.string.network_usb,(dialog,which) -> {
+                preferences.edit().putBoolean("auto-paused",false).apply(); startSession(null,9876);
+            }).setPositiveButton(R.string.connect,null);
+        if(client!=null) builder.setNeutralButton(R.string.network_disconnect,(dialog,which) -> {
+            preferences.edit().putBoolean("auto-paused",true).apply();
+            ++runId; stopTransport(); workspace.showConnection(getString(R.string.app_name),getString(R.string.auto_paused),false);
         });
         networkDialog=builder.create();
         networkDialog.setOnShowListener(ignored -> networkDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String host=address.getText().toString().trim(); int number;
             try { number=Integer.parseInt(port.getText().toString()); UdpClient.endpoint(host,number); }
             catch(IllegalArgumentException invalid) { error.setText(R.string.network_invalid); error.setVisibility(View.VISIBLE); return; }
-            preferences.edit().putString("lan-address",host).putInt("lan-port",number).apply();
-            networkDialog.dismiss(); startSession(host,number);
+            preferences.edit().putString("lan-address",host).putInt("lan-port",number).putBoolean("auto-paused",false).apply();
+            networkDialog.dismiss();
+            AutoConnectSession owner=client; if(owner==null||owner.isClosed()) startSession(host,number); else owner.connectLan(host,number);
         }));
         networkDialog.show(); ui.finishSheet(networkDialog);
         networkDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
@@ -237,8 +264,8 @@ public final class MainActivity extends Activity {
         pairingDialog.setOnShowListener(ignored -> pairingDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String value=code.getText().toString();
             if(!value.matches("[0-9]{6}")||Integer.parseInt(value)==0) { error.setText(R.string.invalid_code); error.setVisibility(View.VISIBLE); return; }
-            UsbClient c=client; UdpClient n=networkClient; if(c==null&&n==null) { error.setText(lanMode?R.string.network_unreachable:R.string.not_connected); error.setVisibility(View.VISIBLE); return; }
-            if(n!=null) n.pair(Integer.parseInt(value)); else c.pair(Integer.parseInt(value)); pairingDialog.dismiss();
+            AutoConnectSession c=client; if(c==null) { error.setText(lanMode?R.string.network_unreachable:R.string.not_connected); error.setVisibility(View.VISIBLE); return; }
+            c.pair(Integer.parseInt(value)); pairingDialog.dismiss();
         }));
         code.setOnEditorActionListener((view,action,event) -> { if(action==EditorInfo.IME_ACTION_DONE) { pairingDialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); return true; } return false; });
         pairingDialog.show(); ui.finishSheet(pairingDialog);

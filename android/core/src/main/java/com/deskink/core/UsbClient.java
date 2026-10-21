@@ -18,6 +18,8 @@ public final class UsbClient implements AutoCloseable {
         /** Called off the UI thread. Only a successful durable write promotes credentials. */
         default boolean savePairings(List<PcRegistration> registrations) { return true; }
         default DecodeStats decoding() { return new DecodeStats(0,0,0); }
+        /** Called after the local tunnel preamble, before HELLO; no pen lock is held. */
+        default boolean usbAvailable() { return true; }
     }
     public static final class DecodeStats {
         public final long completed;
@@ -31,8 +33,12 @@ public final class UsbClient implements AutoCloseable {
         public final Wire.Config config;
         public final String host;
         public final byte[] token;
+        public final byte[] pcId;
         Binding(long session,Wire.Config config,String host,byte[] token) {
-            this.session=session; this.config=config; this.host=host; this.token=token.clone();
+            this(session,config,host,token,new byte[16]);
+        }
+        Binding(long session,Wire.Config config,String host,byte[] token,byte[] pcId) {
+            this.session=session; this.config=config; this.host=host; this.token=token.clone(); this.pcId=pcId.clone();
         }
     }
     private final Object lock=new Object();
@@ -44,6 +50,7 @@ public final class UsbClient implements AutoCloseable {
     private final ScheduledExecutorService timer=Executors.newSingleThreadScheduledExecutor(r -> daemon(r,"DeskInk heartbeat"));
     private volatile boolean closed;
     private ServerSocket server;
+    private Socket accepted;
     private Connection current;
     private Binding binding;
     private long inkSequence,controlSequence,nonce,lastKeyframe;
@@ -71,10 +78,17 @@ public final class UsbClient implements AutoCloseable {
     private void accept() {
         while(!closed) {
             Connection candidate=null;
+            Socket socket=null;
             try {
-                Socket socket=server.accept();
+                socket=server.accept();
+                synchronized(lock) {
+                    if(closed) { socket.close(); return; }
+                    // Own the socket before reading a preamble that may never arrive.
+                    accepted=socket;
+                }
                 FramedConnection link=new FramedConnection(socket);
                 socket.setSoTimeout(0); // handshake and session liveness are checked by the timer
+                if(!listener.usbAvailable()) { link.close(); continue; }
                 candidate=new Connection(link);
                 synchronized(lock) {
                     if(closed) { candidate.close(); return; }
@@ -85,12 +99,22 @@ public final class UsbClient implements AutoCloseable {
                 // USB removal, host switch and shutdown all close the framed socket.
             } finally {
                 if(candidate!=null) candidate.close();
+                if(socket!=null) try { socket.close(); } catch(IOException ignored) { }
                 boolean disconnected=false;
                 synchronized(lock) {
+                    if(accepted==socket) accepted=null;
                     if(current==candidate) { current=null; binding=null; disconnected=!closed; }
                 }
                 if(disconnected) listener.state(State.DISCONNECTED);
             }
+        }
+    }
+    /** Refresh saved credentials while no USB stream is bound (for a preceding LAN pairing). */
+    public void savedPairings(List<PcRegistration> saved) {
+        synchronized(lock) {
+            if(binding!=null) return;
+            registrations.clear();
+            for(PcRegistration pc:saved) if(pc!=null&&registrations.size()<2) registrations.add(pc);
         }
     }
     private final class Connection {
@@ -172,7 +196,7 @@ public final class UsbClient implements AutoCloseable {
                 source.close(); return () -> listener.state(State.INCOMPATIBLE);
             }
             if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return null;
-            Binding next=new Binding(ack.session,ack.config,ack.host,ack.token);
+            Binding next=new Binding(ack.session,ack.config,ack.host,ack.token,ack.pcId);
             configure(source,next);
             List<PcRegistration> saved=new ArrayList<>(registrations);
             if(PcRegistration.valid(ack.token)) {
@@ -195,7 +219,7 @@ public final class UsbClient implements AutoCloseable {
         if(packet.type==0x12||packet.type==0x18) {
             Wire.Config config=packet.config();
             if(config.epoch!=binding.config.epoch&&(int)(config.epoch-binding.config.epoch)>0) {
-                Binding next=new Binding(binding.session,config,binding.host,binding.token);
+                Binding next=new Binding(binding.session,config,binding.host,binding.token,binding.pcId);
                 configure(source,next); return () -> listener.stream(next);
             }
         } else if(packet.type==0x13) { source.close(); }
@@ -238,6 +262,7 @@ public final class UsbClient implements AutoCloseable {
     @Override public void close() {
         synchronized(lock) {
             closed=true; binding=null; if(current!=null) current.close();
+            try { if(accepted!=null) accepted.close(); } catch(IOException ignored) { }
             try { if(server!=null) server.close(); } catch(IOException ignored) { }
             timer.shutdownNow();
         }

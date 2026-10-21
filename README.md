@@ -12,6 +12,8 @@ Mirror a Windows monitor to your tablet over USB or your local Wi-Fi/LAN, then a
 - Pinch and pan on the tablet only; the PC display stays at its original scale.
 - Switch monitors using desktop shortcuts, with separate ink for each screen while DeskInk runs.
 - Hold the S Pen button to erase, or double-tap a supported Apple Pencil to switch tools.
+- Prefer USB automatically and reconnect to the remembered PC over LAN when USB is unavailable.
+- Check for Windows updates automatically and install them from the app when ready.
 - Keep the existing USB connection, or enable local-network access and connect by QR code (iPad) or IP address (iPad/Android).
 
 ## Download
@@ -20,16 +22,16 @@ Use the links below for downloads and official installation pages. Get the **Win
 
 | Download | What to do |
 | --- | --- |
-| [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Windows-x64.zip?v=0.5.0) | Extract the entire ZIP and follow the device-specific steps below. |
-| [**Download Android app APK**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.5.0) | Open on an Android 8+ tablet and tap **Install**. |
-| [**Download iPad app IPA**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-iPad-unsigned.ipa?v=0.5.0) | Import into iloader on your PC to install on iPad. |
+| [**Download Windows app ZIP**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-Windows-x64.zip?v=0.5.1) | Extract the entire ZIP and follow the device-specific steps below. |
+| [**Download Android app APK**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-Android.apk?v=0.5.1) | Open on an Android 8+ tablet and tap **Install**. |
+| [**Download iPad app IPA**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-iPad-unsigned.ipa?v=0.5.1) | Import into iloader on your PC to install on iPad. |
 | [**Download iloader Windows installer**](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe) | Run the EXE from the official publisher on your PC to prepare iPad installation. |
 | [**Install Apple Devices · Microsoft Store**](https://apps.microsoft.com/detail/9np83lwlpz9k) | Prepare the first iPad USB connection and check detection. Skip additional setup if your PC already detects iPad correctly. |
-| [**Download illustrated HTML guide**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/README.html) | Open in a browser; screenshots are included in the file. |
+| [**Download illustrated HTML guide**](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/README.html) | Open in a browser; screenshots are included in the file. |
 
-**0.5.0 adds optional Wi-Fi/LAN connection.** For wireless, update **both Windows and your tablet app to 0.5.0**. Close Windows DeskInk, extract the entire new ZIP and launch it; update iPad with iloader or install the new Android APK over the existing app. Closing Windows clears existing ink. Existing USB connections remain supported, including older tablet apps. The Intel video-startup fix from Windows 0.4.4 and the fix for delayed PC ink when minimizing settings are included. Long-session slowdown affecting both devices remains under investigation.
+**0.5.1 adds USB-first automatic connection and Windows in-app updates.** Update both the Windows and tablet apps for the new connection behavior. If you use an older Windows version, close it once and extract the entire new ZIP over the existing DeskInk folder, keeping its location so your shortcuts still work. Launch that folder's DeskInk.exe. Later Windows updates are checked automatically: choose **Download update**, then **Install and restart** when ready. Pairing information and desktop shortcuts are kept. Restarting clears current ink. iPad still updates through iloader, and Android by installing the new APK over the existing app. Long-session slowdown affecting both devices remains under investigation.
 
-You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ tablet, and a compatible pen. Use a data-capable USB cable for USB connection and iPad installation, or a trusted local network for Wi-Fi/LAN. **No Mac or development tools are needed.** Initial PC setup requires Internet access. [All download files](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.4.0-lab.1) · [Official iloader instructions](https://iloader.app/)
+You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ tablet, and a compatible pen. Use a data-capable USB cable for USB connection and iPad installation, or a trusted local network for Wi-Fi/LAN. **No Mac or development tools are needed.** Initial PC setup requires Internet access. [All download files](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.5.1) · [Official iloader instructions](https://iloader.app/)
 
 ## Install on iPad
 
@@ -47,7 +49,7 @@ You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ ta
 
 For **Wi-Fi only**, install the APK, extract the Windows ZIP, run `DeskInk.exe`, and follow [Connect over Wi-Fi / LAN](#connect-over-wi-fi--lan). USB debugging, Android USB components and `DeskInk-Android.exe` are only needed for **USB**. The following steps set up USB:
 
-1. Tap **[Download Android APK](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.4.0-lab.1/DeskInk-Android.apk?v=0.5.0) on your tablet**, open the downloaded `DeskInk-Android.apk`, and tap **Install**. Allow installation from the browser/file app when prompted. No Apple account, iloader or weekly renewal is needed.
+1. Tap **[Download Android APK](https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.1/DeskInk-Android.apk?v=0.5.1) on your tablet**, open the downloaded `DeskInk-Android.apk`, and tap **Install**. Allow installation from the browser/file app when prompted. No Apple account, iloader or weekly renewal is needed.
 2. Open **Settings → About tablet → Software information → tap Build number seven times**, then enter the device passcode. Enable **Developer options → USB debugging**. Menu names vary by device. [Samsung instructions](https://www.samsung.com/uk/support/mobile-devices/how-do-i-turn-on-the-developer-options-menu-on-my-samsung-galaxy-device/)
 3. Extract the entire Windows ZIP and run **`DeskInk-Android.exe` once**. It downloads and verifies Google's USB components (about 8 MB) and the video runtime (about 60 MB); Internet is needed for setup.
 4. Connect a USB data cable and **allow USB debugging from your PC** on the tablet. Open DeskInk and enter the PC's six-digit pairing code. Connect only one Android tablet over USB at a time.
@@ -57,7 +59,7 @@ After setup, use either **DeskInk - Screen 1 / Screen 2** desktop icon. Android 
 
 ## Connect over Wi-Fi / LAN
 
-**Update Windows and your tablet to 0.5.0 first.** USB remains the default; network access starts off. The PC can use Ethernet while the tablet uses Wi-Fi on the **same router and reachable local network**. Internet remote access is not supported.
+**Update Windows and your tablet to 0.5.1 first.** USB remains the default; network access starts off. The PC can use Ethernet while the tablet uses Wi-Fi on the **same router and reachable local network**. Internet remote access is not supported.
 
 1. Unplug USB and disconnect any tablet session. In Windows DeskInk, expand **Wi-Fi / LAN** and enable **Allow Wi-Fi / LAN**. The checkbox can only be changed while disconnected. Read the PC's **IPv4 address** and **Port** shown there; the default port is **9876**. Check that the address belongs to the tablet's network, not a VPN/virtual adapter. Use **Refresh IP** after changing networks.
 2. **iPad:** click **QR code (iPad)** in Windows, then use **Scan QR code** in iPad DeskInk. Alternatively, enter the Windows address in **PC address** and the displayed number in **Port**, then tap **Connect**. Allow DeskInk's **Local Network** permission if prompted. The QR contains the connection address, not a pairing credential.
@@ -68,7 +70,7 @@ Use **trusted local networks only**: the screen and pen traffic are not encrypte
 
 Wi-Fi conditions affect latency; zero delay cannot be guaranteed. Prefer a PC connected by Ethernet and a strong 5/6 GHz tablet signal. If writing stalls or the connection closes after packet loss, improve the local connection or return to USB. The wireless path avoids building a long backlog of old pen input. Automated protocol checks target delivery order, loss recovery and queue limits; **physical Wi-Fi latency, actual S Pen/Apple Pencil feel and Zoom presentation still need device testing**. [Illustrated wireless setup (한국어)](https://zkdlwuthwo1-hash.github.io/deskink/README.html#wireless)
 
-Apple USB services and Android USB debugging are not needed for wireless streaming itself. iPad installation/renewal with iloader still uses the USB installation steps above. Keep the apps open while presenting. To return to USB, disconnect the network session and attach the USB cable; the existing USB setup is unchanged.
+Apple USB services and Android USB debugging are not needed for wireless streaming itself. iPad installation/renewal with iloader still uses the USB installation steps above. Keep the apps open while presenting. After one successful LAN connection, the app remembers that PC address. USB takes priority when its data connection is available; without USB, automatic connection uses the remembered LAN address. Reattaching USB switches back to the cable. Tap X/Disconnect to stop automatic reconnection; connect again when ready. A PC used only over USB needs its IP entered once before wireless fallback can work. If the PC address changes, enter it again. Switching transport establishes a fresh session and can briefly interrupt the picture.
 
 ## Connect with the pairing code
 
@@ -108,7 +110,8 @@ A free Apple account signs development apps for **7 days**. Your Apple account d
 
 ## If something does not work
 
-- **Wi-Fi/LAN does not connect:** confirm both apps are 0.5.0, Windows **Allow Wi-Fi / LAN** is enabled, and the IP/port match the current PC display. Check iPad Local Network permission, the same reachable local network, guest/client isolation and Windows Firewall's Private-network/local-subnet permission. A pairing code alone cannot select the PC; enter the IP or scan its QR first. [Connection steps](#connect-over-wi-fi--lan)
+- **“Different versions — update both” / “EternalMonitor” appears:** the PC and tablet cannot use the same connection protocol. Install the latest Windows package and tablet app; updating only Windows is not enough. For iPad, import the new IPA into iloader and install it over DeskInk with the same Apple account. Reconnect using **Scan QR code** or the PC's **IP and port**.
+- **Wi-Fi/LAN does not connect:** confirm both apps are 0.5.1, Windows **Allow Wi-Fi / LAN** is enabled, and the IP/port match the current PC display. Check iPad Local Network permission, the same reachable local network, guest/client isolation and Windows Firewall's Private-network/local-subnet permission. A pairing code alone cannot select the PC; enter the IP or scan its QR first. [Connection steps](#connect-over-wi-fi--lan)
 - **Android is not detected:** run `DeskInk-Android.exe`, enable USB debugging, authorize this PC, and check the data cable/Samsung USB driver. Keep the tablet app open.
 - **iPad is missing from the PC or iloader:** [check Apple Devices first](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). If iPad is absent from its sidebar, unlock iPad, confirm Trust, and try a data cable/another USB port. If Apple Devices sees iPad, use **Refresh Devices (Ctrl+R)** in iloader; reopen iloader if it is still missing. Follow the [official iloader setup instructions](https://iloader.app/) if it reports missing Apple components.
 - **Keeping Apple Devices open:** if DeskInk connects without opening it, continue as usual. Only keep it running/minimized if closing that app interrupts USB connectivity on your PC.

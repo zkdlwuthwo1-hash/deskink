@@ -9,6 +9,37 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class MainActivityTest {
+    @Test public void disconnectRemainsPausedAfterBackgroundingUntilAutomaticConnectionIsChosen() throws Exception {
+        try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create().start()) {
+            MainActivity activity=controller.get();
+            activity.getWindow().getDecorView().findViewWithTag("network").performClick();
+            android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            assertEquals(View.VISIBLE,dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).getVisibility());
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).performClick();
+            // AlertDialog Builder actions are Handler messages, unlike the
+            // explicitly installed positive-button listener in the IP form.
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            assertFalse("The disconnect action must finish before backgrounding",dialog.isShowing());
+            controller.stop().start();
+            try(java.net.ServerSocket available=new java.net.ServerSocket()) {
+                available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877));
+            }
+            activity.getWindow().getDecorView().findViewWithTag("network").performClick();
+            dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            assertEquals(activity.getString(R.string.network_usb),dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).getText().toString());
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            assertFalse("The reconnect action must run before testing its socket",dialog.isShowing());
+            java.net.Socket usb=null;
+            for(int i=0;i<20&&usb==null;i++) {
+                try { usb=new java.net.Socket("127.0.0.1",9877); } catch(java.io.IOException error) { Thread.sleep(50); }
+            }
+            assertNotNull("Explicit automatic reconnect must resume the USB listener",usb);
+            usb.close(); controller.stop();
+        }
+    }
     @Test public void lanEntryShowsThePortAndRejectsAnInvalidAddressWithoutLeavingUsb() {
         try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
             View network=controller.get().getWindow().getDecorView().findViewWithTag("network");
