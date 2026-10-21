@@ -29,14 +29,20 @@ public class WirelessStreamingTest {
         try(DatagramSocket host=new DatagramSocket(0,InetAddress.getLoopbackAddress());
                 ActivityScenario<MainActivity> activity=ActivityScenario.launch(MainActivity.class)) {
             host.setSoTimeout(2500);
+            activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("network").performClick());
+            // Dialog.onShow installs the Connect handler on the next UI turn.
+            // A person cannot fill the fields before that turn, either.
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            AtomicBoolean submitted=new AtomicBoolean();
             activity.onActivity(a -> {
-                a.getWindow().getDecorView().findViewWithTag("network").performClick();
                 for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
                     EditText address=window.findViewWithTag("network.address"); if(address==null) continue;
                     address.setText("127.0.0.1"); ((EditText)window.findViewWithTag("network.port")).setText(Integer.toString(host.getLocalPort()));
                     window.findViewById(android.R.id.button1).performClick();
+                    assertEquals(View.GONE,window.findViewWithTag("network.error").getVisibility()); submitted.set(true);
                 }
             });
+            assertTrue("The visible IP form must actually be submitted",submitted.get());
             DatagramPacket hello=read(host); SocketAddress peer=hello.getSocketAddress();
             long nonce=Integer.toUnsignedLong(ByteBuffer.wrap(hello.getData()).order(ByteOrder.LITTLE_ENDIAN).getInt(18));
             ByteBuffer config=ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);
