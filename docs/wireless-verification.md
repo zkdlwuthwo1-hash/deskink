@@ -1,5 +1,44 @@
 # DeskInk 0.5.0 Wi-Fi/LAN 검증 기록
 
+<a id="windows-capture-compatibility"></a>
+
+## 2026-10-22 추가 확인: Windows 화면 캡처 호환성
+
+Windows의 Wi-Fi/LAN을 켰는데 iPad의 HELLO 요청에 응답하지 않거나 페어링 창이
+바로 닫히는 사례에서, 전달받은 PC 로그는 캡처 초기화 오류
+`E_NOINTERFACE (0x80004002)`를 반복했다. UDP 수신이 시작된 뒤 캡처가 실패하면서
+전송 경로도 닫혔다. 따라서 이 사례는 네트워크 허용 설정만으로 해결할 수 없다.
+
+해당 PC의 별도 캡처 점검 결과는 다음과 같다. 개인 기기 이름과 주소는 제외했다.
+
+```text
+Windows 10.0.22621.4317 (Windows 11 22H2)
+WGC supported: true
+Empty frame pool: handled without a capture error
+Monitor: 1920 x 1080
+Session-local exclusion: UNAVAILABLE (0x80004002)
+Exit code: 1
+```
+
+WGC(Windows 화면 캡처) 자체가 지원돼도, DeskInk가 필기의 중복 캡처를 막는 데
+사용하는 세션별 창 제외 인터페이스가 없으면 초기화에 실패한다.
+현재 USB와 LAN은 이 캡처 경로를 함께 사용한다. 단순히 CPU 제조사가 다르거나
+무선 연결이라서 생기는 오류라고 분류해서는 안 된다.
+
+개발 PC의 Windows 11 25H2 빌드 `26200.9711`에서는 같은 인터페이스 확인이
+성공했다. 이 두 관찰만으로 모든 Windows 11 또는 모든 25H2 설치의 호환성을
+보장하거나, 정확한 최소 누적 업데이트 번호를 확정할 수는 없다.
+문제가 있는 PC에는 Windows 업데이트에서 제공하는 기능·누적 업데이트를 적용한
+뒤 다시 점검하도록 안내한다. 전달받은 PC가 업데이트 후 해결됐다는 실기기
+재검증 기록은 아직 없다. 이번 안내서 수정에는 캡처 우회나 앱 바이너리 변경이 없다.
+
+근거: [Microsoft Windows 11 버전 정보](https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information),
+[세션별 창 제외 API](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.idisplaygraphicscapturesession.setwindowexclusionlist?view=winrt-28000),
+[캡처 샘플 유지보수자의 인터페이스 지원 설명](https://github.com/robmikh/Win32CaptureSample/issues/106).
+이는 이전에 보고된 무선 필기 가림 현상의 원인을 확정하는 결과는 아니다.
+
+## 0.5.0 배포 당시 검증
+
 2026-10-21 기준 구현·자동 검사·두 축의 후속 코드 검토·배포 파일 검증을 마쳤다.
 Windows ZIP, iPad IPA, 서명한 Android APK와 안내서를 공개하고 실제 다운로드
 해시를 확인했다. **실제 무선 지연·펜 감각·Zoom 수신은 아직 측정하지 않았다.**

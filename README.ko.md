@@ -39,11 +39,39 @@ USB 우선 자동 연결과 Windows 앱 내 업데이트는 **0.5.1부터** 지�
 
 페어링 후 `Connection lost — USB disconnected`가 떠도 케이블 고장으로 단정할 수 없습니다. **먼저 Windows 앱을 업데이트**하세요. 0.4.4 이전 버전에서는 Intel 영상 압축 실패도 이 메시지로 표시됐습니다. 계속 실패하면 Apple 기기에서 iPad 인식을 확인하고, `%LOCALAPPDATA%\DeskInk\logs`의 같은 시각 `stdout`·`stderr` 로그 두 파일로 원인을 확인할 수 있습니다. 로그에는 기기·연결 정보가 포함될 수 있으니 공개 게시 전 가리세요.
 
-1. **Apple 기기에서 iPad 연결을 확인합니다.** 처음 설정하는 Windows PC는 [Apple 기기(Apple Devices)](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR)를 설치하고 실행하세요. 아이패드를 데이터 USB 케이블로 연결하고 잠금을 풉니다. **이 컴퓨터를 신뢰**를 허용하고 기기 암호를 입력한 뒤, **Apple 기기 왼쪽 목록에 iPad가 나타나는지** 확인합니다. [사진으로 연결 확인 위치 보기](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). 이미 iloader와 DeskInk에서 iPad를 정상 인식하는 PC는 추가 설치 없이 진행해도 됩니다. iTunes 등으로 Apple USB 연결 구성요소가 준비된 경우도 있습니다. [Apple 공식 안내](https://support.apple.com/ko-kr/108643)
-2. **Windows DeskInk를 실행합니다.** ZIP을 문서 폴더 등 쓰기 가능한 위치에 **전체 압축 해제**하고 그 안의 `DeskInk.exe`를 엽니다. 첫 실행에서 영상 구성요소 약 60MB를 공식 배포처에서 받아 검사하므로 인터넷이 필요합니다. 이후에는 내려받은 파일을 재사용합니다. 폴더 안의 파일을 따로 옮기지 마세요.
-3. **iloader로 아이패드에 설치합니다.** [iloader Windows 설치 파일](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe)을 받아 실행합니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 안내가 나오면 [공식 설치 안내](https://iloader.app/)를 따릅니다. 연결한 아이패드를 선택합니다. 처음 로그인할 때의 서버 설정 예시는 **Anisette Server → Jkcoxson (Windows)**입니다. 이미 정상 로그인됐다면 서버를 바꿀 필요는 없습니다. **본인 Apple 계정**으로 로그인·이중 인증한 뒤 **Import IPA / IPA 가져오기**에서 내려받은 `DeskInk-iPad-unsigned.ipa`를 선택하고 **Sign & Install App**을 눌러 완료될 때까지 기다립니다. [사진에 표시된 설정·설치 위치 보기](https://zkdlwuthwo1-hash.github.io/deskink/README.html#iloader). 버튼 이름은 버전·언어에 따라 조금 다를 수 있습니다.
-4. **개발자를 신뢰합니다.** 아이패드에서 신뢰되지 않은 개발자라고 나오면 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**로 이동합니다. 추가 확인이나 재시동 안내가 나오면 따릅니다. 제작자의 계정이나 비밀번호를 공유받을 필요는 없습니다.
+**USB 인식 확인 → iloader 로그인 → IPA 설치 → 신뢰·개발자 모드 → Windows DeskInk 실행 → 페어링** 순서로 진행합니다. [캡처로 보는 안내서](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices)도 같은 순서입니다.
+
+1. **Apple 기기에서 iPad 연결을 확인합니다.** 처음 설정하는 Windows PC는 [Apple 기기(Apple Devices)](https://apps.microsoft.com/detail/9np83lwlpz9k?hl=ko-KR&gl=KR)를 설치하고 실행하세요. 아이패드를 데이터 USB 케이블로 연결하고 잠금을 풉니다. **이 컴퓨터를 신뢰**를 허용하고 **iPad 잠금 암호**를 입력합니다. 아래처럼 **왼쪽 목록에 iPad가 나타나면** 다음 단계로 갑니다. 이미 iloader와 DeskInk에서 iPad를 정상 인식하는 PC는 추가 설치 없이 진행해도 됩니다. iTunes 등으로 Apple USB 연결 구성요소가 준비된 경우도 있습니다. [Apple 공식 안내](https://support.apple.com/ko-kr/108643)
+
+   <img src="docs/images/apple-devices-annotated.png" alt="Apple 기기 캡처 설명: 왼쪽 iPad 항목과 기기 제목이 보이면 USB 인식 확인 완료" width="720">
+
+   *개인 기기 정보를 가리고 표시를 더한 캡처입니다. 번호로 표시한 곳에 연결된 iPad가 보이는지 확인하세요.*
+
+2. **iloader를 열고 연결된 iPad를 선택합니다.** [iloader Windows 설치 파일](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe)을 받아 실행합니다. 공식 Windows 안내는 iTunes를 요구하므로 Apple 구성요소가 없다는 안내가 나오면 [공식 설치 안내](https://iloader.app/)를 따르세요. Apple 기기에는 iPad가 보이는데 iloader에는 없다면 **Refresh Devices / 기기 새로고침(Ctrl+R)**을 누르고, 계속 없으면 iloader를 다시 엽니다.
+
+   아래의 **설정 → Anisette Server**를 확인하세요. **Jkcoxson (Mac)은 Windows에서도 선택할 수 있으며 Mac 컴퓨터는 필요 없습니다.** 이름은 서버 종류를 뜻합니다. 예전 Windows 서버에서 연결이나 로그인 과정이 실패하면 **Jkcoxson (Mac)**으로 바꿔 다시 로그인해 볼 수 있습니다. 이미 로그인된다면 바꾸지 마세요. 선택지는 버전에 따라 다르며, **iloader 2.4.0은 Jkcoxson (Mac)이 기본이고 예전 Windows 서버 선택지는 제거됐습니다.** 실제로 틀린 계정·비밀번호를 고치는 방법은 아니며, 성공을 보장하지도 않습니다. [iloader 공식 변경 안내](https://github.com/nab138/iloader/releases/tag/v2.4.0)
+
+   <img src="docs/images/iloader-mac-server-guide.png" alt="iloader 설정의 Anisette Server에서 Jkcoxson (Mac)이 선택된 화면" width="720">
+
+   *iloader 2.4.0 화면 미리보기입니다. 버전·언어에 따라 버튼 이름과 배치는 조금 다를 수 있습니다.*
+
+3. **본인 Apple 계정으로 로그인하고 Apple 인증을 마칩니다.** **Apple ID Email…**에 본인 계정을, **Apple ID Password…**에 비밀번호를 입력하고 **Login**을 누릅니다. **Two-Factor Authentication** 창이 열리면 신뢰하는 Apple 기기의 로그인 알림에서 **허용**을 누릅니다. Apple이 알려 주는 6자리를 iloader의 **Verification Code…**에 입력하고 **Submit**을 누르세요. **Logged in as**와 **Sign Out**이 보이면 로그인 완료입니다. 이것은 **Apple 계정의 이중 인증 번호**이며, 나중에 Windows DeskInk에 표시되는 **PC 페어링 번호와는 다릅니다.** 제작자의 계정이나 비밀번호를 공유받을 필요는 없습니다. [Apple 인증 안내](https://support.apple.com/ko-kr/102606)
+
+   <img src="docs/images/iloader-apple-login-guide.png" alt="iloader의 Apple ID Email·Apple ID Password 입력란과 Login 버튼" width="720">
+
+   <img src="docs/images/iloader-apple-2fa-guide.png" alt="iloader의 Two-Factor Authentication 창: Verification Code 입력란과 Submit 버튼" width="720">
+
+   *예시 데이터로 표시한 iloader 2.4.0 화면이며 실제 Apple 로그인 기록은 아닙니다. 본인 계정과 Apple이 알려 준 인증 번호를 입력하세요.*
+
+4. **내려받은 IPA를 설치합니다.** **Import IPA / IPA 가져오기**에서 `DeskInk-iPad-unsigned.ipa`를 선택하면 서명·설치가 시작됩니다. **Sign & Install App** 단계가 완료될 때까지 기다리세요. 완료될 때까지 iPad를 연결하고 잠금을 풀어 두세요. iPad에서 신뢰되지 않은 개발자라고 나오면 **설정 → 일반 → VPN 및 기기 관리 → 개발자 앱 → 본인 Apple 계정 → 신뢰**로 이동합니다. 추가 확인이나 재시동 안내가 나오면 따릅니다.
+
+   <img src="docs/images/iloader-import-ipa-guide.png" alt="iloader 2.4.0: Logged in as, selected iPad, Import IPA" width="720">
+
+   실제 iloader 2.4.0 UI를 예시 계정·기기로 실행했습니다. 왼쪽 **Logged in as**, 위쪽 **Selected**를 확인하고 가운데 **Import IPA**를 누르세요.
+
 5. **개발자 모드를 켭니다 — 필수입니다.** **설정 → 개인정보 보호 및 보안 → 개발자 모드 → 켜기 → 재시동** 순서로 진행합니다. 재시동 후 잠금을 풀고, 확인창에서 **켜기**를 한 번 더 누릅니다. 기기 암호를 요청하면 입력하고 DeskInk를 엽니다. 메뉴가 없다면 **iloader로 IPA를 먼저 설치하고 DeskInk 실행을 한 번 시도한 뒤 설정을 다시 여세요.** 학교·회사에서 관리하는 기기는 설정이 제한될 수 있습니다. [Apple 공식 안내](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
+6. **Windows DeskInk를 실행합니다.** Windows ZIP을 문서 폴더 등 쓰기 가능한 위치에 **전체 압축 해제**하고 그 안의 `DeskInk.exe`를 엽니다. 첫 실행에서 영상 구성요소 약 60MB를 공식 배포처에서 받아 검사하므로 인터넷이 필요합니다. 이후에는 내려받은 파일을 재사용합니다. 폴더 안의 파일을 따로 옮기지 마세요.
+7. **연결하고 페어링합니다.** USB를 연결한 상태로 iPad의 DeskInk를 열고, **Windows DeskInk에 지금 표시되는 6자리 코드**를 입력합니다. [페어링 순서](#페어링-코드로-pc-연결하기)를 따라가세요. 무선으로 쓰려면 먼저 [QR·IP 주소로 PC를 선택](#wi-filan으로-연결하기)해야 합니다. 페어링 번호만으로 PC를 찾을 수는 없습니다.
 
 ## 갤럭시탭·Android에 처음 설치하기
 
@@ -59,11 +87,30 @@ USB 우선 자동 연결과 Windows 앱 내 업데이트는 **0.5.1부터** 지�
 
 ## Wi-Fi/LAN으로 연결하기
 
-**현재 권장 조합은 Windows 0.5.2와 태블릿 앱 0.5.1입니다. 0.5.1보다 이전인 앱은 먼저 업데이트하세요.** USB가 기본이며, 네트워크 연결은 처음에는 꺼져 있습니다. **같은 공유기에 PC는 유선 이더넷, 태블릿은 Wi-Fi로 연결해도 됩니다.** 두 기기가 서로 통신할 수 있는 로컬 네트워크여야 하며, 인터넷을 통한 외부 원격 접속은 지원하지 않습니다.
+**현재 권장 조합은 Windows 0.5.2와 태블릿 앱 0.5.1입니다. 0.5.1보다 이전인 앱은 먼저 업데이트하세요.** 먼저 PC와 태블릿을 **같은 공유기의 서로 통신 가능한 네트워크**에 연결합니다. **PC는 유선 이더넷, 태블릿은 Wi-Fi여도 됩니다.** 이 연결과 DeskInk의 **Allow Wi-Fi / LAN** 설정은 별개이며 둘 다 필요합니다. 이 설정은 DeskInk가 태블릿 접속을 받도록 허용하는 기능으로, PC를 Wi-Fi에 연결해 주는 버튼은 아닙니다. 처음에는 꺼져 있으며 USB가 기본입니다. 인터넷을 통한 외부 원격 접속은 지원하지 않습니다.
 
-1. USB를 빼고 태블릿 연결을 종료합니다. Windows DeskInk의 **Wi-Fi / LAN** 카드에서 **Allow Wi-Fi / LAN**을 켭니다. 연결 중에는 이 설정을 바꿀 수 없습니다. 아래 표시되는 PC의 **IPv4 주소와 Port**를 확인하세요. 기본 포트는 **9876**입니다. VPN·가상 어댑터 대신 태블릿과 같은 네트워크의 주소인지 확인하고, 네트워크를 바꿨다면 **Refresh IP**를 누릅니다.
-2. **iPad:** Windows에서 **QR code (iPad)**를 누르고, iPad DeskInk의 **Scan QR code**로 읽습니다. 직접 입력하려면 **PC address**에 PC 주소를, **Port**에 표시된 포트를 넣고 **Connect**를 누르세요. **로컬 네트워크 접근**을 요청하면 허용합니다. QR에는 접속 주소만 들어 있으며, 처음 등록할 때는 페어링 코드도 입력합니다.
-3. **Android:** **Wi-Fi / LAN** 연결을 선택하고 PC의 IP 주소와 포트를 직접 입력해 연결합니다. Android에는 QR 스캔 기능이 없습니다. 이번 버전은 **Find PCs** 대신 QR·IP 입력으로 연결하세요.
+1. USB를 빼고 태블릿 연결을 종료합니다. Windows DeskInk의 **Wi-Fi / LAN** 카드에서 **Allow Wi-Fi / LAN**을 켭니다. 연결 중에는 이 설정을 바꿀 수 없습니다. 아래 표시되는 PC의 **IPv4 주소와 Port**를 확인하세요. 기본 포트는 **9876**입니다. VPN·가상 어댑터 대신 태블릿과 같은 네트워크의 주소인지 확인하고, 네트워크를 바꿨다면 **Refresh IP**를 누릅니다. **캡처의 예시 주소가 아니라 본인 PC에 지금 표시되는 주소를 사용하세요.**
+
+   <img src="docs/images/windows-lan-guide.png" alt="Windows DeskInk의 Allow Wi-Fi / LAN, PC ADDRESS, Port와 QR code 버튼. 위의 Pairing code는 별도의 등록 번호" width="560">
+
+   *실제 Windows 앱 화면에 예시 데이터를 넣어 캡처했습니다. 본인 PC의 PC ADDRESS와 Port를 태블릿에 옮겨 적으세요. 그림의 `192.168.1.20`과 페어링 번호 `123456`은 예시입니다.*
+
+2. **iPad:** Windows에서 **QR code (iPad)**를 누르고, iPad DeskInk의 **Scan QR code**로 읽습니다. 직접 입력하려면 **PC address**에 Windows의 IPv4 주소를, **Port**에 Windows에 표시된 포트를 넣고 **Connect**를 누르세요. **로컬 네트워크 접근**을 요청하면 허용합니다. QR에는 접속 주소만 들어 있으며, 처음 등록할 때는 페어링 코드도 입력합니다.
+
+   <img src="docs/images/windows-qr-guide.png" alt="iPad 연결용 Windows QR 창: QR 아래에 PC 주소와 포트 표시" width="560">
+
+   *본인 PC에서 이 창을 열고 QR을 읽으세요. 그림의 예시 QR은 본인 PC의 접속 주소가 아닙니다.*
+
+   <img src="docs/images/ipad-ip-guide.png" alt="iPad DeskInk의 PC address, Port, Connect, Scan QR code" width="720">
+
+   *실제 iPad 시뮬레이터 캡처입니다. **PC address·Port → Connect**, 또는 **Scan QR code**를 사용하세요. `192.168.1.20`은 예시 입력값이며, 본인 Windows PC에 표시되는 주소로 바꿔야 합니다.*
+
+3. **Android:** **Wi-Fi**를 눌러 **Wi-Fi / IP로 연결** 창을 엽니다. **PC IP 주소 / PC IP address**에 Windows의 IPv4 주소를, **포트 / Port**에 Windows에 표시된 포트를 입력한 뒤 **연결 / Connect**를 누릅니다. Android에는 QR 스캔 기능이 없습니다. 이번 버전은 **Find PCs** 대신 QR·IP 입력으로 연결하세요.
+
+   <img src="docs/images/android-ip-guide.png" alt="Android의 Connect over Wi-Fi / IP 창: PC IP address, Port 입력란과 Connect 버튼" width="720">
+
+   *에뮬레이터에서 실행한 실제 Android 앱 캡처입니다. 회색 `192.168.1.20`은 입력 예시 안내이므로, 그 자리에 본인 Windows PC의 현재 주소를 입력하세요.*
+
 4. 처음 사용하는 PC라면 아래 안내대로 **6자리 페어링 코드**를 입력합니다. 이전에 등록한 PC 정보는 유지됩니다. 태블릿에 Windows 화면이 나타나면 필기를 시작하세요.
 
 **신뢰하는 로컬 네트워크에서만 사용하세요. 화면과 필기 데이터는 암호화되지 않습니다.** Windows 방화벽은 압축을 푼 폴더의 **`bin/deskink.exe`·UDP 9876·개인 네트워크·로컬 서브넷** 범위로 허용합니다. 다른 포트로 설정했다면 표시된 포트와 규칙을 맞춥니다. 방화벽을 끄거나 공유기 포트 포워딩을 설정하지 마세요. 게스트 Wi-Fi, 기기 간 통신 차단, 서로 다른 서브넷이나 VPN 때문에 인터넷은 되지만 PC 연결은 안 될 수 있습니다. 네트워크 재연결로 PC 주소가 바뀌면 새 QR을 읽거나 새 주소를 입력하세요.
@@ -78,6 +125,10 @@ USB 우선 자동 연결과 Windows 앱 내 업데이트는 **0.5.1부터** 지�
 2. **태블릿에서 입력창 열기:** USB를 연결하거나 [무선 연결 순서](#wi-filan으로-연결하기)로 PC를 선택하고 태블릿 DeskInk를 엽니다. iPad는 **Pair with your PC**, Android는 자동 입력창 또는 시작 화면의 **PC 연결 / Pair PC**를 사용합니다. 연결 대기 중에는 왼쪽 위의 연결 상태를 눌러도 입력창을 열 수 있습니다.
 3. **6자리 입력:** PC의 현재 코드를 앞자리 0까지 입력하고, iPad는 **Pair iPad**, Android는 **연결 / Connect**을 누릅니다. Apple 계정의 이중 인증 번호와는 별개입니다.
 4. **연결 확인:** 태블릿에 Windows 화면이 보이고 PC 창에 **Tablet connected**가 표시되면 필기를 시작합니다. **각 PC에서 처음 한 번만 입력**하면 됩니다. 태블릿은 PC 두 대를 기억하며, Windows DeskInk를 다시 켜도 자동 연결합니다. 화면의 코드가 바뀌어도 기존 등록은 유지됩니다.
+
+<img src="docs/images/android-pairing-guide.png" alt="Android Pair PC: PC pairing code, Connect" width="720">
+
+Android의 **PC pairing code**에 Windows DeskInk의 현재 6자리 코드를 입력하고 **Connect**를 누릅니다. 실제 에뮬레이터 캡처이며 입력칸은 비어 있습니다. iPad의 제출 버튼은 **Pair iPad**입니다.
 
 **0.4.2 이전 버전에서 업데이트했다면:** Windows와 태블릿 앱을 모두 업데이트한 뒤, 각 PC에서 코드 입력을 한 번만 해주세요. 이후에는 USB 연결과 DeskInk 실행만 하면 됩니다. PC 앱의 **Forget paired tablets**를 누르면 등록이 해제되어 다시 코드가 필요합니다. 앱 재설치·데이터 초기화나 Windows 사용자 계정 변경 시에도 다시 등록해야 할 수 있습니다.
 
@@ -106,19 +157,21 @@ Zoom에서는 직접 **필기하는 모니터 전체**를 공유하고 다른 �
 
 ## 7일마다 아이패드 설치 갱신하기
 
-무료 Apple 계정으로 설치한 개발용 앱의 서명은 **7일 후 만료**됩니다. **Apple 계정이 7일짜리이거나 iloader 유료 체험인 것은 아닙니다.** 만료 전에 USB로 연결해 iloader에서 **같은 계정·같은 IPA로 Sign & Install App을 다시 실행**하면 됩니다. 이 방식은 구독 없이 갱신합니다. [Apple 무료 계정 제한](https://developer.apple.com/help/account/basics/about-your-developer-account)
+무료 Apple 계정으로 설치한 개발용 앱의 서명은 **7일 후 만료**됩니다. **Apple 계정이 7일짜리이거나 iloader 유료 체험인 것은 아닙니다.** 만료 전에 USB로 연결해 iloader에서 **같은 계정 → Import IPA → 같은 IPA 선택**으로 다시 설치하면 됩니다. **Sign & Install App** 단계가 끝날 때까지 기다리세요. 이 방식은 구독 없이 갱신합니다. [Apple 무료 계정 제한](https://developer.apple.com/help/account/basics/about-your-developer-account)
 
 ## 막힐 때
 
 - **“Different versions — update both” / “EternalMonitor”가 나옴:** PC와 태블릿의 연결 방식이 서로 호환되지 않는다는 뜻입니다. 양쪽 앱 중 0.5.1보다 이전인 앱이 있으면 업데이트하세요. Windows 0.5.2와 태블릿 0.5.1은 호환되므로 버전 숫자를 똑같이 맞출 필요는 없습니다. iPad 업데이트가 필요하면 새 IPA를 iloader에 불러와 같은 Apple 계정으로 기존 DeskInk 위에 설치합니다. 그다음 **Scan QR code** 또는 PC의 **IP·포트**로 다시 연결하세요.
 - **무선 연결이 안 됨:** 현재 배포 조합인 Windows 0.5.2·태블릿 0.5.1을 사용하는지, Windows의 **Allow Wi-Fi / LAN**이 켜져 있는지, 현재 PC 주소·포트가 맞는지 확인합니다. iPad 로컬 네트워크 권한, 같은 네트워크인지, 게스트 Wi-Fi·기기 간 통신 차단, 방화벽의 개인 네트워크·로컬 서브넷 허용을 확인하세요. 페어링 코드만으로 PC를 찾을 수는 없으므로 먼저 IP 입력이나 QR 스캔으로 선택합니다. [연결 순서 보기](#wi-filan으로-연결하기)
 - **iPad가 PC·iloader에 안 보임:** [Apple 기기 앱에서 먼저 확인](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices)합니다. 왼쪽 목록에도 안 보이면 iPad 잠금 해제 → 컴퓨터 신뢰 → 데이터 케이블·다른 USB 포트를 확인하세요. Apple 기기에는 보이면 iloader에서 **Refresh Devices / 기기 새로고침(Ctrl+R)**을 누르고, 계속 없으면 iloader를 다시 실행합니다. Apple 구성요소가 없다는 오류는 [iloader 공식 설치 안내](https://iloader.app/)를 따르세요.
+- **iloader 서버·로그인 단계에서 막힘:** 먼저 본인 Apple 계정과 비밀번호를 확인하세요. 서버 연결이나 인증 진행이 실패할 때는 **설정 → Anisette Server → Jkcoxson (Mac)**이 있으면 선택해 다시 시도할 수 있습니다. Windows PC에서도 선택 가능하며 Mac 컴퓨터는 필요 없습니다. 모든 로그인 오류를 해결하는 방법은 아니며, 이미 정상 로그인되는 설정은 그대로 두세요.
 - **Apple Devices 상시 실행 여부:** 앱을 열지 않아도 연결된다면 그대로 사용합니다. 해당 앱을 닫으면 연결이 끊기는 PC에서만 사용 중 최소화해 두세요.
 - **Android가 안 보임:** `DeskInk-Android.exe` 실행 → USB 디버깅 켜기 → 태블릿에서 PC 허용 → 데이터 케이블·삼성 USB 드라이버를 확인합니다. 앱을 태블릿 화면에 열어 두세요.
 - **개발자 앱을 사용할 수 없음:** 위 4·5단계를 확인합니다. 개발자 모드는 재시동 후 **켜기** 확인까지 필요합니다.
 - **일주일 뒤 iPad 앱이 안 열림:** iloader에서 다시 서명·설치합니다.
 - **다른 화면이 나옴:** PC의 Screen 1/2를 바꿉니다. DeskInk 번호는 Windows 디스플레이 설정 번호와 다를 수 있습니다.
 - **Windows 실행 실패:** 전체 압축 해제 여부와 첫 실행 인터넷 연결을 확인합니다. 로그는 `%LOCALAPPDATA%/DeskInk/logs`에 있습니다. 오류를 공유할 때 페어링 코드와 개인 화면 내용은 빼 주세요.
+- **session-local capture exclusion 미지원 오류:** Windows의 화면 캡처 기능 지원 문제입니다. Apple 로그인이나 IP 설정으로 해결되지 않습니다. 확인한 Windows 11 **22H2(22621.4317)**에서는 필요한 기능을 지원하지 않았고, **25H2(26200.9711)**에서는 로컬 검사로 지원을 확인했습니다. Windows 업데이트 후 다시 확인하세요. 정확한 최소 패치나 모든 25H2 PC의 동작을 보장한다는 뜻은 아닙니다. [검증 기록](docs/wireless-verification.md)
 
 **USB**와 선택적으로 켜는 **Wi-Fi/LAN** 연결을 지원합니다. [문제 제보](https://github.com/zkdlwuthwo1-hash/deskink/issues) · [지원·검증 범위](docs/android-verification.md) · [개발 안내](docs/development.md)
 

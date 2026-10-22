@@ -41,11 +41,39 @@ You need a recent Windows x64 PC, an iPad running iPadOS 17+ or an Android 8+ ta
 
 `Connection lost — USB disconnected` after pairing does not necessarily mean a bad cable. **Update the Windows app first**: Intel video encoder failures in versions before 0.4.4 also caused this message. If it persists, check iPad detection in Apple Devices and examine the matching `stdout` and `stderr` files in `%LOCALAPPDATA%\DeskInk\logs`. Redact device and connection details before posting logs publicly.
 
-1. **Check iPad detection in Apple Devices.** On a Windows PC you are setting up for the first time, install and open [Apple Devices](https://apps.microsoft.com/detail/9np83lwlpz9k). Connect iPad with a data-capable USB cable, unlock it, accept **Trust This Computer**, and enter the device passcode if prompted. Confirm that **iPad appears in the Apple Devices sidebar**. [See the marked connection example](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). If iloader and DeskInk already detect iPad correctly, no additional installation is needed; iTunes or another existing Apple setup may already provide the USB components. [Apple's instructions](https://support.apple.com/en-us/108643)
-2. **Install DeskInk on Windows.** Extract the ZIP into a writable folder such as Documents. Run `DeskInk.exe` inside the extracted folder. The first launch downloads about 60 MB of video components from their publisher and verifies the checksum; Internet is required for this step. Later launches reuse them. Keep all files together.
-3. **Install DeskInk on iPad.** Download and run the [iloader Windows installer](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe). Its Windows instructions require iTunes; follow the [official setup instructions](https://iloader.app/) if Apple components are missing. Select your connected iPad. The illustrated first-login example uses **Anisette Server → Jkcoxson (Windows)**; leave a working login's server unchanged. Sign in with **your own Apple account** and complete two-factor authentication. Use **Import IPA**, select the downloaded `DeskInk-iPad-unsigned.ipa`, then **Sign & Install App**. Wait for completion. [See the marked settings and installation buttons](https://zkdlwuthwo1-hash.github.io/deskink/README.html#iloader). Button labels can vary by iloader version/language.
-4. **Trust the developer if asked.** On iPad, open **Settings → General → VPN & Device Management → Developer App → your Apple account → Trust**. Follow any confirmation or restart prompt. Never use the author's Apple account.
+Follow this order: **check USB detection → sign in to iloader → install the IPA → trust/Developer Mode → start Windows DeskInk → pair**. The [illustrated guide](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices) follows the same order.
+
+1. **Check iPad detection in Apple Devices.** On a Windows PC you are setting up for the first time, install and open [Apple Devices](https://apps.microsoft.com/detail/9np83lwlpz9k). Connect iPad with a data-capable USB cable, unlock it, accept **Trust This Computer**, and enter the **iPad passcode** if prompted. Continue when **iPad appears in the Apple Devices sidebar**, as marked below. If iloader and DeskInk already detect iPad correctly, no additional installation is needed; iTunes or another existing Apple setup may already provide the USB components. [Apple's instructions](https://support.apple.com/en-us/108643)
+
+   <img src="docs/images/apple-devices-annotated.png" alt="Annotated Apple Devices example: check the iPad entry in the left sidebar and the device heading." width="720">
+
+   *Annotated screenshot with private device details replaced. The numbered marks identify the detected iPad.*
+
+2. **Open iloader and select the connected iPad.** Download and run the [iloader Windows installer](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.exe). Its Windows instructions require iTunes; follow the [official setup instructions](https://iloader.app/) if it reports missing Apple components. If Apple Devices detects iPad but iloader does not, use **Refresh Devices (Ctrl+R)** and reopen iloader if necessary.
+
+   Check **Settings → Anisette Server**, shown below. **Jkcoxson (Mac) can be used on Windows; you do not need a Mac computer.** The name describes the server option. If an older Windows server option fails to connect or complete login, try **Jkcoxson (Mac)** and sign in again. Leave a working login unchanged. Available choices vary: iloader **2.4.0 defaults to Jkcoxson (Mac) and removes the old Windows server choices**. Changing servers does not fix a genuinely incorrect account/password or guarantee login. [Official release notes](https://github.com/nab138/iloader/releases/tag/v2.4.0)
+
+   <img src="docs/images/iloader-mac-server-guide.png" alt="iloader settings with Jkcoxson (Mac) selected in Anisette Server." width="720">
+
+   *iloader 2.4.0 UI preview. Button names and layout can differ by version/language.*
+
+3. **Sign in with your own Apple account and complete Apple verification.** Enter your account in **Apple ID Email…**, enter its password in **Apple ID Password…**, and choose **Login**. If **Two-Factor Authentication** opens, tap **Allow** on your trusted Apple device, enter Apple's six-digit code in **Verification Code…**, then choose **Submit**. **Logged in as** and **Sign Out** indicate login is complete. This is **Apple's two-factor authentication code**, not DeskInk's PC pairing code. Never use the author's account. [Apple's verification instructions](https://support.apple.com/en-us/102606)
+
+   <img src="docs/images/iloader-apple-login-guide.png" alt="iloader Apple ID Email and Apple ID Password fields with the Login button." width="720">
+
+   <img src="docs/images/iloader-apple-2fa-guide.png" alt="iloader Two-Factor Authentication dialog with Verification Code field and Submit button." width="720">
+
+   *iloader 2.4.0 UI previews using example data, not a live Apple login. Enter your own account and the code Apple sends you.*
+
+4. **Install the downloaded IPA.** Choose **Import IPA / IPA 가져오기**, select `DeskInk-iPad-unsigned.ipa`, and wait while the **Sign & Install App** step completes. Selecting the IPA starts signing and installation. Keep iPad connected and unlocked until installation finishes. If iPad reports an untrusted developer, open **Settings → General → VPN & Device Management → Developer App → your Apple account → Trust**. Follow any confirmation or restart prompt.
+
+   <img src="docs/images/iloader-import-ipa-guide.png" alt="iloader 2.4.0: Logged in as, selected iPad, Import IPA" width="720">
+
+   The actual iloader 2.4.0 UI with example account/device data. Check **Logged in as** on the left and **Selected** above, then use **Import IPA** in the middle.
+
 5. **Enable Developer Mode — required.** Open **Settings → Privacy & Security → Developer Mode**, turn it on, and tap **Restart**. After restarting, unlock iPad, tap **Turn On** in the confirmation, and enter the device passcode if requested. Then open DeskInk. If the menu is missing, install the IPA with iloader first, try opening DeskInk once, then reopen Settings. A school/work-managed device may restrict this setting. [Apple's instructions](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
+6. **Start DeskInk on Windows.** Extract the **entire Windows ZIP** into a writable folder such as Documents and run its `DeskInk.exe`. The first launch downloads about 60 MB of video components from their publisher and verifies the checksum, so Internet is required. Later launches reuse them. Keep all files together.
+7. **Connect and pair.** Leave USB connected, open DeskInk on iPad, and enter the **six-digit code currently shown in Windows DeskInk**. Follow [Connect with the pairing code](#connect-with-the-pairing-code). For wireless use, first select the PC by [QR code or IP address](#connect-over-wi-fi--lan); the pairing code alone cannot find it.
 
 ## Install on Galaxy Tab / Android
 
@@ -61,11 +89,30 @@ After setup, use either **DeskInk - Screen 1 / Screen 2** desktop icon. Android 
 
 ## Connect over Wi-Fi / LAN
 
-**The current recommended combination is Windows 0.5.2 with tablet app 0.5.1. Update any app older than 0.5.1 first.** USB remains the default; network access starts off. The PC can use Ethernet while the tablet uses Wi-Fi on the **same router and reachable local network**. Internet remote access is not supported.
+**The current recommended combination is Windows 0.5.2 with tablet app 0.5.1. Update any app older than 0.5.1 first.** First connect the PC and tablet to the **same router and reachable local network**. The PC can use Ethernet while the tablet uses Wi-Fi. This network connection and DeskInk's **Allow Wi-Fi / LAN** switch are separate: you need both. The switch permits tablet connections to DeskInk; it does not connect Windows to Wi-Fi. It starts off, and USB remains the default. Internet remote access is not supported.
 
-1. Unplug USB and disconnect any tablet session. In Windows DeskInk, find the **Wi-Fi / LAN** card and enable **Allow Wi-Fi / LAN**. The checkbox can only be changed while disconnected. Read the PC's **IPv4 address** and **Port** shown there; the default port is **9876**. Check that the address belongs to the tablet's network, not a VPN/virtual adapter. Use **Refresh IP** after changing networks.
-2. **iPad:** click **QR code (iPad)** in Windows, then use **Scan QR code** in iPad DeskInk. Alternatively, enter the Windows address in **PC address** and the displayed number in **Port**, then tap **Connect**. Allow DeskInk's **Local Network** permission if prompted. The QR contains the connection address, not a pairing credential.
-3. **Android:** use the **Wi-Fi / LAN** connection option, enter the same PC IP address and port, and connect. Android uses direct IP entry; QR scanning is not included. Use QR/IP entry for this release rather than **Find PCs**.
+1. Unplug USB and disconnect any tablet session. In Windows DeskInk, find the **Wi-Fi / LAN** card and enable **Allow Wi-Fi / LAN**. The checkbox can only be changed while disconnected. Read the PC's **IPv4 address** and **Port** shown there; the default port is **9876**. Check that the address belongs to the tablet's network, not a VPN/virtual adapter. Use **Refresh IP** after changing networks. **Use the current address shown on your PC, not an address in a screenshot.**
+
+   <img src="docs/images/windows-lan-guide.png" alt="Windows DeskInk: Allow Wi-Fi / LAN enabled, PC ADDRESS, Port and QR code button below the separate pairing code." width="560">
+
+   *Windows app UI captured with example data. Copy your own PC ADDRESS and Port to the tablet; `192.168.1.20` and pairing code `123456` here are examples.*
+
+2. **iPad:** click **QR code (iPad)** in Windows, then use **Scan QR code** in iPad DeskInk. Alternatively, enter the Windows IPv4 address in **PC address** and its displayed port in **Port**, then tap **Connect**. Allow DeskInk's **Local Network** permission if prompted. The QR contains the connection address, not a pairing credential.
+
+   <img src="docs/images/windows-qr-guide.png" alt="Windows QR code dialog for connecting iPad, with the PC address and port beneath it." width="560">
+
+   *Open this dialog on your own PC and scan its QR. The example QR shown here is not your connection address.*
+
+   <img src="docs/images/ipad-ip-guide.png" alt="iPad DeskInk: PC address, Port, Connect, Scan QR code" width="720">
+
+   *Actual iPad simulator capture. Use **PC address and Port → Connect**, or **Scan QR code**. The entered `192.168.1.20` is sample data; replace it with the address shown on your Windows PC.*
+
+3. **Android:** tap **Wi-Fi** to open **Connect over Wi-Fi / IP**, enter the Windows IPv4 address in **PC IP address** and the displayed port in **Port**, then tap **Connect**. Android uses direct IP entry; QR scanning is not included. Use QR/IP entry for this release rather than **Find PCs**.
+
+   <img src="docs/images/android-ip-guide.png" alt="Android Connect over Wi-Fi / IP dialog with PC IP address, Port and Connect." width="720">
+
+   *Actual Android app in an emulator test. The gray `192.168.1.20` is an input hint: enter your current Windows PC address there.*
+
 4. On first use with a PC, enter its current **six-digit pairing code** as described below. Previously registered tablets keep their registration. The Windows picture should appear before you start writing.
 
 Use **trusted local networks only**: the screen and pen traffic are not encrypted. Limit Windows Firewall permission to the extracted package's **`bin/deskink.exe`, UDP 9876, Private networks and the local subnet**; match the rule to the displayed port if it was changed. Do not disable the firewall or configure router port forwarding. Guest Wi-Fi, client isolation, different subnets or a VPN can prevent devices from reaching each other even when both have Internet access. If Windows shows a different address after reconnecting to the network, scan the new QR or enter the new address.
@@ -80,6 +127,10 @@ Apple USB services and Android USB debugging are not needed for wireless streami
 2. **Open pairing on your tablet:** connect USB or select the PC via the [Wi-Fi/LAN steps](#connect-over-wi-fi--lan), then open DeskInk. On iPad, use **Pair with your PC**. On Android, use the automatic prompt or **Pair PC / PC 연결** on the welcome screen. While disconnected, you can also tap the connection status at the top left.
 3. **Enter all six digits:** include any leading zero. Tap **Pair iPad** on iPad or **Connect / 연결** on Android. This is separate from Apple account two-factor authentication.
 4. **Check the connection:** Windows appears on the tablet and the PC says **Tablet connected**. Pair once per PC; the tablet remembers two PCs and reconnects after Windows DeskInk restarts. The displayed code may change without affecting registered tablets.
+
+<img src="docs/images/android-pairing-guide.png" alt="Android Pair PC: PC pairing code, Connect" width="720">
+
+On Android, enter the current six-digit Windows DeskInk code under **PC pairing code**, then press **Connect**. This is an actual emulator capture with an empty field. On iPad, the submit button is **Pair iPad**.
 
 **Updating from a version before 0.4.2:** update Windows and the tablet app, then enter the code once on each PC. After that, USB connection and opening DeskInk are enough. **Forget paired tablets** in the Windows app removes registration and requires a new code. Reinstalling/resetting app data or changing Windows users can also require registration again.
 
@@ -108,7 +159,7 @@ In Zoom, manually share the **entire monitor** you annotate and verify ink/point
 
 ## Renew the iPad installation
 
-A free Apple account signs development apps for **7 days**. Your Apple account does not expire and this is not an iloader trial. Before expiry, connect iPad to Windows and use iloader with **the same account and IPA** to **Sign & Install App** again. This renews the installation without a subscription. [Apple's free-account limits](https://developer.apple.com/help/account/basics/about-your-developer-account)
+A free Apple account signs development apps for **7 days**. Your Apple account does not expire and this is not an iloader trial. Before expiry, connect iPad to Windows and sign in with **the same account**, choose **Import IPA**, select **the same IPA**, and wait for the **Sign & Install App** step to finish. This renews the installation without a subscription. [Apple's free-account limits](https://developer.apple.com/help/account/basics/about-your-developer-account)
 
 ## If something does not work
 
@@ -116,11 +167,13 @@ A free Apple account signs development apps for **7 days**. Your Apple account d
 - **Wi-Fi/LAN does not connect:** use the current Windows 0.5.2 and tablet 0.5.1 downloads, confirm Windows **Allow Wi-Fi / LAN** is enabled, and the IP/port match the current PC display. Check iPad Local Network permission, the same reachable local network, guest/client isolation and Windows Firewall's Private-network/local-subnet permission. A pairing code alone cannot select the PC; enter the IP or scan its QR first. [Connection steps](#connect-over-wi-fi--lan)
 - **Android is not detected:** run `DeskInk-Android.exe`, enable USB debugging, authorize this PC, and check the data cable/Samsung USB driver. Keep the tablet app open.
 - **iPad is missing from the PC or iloader:** [check Apple Devices first](https://zkdlwuthwo1-hash.github.io/deskink/README.html#apple-devices). If iPad is absent from its sidebar, unlock iPad, confirm Trust, and try a data cable/another USB port. If Apple Devices sees iPad, use **Refresh Devices (Ctrl+R)** in iloader; reopen iloader if it is still missing. Follow the [official iloader setup instructions](https://iloader.app/) if it reports missing Apple components.
+- **iloader server/login step fails:** check your Apple account and password first. For a server connection or authentication-flow failure, try **Settings → Anisette Server → Jkcoxson (Mac)** if available, then retry. It works as a server option on Windows too; no Mac is required. It is an alternative to try, not a guaranteed fix for every login error. Keep a working configuration unchanged.
 - **Keeping Apple Devices open:** if DeskInk connects without opening it, continue as usual. Only keep it running/minimized if closing that app interrupts USB connectivity on your PC.
 - **Developer cannot be trusted / Developer Mode required:** complete steps 4 and 5, including the confirmation after restart.
 - **App stopped opening after a week:** renew it with iloader as described above.
 - **Wrong monitor:** select Screen 1/2 and verify the actual screen. DeskInk numbering may differ from Windows Display Settings.
 - **Windows fails to start:** keep the entire extracted folder together and allow the first-run download. Logs are at `%LOCALAPPDATA%/DeskInk/logs`. Do not publish pairing codes or private screen contents when reporting errors.
+- **Windows reports unsupported session-local capture exclusion:** this is a Windows capture capability issue, not an Apple login or network setting. The required capability was unavailable on tested Windows 11 **22H2 (22621.4317)** and supported in a local check on **25H2 (26200.9711)**. Update Windows and recheck; this does not establish an exact minimum patch or guarantee every 25H2 installation. [Verification notes](docs/wireless-verification.md)
 
 DeskInk supports **USB** and optional **Wi-Fi/LAN**. [Report an issue](https://github.com/zkdlwuthwo1-hash/deskink/issues) · [Compatibility and verification](docs/android-verification.md) · [Development guide](docs/development.md)
 
