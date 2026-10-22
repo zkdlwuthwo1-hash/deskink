@@ -111,6 +111,22 @@ try {
     if ($UpdateReceipt) {
         @{process_id=$process.Id; path=$app} | ConvertTo-Json | Set-Content -LiteralPath $UpdateReceipt -Encoding UTF8
     }
+    if (-not $running) {
+        # Android USB is optional. Start its preparation only after the host is
+        # ready; a download or setup failure must not block iPad/LAN or updates.
+        $androidErrorLog = Join-Path $logDir "$stamp-android-stderr.log"
+        try {
+            $powershell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+            $androidSetup = Join-Path $PSScriptRoot 'start-android.ps1'
+            $androidArguments = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+                '-File', ('"{0}"' -f $androidSetup), '-PrepareOnly')
+            Start-Process -FilePath $powershell -ArgumentList $androidArguments -WorkingDirectory $packageRoot `
+                -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logDir "$stamp-android-stdout.log") `
+                -RedirectStandardError $androidErrorLog
+        } catch {
+            Add-Content -LiteralPath $androidErrorLog -Value "Could not start optional Android USB setup: $($_.Exception.Message)" -ErrorAction SilentlyContinue
+        }
+    }
 } catch {
     if ($CheckOnly) { Write-Error $_; exit 1 }
     if ($UpdateReceipt) { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }

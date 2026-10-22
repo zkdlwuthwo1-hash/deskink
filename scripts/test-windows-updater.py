@@ -26,6 +26,8 @@ class PortableUpdater(unittest.TestCase):
         self.root = self.base / 'DeskInk with spaces'
         self.root.mkdir()
         self.old = {'DeskInk.exe': b'old launcher', 'bin/deskink.exe': b'old host',
+                    'DeskInk-Android.exe': b'old Android launcher',
+                    'DeskInk-Shortcuts.exe': b'old shortcut launcher',
                     'obsolete.txt': b'old managed file'}
         for name, data in self.old.items():
             path = self.root / name
@@ -90,6 +92,8 @@ class PortableUpdater(unittest.TestCase):
         self.assertEqual((self.root / 'runtime/verified.sha256').read_text(), 'keep runtime')
         self.assertEqual((self.root / 'my-notes.txt').read_text(), 'keep my file')
         self.assertFalse((self.root / 'obsolete.txt').exists())
+        self.assertFalse((self.root / 'DeskInk-Android.exe').exists())
+        self.assertFalse((self.root / 'DeskInk-Shortcuts.exe').exists())
         self.assertEqual(json.loads((self.root / 'build-info.json').read_text())['version'], 'v0.5.1')
 
     def test_installer_releases_inherited_installation_working_directory(self):

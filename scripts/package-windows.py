@@ -33,8 +33,6 @@ def package(version, crt, release):
 
         copy(release / 'deskink.exe', 'bin/deskink.exe')
         copy(release / 'deskink-launcher.exe', 'DeskInk.exe')
-        copy(release / 'deskink-launcher.exe', 'DeskInk-Shortcuts.exe')
-        copy(release / 'deskink-launcher.exe', 'DeskInk-Android.exe')
         copy(crt, 'vcruntime140.dll')
         copy(crt, 'bin/vcruntime140.dll')
         for name in ('start-portable.ps1', 'start-android.ps1', 'create-shortcuts.ps1', 'update-portable.ps1'):
@@ -44,6 +42,8 @@ def package(version, crt, release):
             text = (ROOT / name).read_text(encoding='utf-8')
             text = re.sub(r'\]\((?!https?://|#)([^)]+)\)',
                           r'](https://github.com/zkdlwuthwo1-hash/deskink/blob/main/\1)', text)
+            text = re.sub(r'(<img\b[^>]*\bsrc=")(docs/images/[^"]+)(")',
+                          r'\1https://raw.githubusercontent.com/zkdlwuthwo1-hash/deskink/main/\2\3', text)
             (stage / name).write_text(text, encoding='utf-8')
         for source, destination in (
             ('third-party/EternalMonitor-LICENSE', 'EternalMonitor-MIT.txt'),
