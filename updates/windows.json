@@ -1,7 +1,7 @@
 {
-  "version": "v0.5.2",
-  "source_commit": "dc4ff60629f7900f50fbdfcb1daf08387b4c6967",
-  "url": "https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.2/DeskInk-Windows-x64.zip",
-  "sha256": "6393c17cacbdc2cdef3d000a12e18750072a535630591e33d07e98e437431f16",
-  "size": 15827587
+  "version": "v0.5.3",
+  "source_commit": "2fb0a6d4680e93e2ed3c97fb7ef91ae70590b47f",
+  "url": "https://github.com/zkdlwuthwo1-hash/deskink/releases/download/v0.5.3/DeskInk-Windows-x64.zip",
+  "sha256": "65f4801b180980e9726998a81f4f78589d76f97ded4e251afb3132df99a9e3c8",
+  "size": 15511227
 }
