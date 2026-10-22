@@ -23,6 +23,48 @@ final class ConnectScreenTests: XCTestCase {
         add(screenshot)
     }
 
+    func testIPConnectionGuideScreenshot() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-didSeeOnboarding", "YES",
+            "-autoReconnect", "NO",
+            "-lastHost", "192.168.1.20",
+            "-lastPort", "9876",
+            "-allowUSB", "YES",
+        ]
+        app.launch()
+        defer {
+            app.terminate()
+            XCUIDevice.shared.orientation = .portrait
+        }
+
+        let host = app.textFields["connect.host"]
+        let port = app.textFields["connect.port"]
+        let connect = app.buttons["connect.button"]
+        let scanQR = app.buttons["connect.qr"]
+        XCTAssertTrue(host.waitForExistence(timeout: 10))
+
+        // Rotate the running scene so the captured layout matches the display.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        expectation(for: NSPredicate { _, _ in app.frame.width > app.frame.height }, evaluatedWith: nil)
+        waitForExpectations(timeout: 10)
+        for control in [host, port, connect, scanQR] {
+            expectation(for: NSPredicate { _, _ in
+                control.exists && control.isHittable && app.frame.contains(control.frame)
+            }, evaluatedWith: nil)
+        }
+        waitForExpectations(timeout: 10)
+        XCTAssertEqual(host.value as? String, "192.168.1.20")
+        XCTAssertEqual(port.value as? String, "9876")
+        XCTAssertTrue(connect.isEnabled)
+
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "ipad-ip-guide"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
     func testSettingsOpenAndDismiss() {
         let app = XCUIApplication()
         app.launchArguments = ["-didSeeOnboarding", "YES", "-lastHost", "127.0.0.1", "-lastPort", "9876"]
