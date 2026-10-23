@@ -19,9 +19,23 @@ The independent standards review initially identified unnamed Android selection 
 
 ## Spec
 
-The independent requirements review identified two edge-transform issues: Android could emit an excessive resize factor or an invalid full-width move; iPad double-precision calculations could become out of bounds when Windows evaluated Float coordinates. These have targeted regressions and corrections. A final review also identified the missing Android update descriptor: `updates/android.json` now contains the actual signed release APK's version, exact size and hash. It must be publicly available together with the release before the updater is declared operational.
+The independent requirements review identified two edge-transform issues: Android could emit an excessive resize factor or an invalid full-width move; iPad double-precision calculations could become out of bounds when Windows evaluated Float coordinates. These have targeted regressions and corrections. A final review also identified the missing Android update descriptor: `updates/android.json` now contains the actual signed release APK's version, exact size and hash. The public descriptor and release download have both been verified with the production update client.
 
-Counts: **3 confirmed findings addressed in source/release preparation; 0 additional confirmed implementation findings**. Public delivery verification and the device checks below remain separate from code review.
+Counts: **3 confirmed findings addressed; 0 additional confirmed implementation findings**. Public delivery verification and the device checks below remain separate from code review.
+
+## Published release evidence
+
+[DeskInk 0.6.0](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.6.0) includes the Windows ZIP, Android APK, iPad IPA, standalone HTML, Android certificate information and SHA-256 checksums. All six public assets were downloaded without authentication and matched their local originals. The Windows package has 564 manifest entries, all verified, from clean source `d44778c`. The actual previous 0.5.3 ZIP was staged and upgraded to 0.6.0 in an isolated temporary installation with `-NoLaunch`; all new file hashes and an unmanaged user-file sentinel were preserved as expected.
+
+The public [Windows descriptor](https://raw.githubusercontent.com/zkdlwuthwo1-hash/deskink/main/updates/windows.json) and [Android descriptor](https://raw.githubusercontent.com/zkdlwuthwo1-hash/deskink/main/updates/android.json) match the uploaded files. The unmodified production Android `AppUpdate` class fetched the public feed as installed versionCode 5, received code 6, followed the real HTTPS release redirect, downloaded and verified the full APK, then confirmed that installed code 6 receives no redundant update. This exercises real release delivery, not a substituted network service; it does not press the physical Android installer confirmation.
+
+The [public illustrated guide](https://zkdlwuthwo1-hash.github.io/deskink/README.html), including the previously shared `?guide=f335f2d` URL, returns the new 9,487,218-byte standalone HTML with SHA-256 `119b635757e92495dd61f679839b576f37dd0e35da1dbcb9fbfa6709ab8654f6`, matching the packaged and locally reviewed file.
+
+| Asset | SHA-256 |
+| --- | --- |
+| Windows ZIP | `2d1c8b4e5e4cbdd0daae1fef86bce24d9ef34810093d06e4a6577fd2ead7fc5b` |
+| Android APK | `34e583b270c39803cc6c1e3fd9ed285a4de20fe457b4b1e5b65d1367d006f2f7` |
+| iPad IPA | `4b30792f743aa41eaa9fd0a27ad27309759dd84540c99e532b0567339577f80e` |
 
 ## Known limits and unresolved report
 

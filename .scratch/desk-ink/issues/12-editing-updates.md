@@ -1,7 +1,9 @@
 # Shape editing, eraser sizes and in-app updates
 
-Status: in-progress
-Blocked by: public release verification
+Status: ready-for-human
+Blocked by: none for implementation/public delivery
+Automated status: implementation, approved checks, Standards/Spec review and release verification complete
+Human verification: physical tablet latency and Android system-installer confirmation remain pending
 Baseline: d03632f
 
 ## Accepted scope
@@ -13,6 +15,6 @@ Baseline: d03632f
 
 ## Evidence and remaining work
 
-Implementation, red/green regressions and independent Standards/Spec review are recorded in [editing-update-verification.md](../../../docs/editing-update-verification.md). Native Android, iPad 205/205, real Windows-to-Android transport and isolated Windows updater checks passed. Package and public descriptor/download checks must finish before release completion.
+Implementation, red/green regressions and independent Standards/Spec review are recorded in [editing-update-verification.md](../../../docs/editing-update-verification.md). Native Android, iPad 205/205, real Windows-to-Android transport and isolated Windows updater checks passed. Public release 0.6.0 has six byte-verified assets, matching Windows/Android descriptors, and a successful real Android update check/download/hash verification. The real previous Windows ZIP also upgrades successfully in an isolated installation without launching or changing the user's running app.
 
 Physical tablet latency, Android system-install confirmation and the unresolved Galaxy screen-switch report remain human/device checks. Do not mark the monitor bug fixed without a demonstrated cause and regression.
