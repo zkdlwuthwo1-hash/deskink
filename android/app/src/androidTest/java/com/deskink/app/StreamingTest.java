@@ -144,8 +144,8 @@ public class StreamingTest {
                 boolean erased=false;
                 while(!erased) {
                     byte[] packet=read(in); if(packet[0]!='D') continue;
-                    org.json.JSONObject command=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
-                    if(command.optString("type").equals("erase_begin")) { assertEquals(48,command.getDouble("radius"),.01); erased=true; }
+                    org.json.JSONObject eraseCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
+                    if(eraseCommand.optString("type").equals("erase_begin")) { assertEquals(48,eraseCommand.getDouble("radius"),.01); erased=true; }
                 }
             }
         }
