@@ -128,7 +128,7 @@ final class DeskInkToolsTests: XCTestCase {
     func testToolbarRendersInBothIPadOrientations() throws {
         for (name,size) in [("landscape",CGSize(width:1024,height:768)),("portrait",CGSize(width:768,height:1024))] {
             let tools = DeskInkTools()
-            tools.canUndo = true
+            tools.canUndo = true; tools.editingEnabled = true
             let host = UIHostingController(rootView: ZStack {
                 UIPreview.Backdrop()
                 VStack { Spacer(); DeskInkToolbar(tools:tools).padding(16) }

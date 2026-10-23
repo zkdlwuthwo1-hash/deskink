@@ -1,0 +1,17 @@
+<resources>
+    <string name="update_short">업데이트</string>
+    <string name="update_title">앱 업데이트</string>
+    <string name="update_intro">다운로드 페이지에 가지 않고 새 DeskInk 버전을 확인합니다.</string>
+    <string name="update_checking">새 버전을 확인하고 있습니다…</string>
+    <string name="update_current">최신 버전을 사용 중입니다.</string>
+    <string name="update_available">새 버전이 있습니다. 여기에서 받은 뒤 발표를 마쳤을 때 설치하세요. PC 등록과 설정은 유지됩니다.</string>
+    <string name="update_downloading">업데이트를 다운로드하고 검증하고 있습니다… 이 창을 닫고 필기를 계속할 수 있습니다.</string>
+    <string name="update_ready">설치 준비가 끝났습니다. Android 설치창에서 확인을 눌러주세요. 설치 중에는 DeskInk가 닫히므로 발표를 마친 뒤 진행하세요.</string>
+    <string name="update_failed">업데이트 확인 또는 파일 검증에 실패했습니다. DeskInk는 계속 사용할 수 있습니다. 인터넷 연결을 확인하고 다시 시도하세요.</string>
+    <string name="update_download">업데이트 받기</string>
+    <string name="update_install">업데이트 설치</string>
+    <string name="update_check">다시 확인</string>
+    <string name="update_permission_title">DeskInk의 업데이트 설치 허용</string>
+    <string name="update_permission_detail">다음 설정에서 이 앱의 설치를 허용한 뒤 DeskInk로 돌아오세요. 처음 한 번만 설정하면 됩니다. 실제 설치 시에는 Android 확인창이 표시됩니다.</string>
+    <string name="update_open_settings">설정 열기</string>
+</resources>

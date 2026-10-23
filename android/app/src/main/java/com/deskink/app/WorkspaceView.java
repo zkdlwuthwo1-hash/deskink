@@ -25,7 +25,8 @@ final class WorkspaceView extends LinearLayout {
     private final ImageView connectionIcon;
     private final Map<PenInput.Tool,ToolButton> tools=new EnumMap<>(PenInput.Tool.class);
     private final List<ToolButton> controls=new ArrayList<>();
-    private final ToolButton undo,redo,visibility,color,width,fit,shape;
+    private final ToolButton undo,redo,visibility,color,width,fit,shape,updates;
+    Runnable updateAction=() -> { };
     private int selectedColor;
     private float selectedWidth=4;
     private float selectedEraserRadius=12;
@@ -60,6 +61,8 @@ final class WorkspaceView extends LinearLayout {
         fit=new ToolButton(activity,R.string.fit_short,R.string.fit,R.drawable.ic_fit,"fit",ink::resetZoom);
         fit.compact();
         header.addView(fit,new LayoutParams(ui.dp(56),ui.dp(48)));
+        updates=new ToolButton(activity,R.string.update_short,R.string.update_title,R.drawable.ic_update,"updates",() -> updateAction.run());
+        updates.compact(); header.addView(updates,new LayoutParams(ui.dp(56),ui.dp(48)));
         ToolButton help=new ToolButton(activity,R.string.help_short,R.string.help,R.drawable.ic_help,"help",this::help);
         help.compact();
         header.addView(help,new LayoutParams(ui.dp(56),ui.dp(48)));
@@ -95,7 +98,7 @@ final class WorkspaceView extends LinearLayout {
         scroll.setBackground(ui.surface(DeskInkUi.SURFACE,22,DeskInkUi.BORDER)); scroll.setClipToOutline(true);
         scroll.addView(dock,new FrameLayout.LayoutParams(-2,-2));
         FrameLayout footer=new FrameLayout(activity); footer.setPadding(ui.dp(12),ui.dp(6),ui.dp(12),ui.dp(8));
-        footer.addView(ui.limited(scroll,720),new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER_HORIZONTAL)); addView(footer);
+        footer.addView(ui.limited(scroll,820),new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER_HORIZONTAL)); addView(footer);
         ink.stateChanged=this::refreshControls; refreshControls();
         // Preserve camera/caption-bar space in tablet desktop and multi-window modes.
         setOnApplyWindowInsetsListener((view,insets) -> {
@@ -232,6 +235,9 @@ final class WorkspaceView extends LinearLayout {
     private void help() {
         LinearLayout content=ui.sheetContent(R.string.help,R.drawable.ic_usb); TextView text=ui.text(R.string.usb_help,14,DeskInkUi.MUTED,false); text.setLineSpacing(ui.dp(5),1);
         content.addView(text); showSheet(content);
+    }
+    void updateStatus(String status,boolean available) {
+        updates.setSelected(available); updates.setContentDescription(activity.getString(R.string.update_title)+": "+status); updates.setTooltipText(status);
     }
     private void showSheet(View content) {
         closeSheet(); sheet=new AlertDialog.Builder(activity).setView(ui.scroll(content)).setNegativeButton(android.R.string.ok,null).create(); sheet.show(); ui.finishSheet(sheet);

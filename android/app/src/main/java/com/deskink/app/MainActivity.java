@@ -24,6 +24,7 @@ public final class MainActivity extends Activity {
     private InkCanvas ink;
     private TextureView video;
     private WorkspaceView workspace;
+    private AppUpdates updates;
     private final MonitorDocuments documents=new MonitorDocuments();
     private volatile AutoConnectSession client;
     private boolean lanMode;
@@ -39,6 +40,7 @@ public final class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         workspace=new WorkspaceView(this,this::pair,this::network);
         video=workspace.video; ink=workspace.ink; setContentView(workspace);
+        updates=new AppUpdates(this,workspace::updateStatus); workspace.updateAction=updates::show;
         preferences=getSharedPreferences("usb-pairing",MODE_PRIVATE);
         ink.transformChanged=this::transformVideo;
         video.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
@@ -77,6 +79,7 @@ public final class MainActivity extends Activity {
     }
     @Override public void onStart() {
         super.onStart();
+        updates.start();
         if(preferences.getBoolean("auto-paused",false)) {
             workspace.showConnection(getString(R.string.app_name),getString(R.string.auto_paused),false);
         } else startSession(null,9876);
@@ -274,10 +277,13 @@ public final class MainActivity extends Activity {
         pairingDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
     }
     @Override public void onStop() {
+        updates.stop();
         ++runId; stopTransport();
         if(surface!=null) { surface.release(); surface=null; }
         if(pairingDialog!=null) pairingDialog.dismiss();
         if(networkDialog!=null) networkDialog.dismiss();
         workspace.closeSheet(); binding=null; super.onStop();
     }
+    @Override public void onResume() { super.onResume(); if(updates!=null) updates.resume(); }
+    @Override public void onDestroy() { if(updates!=null) updates.close(); super.onDestroy(); }
 }

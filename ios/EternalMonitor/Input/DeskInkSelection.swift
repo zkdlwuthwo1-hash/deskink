@@ -92,7 +92,21 @@ final class DeskInkSelection {
             tx=Self.clamp(ax*(1-sx),-l*sx,size.width-r*sx); ty=Self.clamp(ay*(1-sy),-t*sy,size.height-b*sy)
         default: return
         }
-        emit(.editTransform(id:id,sx:sx,sy:sy,tx:tx,ty:ty),true)
+        let x=Self.wireAxis(scale:sx,translation:tx,lower:l,upper:r,limit:size.width)
+        let y=Self.wireAxis(scale:sy,translation:ty,lower:t,upper:b,limit:size.height)
+        emit(.editTransform(id:id,sx:x.0,sy:y.0,tx:x.1,ty:y.1),true)
+    }
+    /// Windows evaluates coordinates as Float. Leave room for cancellation at
+    /// the edges instead of sending a mathematically valid but negative f32 point.
+    private static func wireAxis(scale: CGFloat,translation: CGFloat,lower: CGFloat,upper: CGFloat,limit: CGFloat) -> (CGFloat,CGFloat) {
+        var factor=Float(scale)
+        let l=Float(lower),r=Float(upper),edge=Float(limit)
+        while r*factor-l*factor>edge { factor=factor.nextDown }
+        let low = -l*factor, high=edge-r*factor
+        let magnitude=max(abs(l*factor),abs(r*factor))
+        let padding=min(max(0,(high-low)/2),max(0.001,magnitude.ulp*4))
+        let offset=max(low+padding,min(high-padding,Float(translation)))
+        return (CGFloat(factor),CGFloat(offset))
     }
     private static func clamp(_ value: CGFloat,_ lower: CGFloat,_ upper: CGFloat) -> CGFloat { lower>upper ? 0:max(lower,min(upper,value)) }
     private static func contains(_ b: CGRect,_ p: DeskInkPoint) -> Bool { p.x>=b.minX && p.x<=b.maxX && p.y>=b.minY && p.y<=b.maxY }
