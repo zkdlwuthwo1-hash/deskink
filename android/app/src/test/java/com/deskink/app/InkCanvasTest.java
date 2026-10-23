@@ -12,6 +12,22 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void selectedEraserSizeControlsBarrelErasingAndItsVisiblePointer() {
+        for(float radius:new float[]{12,24,48}) {
+            InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
+            List<JSONObject> sent=new ArrayList<>();
+            canvas.bind(new InkDocument(),c -> { sent.add(c); return true; },1920,1080);
+            canvas.select(PenInput.Tool.HIGHLIGHTER); canvas.width(8); canvas.eraserRadius(radius);
+            touch(canvas,MotionEvent.ACTION_DOWN,MotionEvent.BUTTON_STYLUS_PRIMARY,500,350);
+            JSONObject erase=sent.stream().filter(c -> c.optString("type").equals("erase_begin")).findFirst().orElseThrow();
+            JSONObject pointer=sent.stream().filter(c -> c.optString("type").equals("pointer")).findFirst().orElseThrow();
+            assertEquals("Eraser size must not depend on the pen width",radius,erase.optDouble("radius"),.01);
+            assertEquals("The pointer must show the actual erase range",radius,pointer.optDouble("radius"),.01);
+            touch(canvas,MotionEvent.ACTION_MOVE,0,520,350);
+            assertEquals(PenInput.Tool.HIGHLIGHTER,canvas.tool());
+            touch(canvas,MotionEvent.ACTION_UP,0,520,350);
+        }
+    }
     @Test public void aPalmLandingAndLiftingDuringAStrokeDoesNotRestartThePenGesture() {
         InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
         List<JSONObject> sent=new ArrayList<>();

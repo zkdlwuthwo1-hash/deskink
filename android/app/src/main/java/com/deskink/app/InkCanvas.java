@@ -22,6 +22,7 @@ public final class InkCanvas extends View {
     private int pointerId=-1;
     private int[] color={255,80,40,255};
     private float width=4;
+    private float eraserRadius=12;
     private float fingerX,fingerY,fingerSpan;
     private int fingerA=-1,fingerB=-1;
     public Runnable stateChanged=() -> {};
@@ -47,6 +48,7 @@ public final class InkCanvas extends View {
     public void select(PenInput.Tool tool) { finish(true); pen.select(tool); stateChanged.run(); }
     public void color(int[] rgba) { color=rgba.clone(); }
     public void width(float value) { width=value; }
+    public void eraserRadius(float value) { eraserRadius=value==24||value==48?value:12; }
     public void command(String type) { finish(true); emit(Ink.command(type)); }
     public void visible(boolean visible) { finish(true); emit(Ink.object("type","set_visible","visible",visible)); }
     private void emit(JSONObject command) {
@@ -84,7 +86,7 @@ public final class InkCanvas extends View {
     private void begin(PenInput.Tool tool,JSONObject p) {
         activeTool=tool; gestureId=++nextId;
         if(!document.visible) emit(Ink.object("type","set_visible","visible",true));
-        if(tool==PenInput.Tool.ERASER) emit(Ink.object("type","erase_begin","id",gestureId,"point",p,"radius",Math.max(12,width*3)));
+        if(tool==PenInput.Tool.ERASER) emit(Ink.object("type","erase_begin","id",gestureId,"point",p,"radius",eraserRadius));
         else if(tool!=PenInput.Tool.LASER) {
             int[] rgba=color.clone(); if(tool==PenInput.Tool.HIGHLIGHTER) rgba[3]=80;
             emit(Ink.begin(gestureId,p,rgba,tool==PenInput.Tool.HIGHLIGHTER?width*5:width,tool==PenInput.Tool.VANISHING));
@@ -103,8 +105,9 @@ public final class InkCanvas extends View {
         if(lift) { pen.contactEnded(); stateChanged.run(); }
     }
     private void cursor(JSONObject p,boolean laser) {
-        emit(Ink.object("type","pointer","point",p==null?JSONObject.NULL:p,"color",Ink.color(color),
-            "radius",laser?10:Math.max(2,width/2),"laser",laser));
+        boolean erasing=(activeTool==null?pen.tool():activeTool)==PenInput.Tool.ERASER;
+        emit(Ink.object("type","pointer","point",p==null?JSONObject.NULL:p,"color",Ink.color(erasing?new int[]{235,240,250,255}:color),
+            "radius",erasing?eraserRadius:laser?10:Math.max(2,width/2),"laser",laser));
     }
     private void buttons(MotionEvent e) {
         PenInput.Tool before=pen.tool();
@@ -183,9 +186,11 @@ public final class InkCanvas extends View {
                 float x=(float)p.optDouble("x"),y=(float)p.optDouble("y"),r=(float)cursor.optDouble("radius",3);
                 paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.5f/viewport.scale()); paint.setColor(Color.WHITE);
                 canvas.drawCircle(x,y,Math.max(r,4/viewport.scale()),paint);
-                paint.setStyle(Paint.Style.FILL); paint.setColor(Color.rgb(color[0],color[1],color[2]));
+                boolean erasing=(activeTool==null?pen.tool():activeTool)==PenInput.Tool.ERASER;
+                paint.setStyle(Paint.Style.FILL); paint.setColor(erasing?Color.WHITE:Color.rgb(color[0],color[1],color[2]));
                 if(cursor.optBoolean("laser")) { paint.setAlpha(70); canvas.drawCircle(x,y,r*1.8f,paint); paint.setAlpha(255); }
-                canvas.drawCircle(x,y,r,paint);
+                if(erasing) paint.setAlpha(30);
+                canvas.drawCircle(x,y,r,paint); paint.setAlpha(255);
             }
         }
         canvas.restore();

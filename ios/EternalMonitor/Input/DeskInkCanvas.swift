@@ -122,7 +122,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         activeID = id; activeTool = tools.tool
         var commands: [DeskInkCommand] = []
         switch tools.tool {
-        case .eraser: commands.append(.eraseBegin(id: id, point: point, radius: max(12,tools.width*3)))
+        case .eraser: commands.append(.eraseBegin(id: id, point: point, radius: tools.eraserSize.radius))
         case .laser: break
         case .vanishing: commands.append(.transientBegin(id: id, brush: tools.brush, point: point, lifetimeMs: 2000))
         case .pen, .highlighter: commands.append(.begin(id: id, brush: tools.brush, point: point))
@@ -193,7 +193,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     private func pointerCommand(_ point: DeskInkPoint?) -> DeskInkCommand {
         let tool = activeTool ?? tools?.tool ?? .pen
         return .pointer(point: point, color: tool == .eraser ? [235,240,250,255] : tools?.color.rgba ?? [255,80,40,255],
-                        radius: tool == .eraser ? max(12,(tools?.width ?? 4)*3) : 7, laser: tool == .laser || tool == .eraser)
+                        radius: tool == .eraser ? (tools?.eraserSize.radius ?? 12) : 7, laser: tool == .laser || tool == .eraser)
     }
     @objc private func hovered(_ gesture: UIHoverGestureRecognizer) {
         guard enabled, activeTouch == nil else { return }

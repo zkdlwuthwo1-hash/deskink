@@ -27,7 +27,9 @@
     <string name="not_connected">USB를 연결하고 Windows에서 DeskInk를 먼저 실행하세요.</string>
     <string name="invalid_code">6자리 숫자를 입력하세요.</string>
     <string name="thin">얇게</string><string name="medium">보통</string><string name="thick">굵게</string>
-    <string-array name="colors"><item>주황</item><item>빨강</item><item>노랑</item><item>초록</item><item>파랑</item><item>흰색</item><item>검정</item></string-array>
+    <string-array name="colors"><item>주황</item><item>빨강</item><item>노랑</item><item>초록</item><item>파랑</item><item>흰색</item><item>검정</item><item>청록</item><item>보라</item><item>분홍</item><item>회색</item><item>갈색</item></string-array>
+    <string name="eraser_size">지우개 크기</string><string name="small">작게</string><string name="large">크게</string>
+    <string name="eraser_hint">S펜 버튼으로 지울 때도 같은 크기를 사용하며, 선택을 기억합니다.</string>
     <string name="help_short">도움말</string>
     <string name="undo_short">취소</string><string name="redo_short">다시</string><string name="clear_short">지우기</string>
     <string name="hide_short">숨기기</string><string name="show_short">보이기</string><string name="show">필기 보이기</string>

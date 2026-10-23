@@ -28,12 +28,17 @@ final class WorkspaceView extends LinearLayout {
     private final ToolButton undo,redo,visibility,color,width,fit;
     private int selectedColor;
     private float selectedWidth=4;
+    private float selectedEraserRadius=12;
+    private final android.content.SharedPreferences drawingPreferences;
     private boolean visible=true;
     private AlertDialog sheet;
-    private static final int[][] COLORS={{255,80,40,255},{245,45,65,255},{255,210,35,255},{25,190,100,255},{35,125,255,255},{255,255,255,255},{25,30,40,255}};
+    private static final int[][] COLORS={{255,80,40,255},{245,45,65,255},{255,210,35,255},{25,190,100,255},{35,125,255,255},{255,255,255,255},{25,30,40,255},{20,190,200,255},{155,90,235,255},{245,120,180,255},{145,150,160,255},{155,100,60,255}};
 
     WorkspaceView(Activity activity,Runnable pair,Runnable network) {
         super(activity); this.activity=activity; ui=new DeskInkUi(activity);
+        drawingPreferences=activity.getSharedPreferences("drawing-tools",0);
+        float savedRadius=drawingPreferences.getFloat("eraser-radius",12);
+        selectedEraserRadius=savedRadius==24||savedRadius==48?savedRadius:12;
         setOrientation(VERTICAL); setBackgroundColor(DeskInkUi.CANVAS);
         LinearLayout header=ui.row(); header.setPadding(ui.dp(14),ui.dp(4),ui.dp(12),ui.dp(4));
         connection=ui.row(); connection.setTag("pair"); connection.setPadding(ui.dp(12),ui.dp(6),ui.dp(12),ui.dp(6));
@@ -50,6 +55,7 @@ final class WorkspaceView extends LinearLayout {
         ToolButton lan=new ToolButton(activity,R.string.network_short,R.string.network,R.drawable.ic_wifi,"network",network);
         lan.compact(); header.addView(lan,new LayoutParams(ui.dp(56),ui.dp(48)));
         ink=new InkCanvas(activity); ink.setTag("ink");
+        ink.eraserRadius(selectedEraserRadius);
         fit=new ToolButton(activity,R.string.fit_short,R.string.fit,R.drawable.ic_fit,"fit",ink::resetZoom);
         fit.compact();
         header.addView(fit,new LayoutParams(ui.dp(56),ui.dp(48)));
@@ -168,7 +174,7 @@ final class WorkspaceView extends LinearLayout {
     private void colors() {
         LinearLayout content=ui.sheetContent(R.string.color,R.drawable.ic_pen); content.addView(ui.text(R.string.color_hint,13,DeskInkUi.MUTED,false)); content.addView(ui.space(18));
         String[] names=getResources().getStringArray(R.array.colors);
-        // Two rows keep every swatch reachable even in narrow multi-window mode.
+        // Four columns remain reachable in narrow multi-window mode.
         for(int start=0;start<COLORS.length;start+=4) {
             LinearLayout row=ui.row();
             for(int i=start;i<Math.min(start+4,COLORS.length);i++) {
@@ -181,7 +187,7 @@ final class WorkspaceView extends LinearLayout {
                 choice.setOnClickListener(v -> { selectedColor=index; ink.color(COLORS[index]); color.swatch(colorValue(index)); refreshControls(); closeSheet(); });
                 row.addView(choice,new LayoutParams(0,-2,1));
             }
-            if(start==4) row.addView(new View(activity),new LayoutParams(0,ui.dp(1),1));
+            for(int i=Math.min(start+4,COLORS.length);i<start+4;i++) row.addView(new View(activity),new LayoutParams(0,ui.dp(1),1));
             content.addView(row);
         }
         showSheet(content);
@@ -198,6 +204,23 @@ final class WorkspaceView extends LinearLayout {
             LayoutParams lp=new LayoutParams(ui.dp(20),ui.dp(20)); lp.setMarginStart(ui.dp(22)); choice.addView(check,lp);
             choice.setOnClickListener(v -> { selectedWidth=value; ink.width(value); width.thickness(value); refreshControls(); closeSheet(); }); content.addView(choice);
         }
+        content.addView(ui.space(16)); content.addView(ui.text(R.string.eraser_size,15,DeskInkUi.TEXT,true));
+        content.addView(ui.text(R.string.eraser_hint,12,DeskInkUi.MUTED,false)); content.addView(ui.space(8));
+        LinearLayout sizes=ui.row();
+        float[] radii={12,24,48}; int[] labels={R.string.small,R.string.medium,R.string.large};
+        for(int i=0;i<radii.length;i++) {
+            float value=radii[i]; LinearLayout choice=ui.column(); choice.setGravity(Gravity.CENTER);
+            choice.setTag("eraser.size."+(int)value); choice.setMinimumHeight(ui.dp(86)); choice.setFocusable(true); choice.setClickable(true);
+            choice.setSelected(value==selectedEraserRadius); choice.setContentDescription(activity.getString(R.string.eraser_size)+": "+activity.getString(labels[i]));
+            choice.setBackground(ui.controlBackground(value==selectedEraserRadius?DeskInkUi.SELECTED:Color.TRANSPARENT,14));
+            FrameLayout preview=new FrameLayout(activity); View circle=new View(activity);
+            circle.setBackground(ui.surface(DeskInkUi.SELECTED,24,DeskInkUi.ACCENT));
+            int diameter=ui.dp(value/2+8); preview.addView(circle,new FrameLayout.LayoutParams(diameter,diameter,Gravity.CENTER));
+            choice.addView(preview,new LayoutParams(-1,ui.dp(40))); choice.addView(ui.text(labels[i],13,DeskInkUi.TEXT,true));
+            choice.setOnClickListener(v -> { selectedEraserRadius=value; ink.eraserRadius(value); drawingPreferences.edit().putFloat("eraser-radius",value).apply(); closeSheet(); });
+            sizes.addView(choice,new LayoutParams(0,-2,1));
+        }
+        content.addView(sizes);
         showSheet(content);
     }
     private void help() {

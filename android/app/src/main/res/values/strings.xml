@@ -28,7 +28,9 @@
     <string name="not_connected">Connect the USB cable and open DeskInk on Windows first.</string>
     <string name="invalid_code">Enter six digits.</string>
     <string name="thin">Thin</string><string name="medium">Medium</string><string name="thick">Thick</string>
-    <string-array name="colors"><item>Orange</item><item>Red</item><item>Yellow</item><item>Green</item><item>Blue</item><item>White</item><item>Black</item></string-array>
+    <string-array name="colors"><item>Orange</item><item>Red</item><item>Yellow</item><item>Green</item><item>Blue</item><item>White</item><item>Black</item><item>Teal</item><item>Purple</item><item>Pink</item><item>Gray</item><item>Brown</item></string-array>
+    <string name="eraser_size">Eraser size</string><string name="small">Small</string><string name="large">Large</string>
+    <string name="eraser_hint">Also used while holding the S Pen button. Your choice is remembered.</string>
     <string name="help_short">Help</string>
     <string name="undo_short">Undo</string><string name="redo_short">Redo</string><string name="clear_short">Clear</string>
     <string name="hide_short">Hide</string><string name="show_short">Show</string><string name="show">Show ink</string>
