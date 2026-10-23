@@ -26,8 +26,23 @@ public class StreamingTest {
         DataInputStream data=new DataInputStream(in); int n=data.readUnsignedByte()|(data.readUnsignedByte()<<8);
         byte[] b=new byte[n]; data.readFully(b); return b;
     }
-    private static void send(OutputStream out,byte[] b) throws IOException { out.write(b.length&255); out.write(b.length>>8); out.write(b); out.flush(); }
+    private static void send(OutputStream out,byte[] b) throws IOException { synchronized(out) { out.write(b.length&255); out.write(b.length>>8); out.write(b); out.flush(); } }
     private static byte[] control(int type,long session,byte[] body) { return com.deskink.core.Wire.control(type,session,1,body); }
+    private static AutoCloseable keepAlive(OutputStream out,byte[] config) {
+        // A real PC sends heartbeats while the user browses tools. Screenshots
+        // must not accidentally turn this fixture into a disconnected host.
+        java.util.concurrent.ScheduledExecutorService timer=java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+        AtomicReference<IOException> failure=new AtomicReference<>();
+        timer.scheduleAtFixedRate(() -> {
+            try { send(out,control(0x12,42,config)); }
+            catch(IOException error) { failure.compareAndSet(null,error); }
+        },0,500,java.util.concurrent.TimeUnit.MILLISECONDS);
+        return () -> {
+            timer.shutdownNow();
+            if(!timer.awaitTermination(2,java.util.concurrent.TimeUnit.SECONDS)) throw new AssertionError("Fixture heartbeat must stop");
+            if(failure.get()!=null) throw failure.get();
+        };
+    }
     private static void pen(InkCanvas canvas,int action,float x,float y) {
         MotionEvent.PointerProperties property=new MotionEvent.PointerProperties(); property.id=0; property.toolType=MotionEvent.TOOL_TYPE_STYLUS;
         MotionEvent.PointerCoords point=new MotionEvent.PointerCoords(); point.x=canvas.viewport.x()+x*canvas.viewport.scale(); point.y=canvas.viewport.y()+y*canvas.viewport.scale(); point.pressure=1;
@@ -71,81 +86,85 @@ public class StreamingTest {
                     });
                 }
                 assertTrue("Decoded fixture must appear on the TextureView",shown.get());
-                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("clear").performClick());
-                byte[] command; do { command=read(in); } while(command[0]!='D');
-                String json=new String(command,4,command.length-4,java.nio.charset.StandardCharsets.UTF_8);
-                assertEquals("clear",new org.json.JSONObject(json).getJSONObject("command").getString("type"));
-                activity.onActivity(a -> {
-                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
-                    // One real native stylus stroke under the sample amplifier.
-                    for(int i=0;i<=20;i++) {
-                        MotionEvent.PointerProperties pen=new MotionEvent.PointerProperties(); pen.id=0; pen.toolType=MotionEvent.TOOL_TYPE_STYLUS;
-                        MotionEvent.PointerCoords point=new MotionEvent.PointerCoords();
-                        point.x=canvas.viewport.x()+(510+i*13)*canvas.viewport.scale();
-                        point.y=canvas.viewport.y()+(490+(float)Math.sin(i*.3)*3)*canvas.viewport.scale(); point.pressure=1;
-                        int action=i==0?MotionEvent.ACTION_DOWN:i==20?MotionEvent.ACTION_UP:MotionEvent.ACTION_MOVE;
-                        MotionEvent event=MotionEvent.obtain(100,100+i*8,action,1,new MotionEvent.PointerProperties[]{pen},new MotionEvent.PointerCoords[]{point},0,0,1,1,0,0,InputDevice.SOURCE_STYLUS,0);
-                        canvas.dispatchTouchEvent(event); event.recycle();
+                try(AutoCloseable heartbeat=keepAlive(out,config.array())) {
+                    activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("clear").performClick());
+                    byte[] command; do { command=read(in); } while(command[0]!='D');
+                    String json=new String(command,4,command.length-4,java.nio.charset.StandardCharsets.UTF_8);
+                    assertEquals("clear",new org.json.JSONObject(json).getJSONObject("command").getString("type"));
+                    activity.onActivity(a -> {
+                        InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                        // One real native stylus stroke under the sample amplifier.
+                        for(int i=0;i<=20;i++) {
+                            MotionEvent.PointerProperties pen=new MotionEvent.PointerProperties(); pen.id=0; pen.toolType=MotionEvent.TOOL_TYPE_STYLUS;
+                            MotionEvent.PointerCoords point=new MotionEvent.PointerCoords();
+                            point.x=canvas.viewport.x()+(510+i*13)*canvas.viewport.scale();
+                            point.y=canvas.viewport.y()+(490+(float)Math.sin(i*.3)*3)*canvas.viewport.scale(); point.pressure=1;
+                            int action=i==0?MotionEvent.ACTION_DOWN:i==20?MotionEvent.ACTION_UP:MotionEvent.ACTION_MOVE;
+                            MotionEvent event=MotionEvent.obtain(100,100+i*8,action,1,new MotionEvent.PointerProperties[]{pen},new MotionEvent.PointerCoords[]{point},0,0,1,1,0,0,InputDevice.SOURCE_STYLUS,0);
+                            canvas.dispatchTouchEvent(event); event.recycle();
+                        }
+                    });
+                    WorkspaceUiTest.capture("streaming");
+                    send(out,control(0x18,42,config.array()));
+                    activity.onActivity(a -> {
+                        InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                        pen(canvas,MotionEvent.ACTION_DOWN,150,450);
+                        for(float[] p:new float[][]{{350,450},{350,600},{150,600},{150,450}}) pen(canvas,MotionEvent.ACTION_MOVE,p[0],p[1]);
+                    });
+                    Thread.sleep(1150);
+                    activity.onActivity(a -> {
+                        InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink"); pen(canvas,MotionEvent.ACTION_UP,150,450);
+                        a.getWindow().getDecorView().findViewWithTag("tool.LASSO").performClick();
+                        pen(canvas,MotionEvent.ACTION_DOWN,250,525); pen(canvas,MotionEvent.ACTION_MOVE,310,540); pen(canvas,MotionEvent.ACTION_UP,310,540);
+                    });
+                    boolean corrected=false,moved=false;
+                    while(!corrected||!moved) {
+                        byte[] packet=read(in); if(packet[0]!='D') continue;
+                        org.json.JSONObject inkCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
+                        if(inkCommand.optString("type").equals("shape")) { assertEquals("rectangle",inkCommand.getString("kind")); corrected=true; }
+                        if(inkCommand.optString("type").equals("edit_transform")) { assertEquals(60,inkCommand.getDouble("tx"),.1); moved=true; }
                     }
-                });
-                WorkspaceUiTest.capture("streaming");
-                send(out,control(0x18,42,config.array()));
-                activity.onActivity(a -> {
-                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
-                    pen(canvas,MotionEvent.ACTION_DOWN,150,450);
-                    for(float[] p:new float[][]{{350,450},{350,600},{150,600},{150,450}}) pen(canvas,MotionEvent.ACTION_MOVE,p[0],p[1]);
-                });
-                Thread.sleep(1150);
-                activity.onActivity(a -> {
-                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink"); pen(canvas,MotionEvent.ACTION_UP,150,450);
-                    a.getWindow().getDecorView().findViewWithTag("tool.LASSO").performClick();
-                    pen(canvas,MotionEvent.ACTION_DOWN,250,525); pen(canvas,MotionEvent.ACTION_MOVE,310,540); pen(canvas,MotionEvent.ACTION_UP,310,540);
-                });
-                boolean corrected=false,moved=false;
-                while(!corrected||!moved) {
-                    byte[] packet=read(in); if(packet[0]!='D') continue;
-                    org.json.JSONObject inkCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
-                    if(inkCommand.optString("type").equals("shape")) { assertEquals("rectangle",inkCommand.getString("kind")); corrected=true; }
-                    if(inkCommand.optString("type").equals("edit_transform")) { assertEquals(60,inkCommand.getDouble("tx"),.1); moved=true; }
-                }
-                WorkspaceUiTest.capture("selection");
-                send(out,control(0x18,42,config.array()));
-                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("color").performClick());
-                WorkspaceUiTest.capture("colors");
-                activity.onActivity(a -> {
-                    for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
-                        View ok=window.findViewById(android.R.id.button2); if(ok!=null) ok.performClick();
+                    WorkspaceUiTest.capture("selection");
+                    send(out,control(0x18,42,config.array()));
+                    activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("color").performClick());
+                    WorkspaceUiTest.capture("colors");
+                    activity.onActivity(a -> {
+                        for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                            View ok=window.findViewById(android.R.id.button2); if(ok!=null) ok.performClick();
+                        }
+                    });
+                    InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+                    activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
+                    activity.onActivity(a -> {
+                        View shape=a.getWindow().getDecorView().findViewWithTag("shape");
+                        assertFalse(shape.isSelected()); assertTrue(shape.isShown()); assertTrue(shape.isEnabled());
+                    });
+                    WorkspaceUiTest.capture("shape-off");
+                    activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
+                    activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("tool.ERASER").performClick());
+                    WorkspaceUiTest.capture("eraser-sizes");
+                    activity.onActivity(a -> {
+                        InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                        assertTrue("The test host must remain connected while selecting tools",canvas.connected());
+                        boolean chosen=false;
+                        for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                            View large=window.findViewWithTag("eraser.size.48");
+                            if(large!=null) { large.performClick(); chosen=true; }
+                        }
+                        assertTrue("Eraser tap must directly show all sizes",chosen);
+                    });
+                    InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+                    activity.onActivity(a -> {
+                        InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                        assertTrue("The picker must return input focus to the canvas",canvas.hasWindowFocus());
+                        pen(canvas,MotionEvent.ACTION_DOWN,450,450); pen(canvas,MotionEvent.ACTION_UP,450,450);
+                    });
+                    boolean erased=false;
+                    while(!erased) {
+                        byte[] packet=read(in); if(packet[0]!='D') continue;
+                        org.json.JSONObject eraseCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
+                        if(eraseCommand.optString("type").equals("erase_begin")) { assertEquals(48,eraseCommand.getDouble("radius"),.01); erased=true; }
                     }
-                });
-                InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
-                activity.onActivity(a -> {
-                    View shape=a.getWindow().getDecorView().findViewWithTag("shape");
-                    assertFalse(shape.isSelected()); assertTrue(shape.isShown()); assertTrue(shape.isEnabled());
-                });
-                WorkspaceUiTest.capture("shape-off");
-                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
-                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("tool.ERASER").performClick());
-                WorkspaceUiTest.capture("eraser-sizes");
-                activity.onActivity(a -> {
-                    boolean chosen=false;
-                    for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
-                        View large=window.findViewWithTag("eraser.size.48");
-                        if(large!=null) { large.performClick(); chosen=true; }
-                    }
-                    assertTrue("Eraser tap must directly show all sizes",chosen);
-                });
-                InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-                activity.onActivity(a -> {
-                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
-                    assertTrue("The picker must return input focus to the canvas",canvas.hasWindowFocus());
-                    pen(canvas,MotionEvent.ACTION_DOWN,450,450); pen(canvas,MotionEvent.ACTION_UP,450,450);
-                });
-                boolean erased=false;
-                while(!erased) {
-                    byte[] packet=read(in); if(packet[0]!='D') continue;
-                    org.json.JSONObject eraseCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
-                    if(eraseCommand.optString("type").equals("erase_begin")) { assertEquals(48,eraseCommand.getDouble("radius"),.01); erased=true; }
                 }
             }
         }
