@@ -1,7 +1,30 @@
 import XCTest
+import UIKit
 @testable import EternalMonitor
 
 final class DeskInkEditingTests: XCTestCase {
+    @MainActor
+    func testHoldingThenSelectingMovingAndResizingUsesTheActualCanvasInput() {
+        let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
+        canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.shapeCorrection=true
+        canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"editing-test")
+        canvas.layoutIfNeeded()
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:100,y:100),pressure:1))
+        for p in [CGPoint(x:200,y:100),CGPoint(x:200,y:200),CGPoint(x:100,y:200),CGPoint(x:100,y:100)] { canvas.moveStroke(to:p,pressure:1) }
+        RunLoop.main.run(until:Date().addingTimeInterval(1.1))
+        XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle)
+        canvas.finish(); tools.select(.lasso)
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:150,y:150),pressure:1))
+        canvas.moveStroke(to:CGPoint(x:250,y:200),pressure:1); canvas.finish()
+        XCTAssertEqual(canvas.document.strokes[0].points[0].x,200)
+        XCTAssertEqual(canvas.document.strokes[0].points[0].y,150)
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:300,y:250),pressure:1))
+        canvas.moveStroke(to:CGPoint(x:350,y:300),pressure:1); canvas.finish()
+        XCTAssertEqual(canvas.document.strokes[0].points[2].x,350)
+        XCTAssertEqual(canvas.document.strokes[0].points[2].y,300)
+        tools.perform(.undo); XCTAssertEqual(canvas.document.strokes[0].points[2].x,300)
+        tools.perform(.undo); XCTAssertEqual(canvas.document.strokes[0].points[0].x,100)
+    }
     func testSelectionPreviewsCommitOneUndoStepAndDoNotAccumulate() throws {
         let document=DeskInkDocument()
         for id: UInt64 in [1,2] {
