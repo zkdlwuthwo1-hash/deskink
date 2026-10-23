@@ -1,6 +1,6 @@
 # Rectangle hold and unexpected loss of pen input
 
-Status: in-progress
+Status: completed for the reproduced hold-delay and tilted-rectangle defects; needs-info if the earlier persistent pen-input interruption recurs.
 Blocked by: none for recognition and hold improvements; the earlier persistent pen-input failure remains unproven.
 Baseline: d25eeb5 (tablet 0.6.1)
 
@@ -49,6 +49,6 @@ The user explicitly confirmed that the corrected shape must appear while the pen
 
 `6771043` increases only the screen-space hold allowance to eight points/dp, keeping the one-second deadline, and recognizes modestly tilted rectangle sides before ellipse matching. Both reproduced bugs went red before the fix and green afterward. The corrected Android tremor fixture settles initial window layout before drawing; `tremor-red-stable-layout.xml` is the authoritative red result. Shared geometry fixtures cover 135 cases per platform.
 
-The connected iPad was updated through iloader; device metadata confirms 0.6.2 (19). The signed Android 0.6.2 APK uses the existing certificate. Full evidence, separate standards/spec reviews and release status are in `docs/shape-062-verification.md`.
+The connected iPad was updated through iloader; device metadata confirms 0.6.2 (19). The signed Android 0.6.2 APK uses the existing certificate. Release v0.6.2 is public and all five downloads matched their local SHA-256 hashes before the Android feed was advanced to code 8. Full evidence, separate standards/spec reviews and delivery status are in `docs/shape-062-verification.md`.
 
 The earlier persistent loss of pen input remains unproven and is not marked fixed. The user recovered ordinary pen input by reopening the app.

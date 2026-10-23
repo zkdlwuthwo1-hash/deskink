@@ -38,7 +38,9 @@ Independent requirements review reported **zero violations**. It checked screen-
 
 ## Physical-device and release status
 
-The IPA and signed APK are prepared. iloader reported installation complete, and a subsequent device metadata query confirmed **0.6.2 build 19** on the connected iPad, replacing the existing app under the same bundle identifier. Public download/update-feed checks are recorded here when completed. HTML and both READMEs explain enabling the blue Shapes toggle, holding the endpoint without lifting, and lifting only after seeing the corrected shape.
+iloader reported installation complete, and a subsequent device metadata query confirmed **0.6.2 build 19** on the connected iPad, replacing the existing app under the same bundle identifier. HTML and both READMEs explain enabling the blue Shapes toggle, holding the endpoint without lifting, and lifting only after seeing the corrected shape.
+
+[Release v0.6.2](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.6.2) contains the APK, IPA, standalone HTML, signing note and SHA-256 manifest. All five assets were downloaded without authentication and matched the local sizes and SHA-256 hashes. The Android feed was advanced to version code 8 only after that public APK verification; the Windows feed remains 0.6.0. The generated guide passed local anchor and embedded-image checks.
 
 A subsequent optional developer-tool launch request failed with `deviceprocesscontrolservice` code 2. Installation is verified by device metadata, but opening the app and performing a real Pencil stroke after this update were not verified by that request. No additional device settings were changed.
 
