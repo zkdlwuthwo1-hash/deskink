@@ -9,9 +9,10 @@ import static org.junit.Assert.*;
 public class AutoConnectSessionTest {
     private static class Observed implements AutoConnectSession.Listener {
         final BlockingQueue<UsbClient.Binding> bindings=new LinkedBlockingQueue<>();
+        final BlockingQueue<UsbClient.State> states=new LinkedBlockingQueue<>();
         final BlockingQueue<AutoConnectSession.Endpoint> remembered=new LinkedBlockingQueue<>();
         volatile boolean cleared;
-        public void state(UsbClient.State state) { }
+        public void state(UsbClient.State state) { states.add(state); }
         public void stream(UsbClient.Binding binding) { bindings.add(binding); }
         public void frame(FrameAssembler.Frame frame) { }
         public void remember(AutoConnectSession.Endpoint endpoint) { if(endpoint==null) cleared=true; else remembered.add(endpoint); }
@@ -111,10 +112,16 @@ public class AutoConnectSessionTest {
             app.start(); app.connectLan("127.0.0.1",lan.getLocalPort()); lan.setSoTimeout(1500);
             DatagramPacket hello=UdpClientTest.receive(lan);
             UdpClientTest.send(lan,hello,UdpClientTest.ack(hello.getData(),false));
+            assertEquals(UsbClient.State.PAIRING,observed.states.poll(2,TimeUnit.SECONDS));
+            // Reading the PC's code takes longer than the unanswered HELLO deadline.
+            // No USB connection or saved credential exists to keep this first session alive.
+            assertNull("The code form must remain usable while the user reads the PC code",
+                observed.states.poll(2500,TimeUnit.MILLISECONDS));
             assertNull("Entering an address must not remember an unpaired PC",observed.remembered.poll(100,TimeUnit.MILLISECONDS));
             app.pair(123456); hello=UdpClientTest.receive(lan);
             UdpClientTest.send(lan,hello,UdpClientTest.ack(hello.getData(),true));
             assertNotNull(observed.bindings.poll(2,TimeUnit.SECONDS));
+            assertEquals(UsbClient.State.CONNECTED,observed.states.poll(2,TimeUnit.SECONDS));
             AutoConnectSession.Endpoint saved=observed.remembered.poll(1,TimeUnit.SECONDS);
             assertNotNull("A successful connection must persist its fallback address",saved);
             assertEquals("127.0.0.1",saved.address); assertEquals(lan.getLocalPort(),saved.port);

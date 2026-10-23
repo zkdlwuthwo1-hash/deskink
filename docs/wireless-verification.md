@@ -387,3 +387,49 @@ GPU 초기화·실제 화면 수신·펜 입력 건강 상태를 보장하지 �
 - iPad는 로컬 문서에 선을 먼저 그린 뒤 전송한다. PC의 가리는 창을 옮겼을 때 기존
   선이 나타나는지 확인하면, 창 순서와 무선 필기 누락을 구분할 수 있다. 사용자는
   아직 이 동작을 확인하지 못했다고 답했다. 진단용 코드는 로컬 artifacts에 보관했다.
+
+### 2026-10-23 Android 최초 무선 페어링 조사
+
+사용자는 같은 환경에서 iPad는 연결되지만 Galaxy Tab은 IP를 직접 입력해도
+연결되지 않으며, USB 없이 처음부터 무선을 사용하려고 한다고 설명했다.
+실제 Galaxy Tab의 오류 문구와 코드 입력 창 표시 여부는 아직 확보하지 못했다.
+아래 자동 검사에서는 해당 실패가 재현되지 않았다. **원인 확정이나 수정 완료를
+의미하지 않으며, 이 조사로 제품 코드·APK·배포 파일을 변경하지 않았다.**
+
+- `AutoConnectSessionTest.manualAddressBecomesAutomaticOnlyAfterSuccessfulPairingAndDurableSave`:
+  저장된 PC가 없는 상태에서 코드 요청을 받고, 사용자가 코드를 읽는 동안 2.5초
+  기다린 뒤 입력해도 연결·저장이 정상 동작했다.
+- `WirelessPairingUiTest`: 실제 `MainActivity`를 Robolectric API 35에서 실행했다.
+  Wi-Fi 버튼 → IP/포트 입력 → 실제 UDP 요청 → 미등록 응답 → 6자리 코드 창 →
+  코드 전송 → 연결 후 도구막대의 전체 지우기 전송을 확인했다. 이 UI 검사의
+  PC 응답은 공유 프로토콜 벡터를 사용하므로 실제 Windows 서버 검증과 구분한다.
+- 기존 Windows `lan_transport` 검사: LAN 허용 설정, 최초 인증, 영상 패킷과
+  필기 응답을 실제 `start_sender` 경로로 확인했다. 1개 통과, 0.53초.
+- `WindowsLanInteropTest`: 새 Android `AutoConnectSession`과 실제 Windows Rust
+  `start_sender`를 직접 연결했다. 빈 등록 목록·USB 연결 이력 없음 → 코드 요청 →
+  코드 입력 → 연결 성공 → 1280×720 H.264 샘플의 UDP 재조립 → 인증된 전체 지우기
+  명령이 Windows 문서에 반영됨 → 필기 ACK 이후 연결 유지를 확인했다.
+  최종 재현 스크립트 실행에서 JUnit 1개 통과, 테스트 0.862초였다.
+
+마지막 검사를 다시 실행하는 명령:
+
+```powershell
+./scripts/test-android-windows-lan.ps1
+# Windows 진단 실행 파일을 이미 빌드했다면:
+./scripts/test-android-windows-lan.ps1 -SkipHostBuild
+```
+
+스크립트는 Windows 빌드 의존성, JDK 17 이상과 기존 Gradle 캐시의 JUnit 4.13.2,
+Hamcrest 1.3, JSON 20240303을 사용한다. Android 코어 소스 전체와 검사 클래스를
+매번 직접 컴파일한다. 이번 Windows 환경에서 Gradle의 파일 감시 초기화·캐시
+잠금이 검사를 막아 JVM 직접 실행으로 분리했으며, 이를 앱 오류로 판정하지 않았다.
+실행별 로그는 무시 대상인 `artifacts/local/android-windows-lan/<실행 ID>/`에 남는다.
+
+Windows 진단 실행 파일은 메모리 안의 임시 페어링, 알려진 영상 샘플과 필기 문서를
+사용한다. 실제 캡처·GPU·연결된 USB 기기·사용자 설정을 사용하지 않고, 45초 후
+자동 종료된다. 테스트 종료 시에도 자신이 시작한 프로세스만 정리한다.
+
+이 검사는 PC 내부 루프백 통신이며 Galaxy 하드웨어, Android 네트워크 정책,
+공유기·방화벽·다른 태블릿의 동시 연결, 실제 영상 디코딩·지연을 검증하지 않는다.
+다음 단계에는 문제가 생기는 Galaxy Tab에서 다른 태블릿 연결을 끊은 상태의
+재시도 결과, 6자리 코드 창 표시 여부와 정확한 오류 문구 또는 화면이 필요하다.
