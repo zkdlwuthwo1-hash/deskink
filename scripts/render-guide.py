@@ -9,6 +9,9 @@ for name, file in [('STYLES', 'guide.css'), ('SCRIPT', 'guide.js')]:
 screenshots = [
     ('WORKSPACE', 'ipad-workspace.png'),
     ('TOOLS', 'ipad-tools-preview.png'),
+    ('SHAPES', 'android-selection.png'),
+    ('ERASER', 'android-eraser-sizes.png'),
+    ('COLORS', 'android-colors.png'),
     ('ANDROID', 'android-streaming.png'),
     ('APPLE_DEVICES', 'apple-devices-annotated.png'),
     ('ILOADER_MAC', 'iloader-mac-server-guide.png'),

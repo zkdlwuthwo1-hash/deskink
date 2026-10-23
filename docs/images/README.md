@@ -1,5 +1,11 @@
 # Screenshot provenance
 
+## 2026-10-23: shape editing, eraser sizes and colors
+
+`ipad-tools-preview.png` is now the unmodified landscape attachment `575A02DA-E2E8-4E46-85A2-29C3B1224EDC.png` from [iPad run 53, attempt 2](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39901514113/attempts/2), source `e70dafc`. It renders the real SwiftUI toolbar with editing enabled and a synthetic desktop backdrop. Both portrait and landscape attachments were visually inspected; this is a component preview, not a live connected desktop.
+
+`android-selection.png`, `android-eraser-sizes.png` and `android-colors.png` are unmodified PNGs from [native Android run 32](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39901516665), source `e70dafc`, API 35 Pixel C emulator. The test uses the production socket, MediaCodec, native stylus input and toolbar. Its synthetic circuit slide is test video, not a private desktop. The selection shows eight handles, the width menu shows three eraser sizes, and the palette shows twelve colors. The top-right down-arrow opens app updates. Captures were visually inspected before embedding in the guide. They do not establish physical Galaxy Tab latency or a successful OS package replacement.
+
 ## 2026-10-22: login and IP walkthrough
 
 The current HTML and both READMEs use the following screenshots. Captions distinguish
@@ -87,7 +93,7 @@ IPA is a CI artifact only; no new tablet release was published for this guide.
 Unmodified PNG attachments from [iPad build 12](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39118670760), source `62f7c57`.
 
 - `ipad-workspace.png`: `9D816454-39E0-42B7-9232-7E6FCD030ED1.png`, `DeskInkViewportUITests/testControlsStayOutsideTheDrawingViewportInLandscape`, full simulator screen. Blue desktop and yellow marker are test content. The top event counter is diagnostic UI, not the production connection bar.
-- `ipad-tools-preview.png`: `525CE5FD-0A8F-41BA-90CB-300EA9822E3F.png`, `DeskInkToolsTests/testToolbarRendersInBothIPadOrientations`, rendered SwiftUI toolbar with synthetic desktop backdrop. This illustrates the real toolbar controls; its surrounding layout is a component preview, not the complete connected app.
+- Previous `ipad-tools-preview.png` (replaced on 2026-10-23): `525CE5FD-0A8F-41BA-90CB-300EA9822E3F.png`, `DeskInkToolsTests/testToolbarRendersInBothIPadOrientations`. The current asset is described above.
 
 The HTML labels these as simulator/test previews. It does not present them as physical iPad or live Windows screenshots. The original bytes are embedded in the standalone HTML by `scripts/render-guide.py`.
 
