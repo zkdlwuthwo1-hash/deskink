@@ -3,6 +3,24 @@ import UIKit
 @testable import EternalMonitor
 
 final class DeskInkEditingTests: XCTestCase {
+    @MainActor
+    func testStationaryPenCorrectsALineDespiteSubPixelHoldSamples() {
+        let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
+        canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.shapeCorrection=true
+        canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"hold-jitter-test")
+        canvas.layoutIfNeeded()
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:100,y:200),pressure:1))
+        for x in stride(from:120,through:300,by:20) { canvas.moveStroke(to:CGPoint(x:x,y:200),pressure:1) }
+        for sample in 0..<120 {
+            canvas.moveStroke(to:CGPoint(x:300+(sample%2 == 0 ? 0.4 : -0.4),y:200),pressure:1)
+            RunLoop.main.run(until:Date().addingTimeInterval(0.008))
+        }
+        RunLoop.main.run(until:Date().addingTimeInterval(0.1))
+        XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.line,
+                       "A stationary hold must tolerate the Pencil's sub-pixel samples")
+        canvas.finish()
+    }
+
     func testFractionalShapeResizingAtEveryEdgeRemainsValidAtWindowsFloatPrecision() {
         let initial=[DeskInkPoint(x:100.1,y:120.1,pressure:1),DeskInkPoint(x:300.2,y:320.2,pressure:1)]
         for (handle,target) in [(CGPoint(x:100.1,y:220.15),CGPoint(x:0,y:220.15)),
