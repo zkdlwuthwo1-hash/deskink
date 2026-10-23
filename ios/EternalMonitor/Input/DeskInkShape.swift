@@ -31,7 +31,12 @@ struct DeskInkShape {
         }
         let w=right-left, h=bottom-top, diagonal=hypot(w,h), chord=distance(first,last)
         if chord>=24, length<chord*1.15 {
-            let deviation=raw.map { abs((last.x-first.x)*(first.y-$0.y)-(first.x-$0.x)*(last.y-first.y))/chord }.max() ?? 0
+            let dx=last.x-first.x, dy=last.y-first.y
+            var deviation: CGFloat=0
+            for point in raw {
+                let cross=dx*(first.y-point.y)-(first.x-point.x)*dy
+                deviation=max(deviation,abs(cross)/chord)
+            }
             if deviation<max(3,chord*0.035) { return .init(kind:.line,a:first,b:last) }
         }
         guard raw.count>=5, w>=16, h>=16, distance(first,last)<=max(10,diagonal*0.16) else { return nil }
