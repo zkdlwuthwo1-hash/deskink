@@ -1,6 +1,6 @@
 <resources>
     <string name="lasso">Lasso</string><string name="lasso_hint">Select ink, then drag to move or use the handles to resize</string>
-    <string name="shape_short">Shapes</string><string name="shape_hint">Shape correction: draw a line, oval or rectangle and hold for one second</string>
+    <string name="shape_short">Shapes</string><string name="shape_hint">Shape correction: draw a line, oval or rectangle and hold for half a second</string>
     <string name="editing_update_required">Update Windows DeskInk to use shape correction and lasso editing</string>
     <string name="network_short">Wi-Fi</string>
     <string name="network">Connect over Wi-Fi / IP</string>

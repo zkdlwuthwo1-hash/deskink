@@ -39,7 +39,7 @@ final class DeskInkEditingTests: XCTestCase {
                   CGPoint(x:134.15,y:331.12),CGPoint(x:168.88,y:134.15)] {
             canvas.moveStroke(to:p,pressure:1)
         }
-        RunLoop.main.run(until:Date().addingTimeInterval(1.1))
+        RunLoop.main.run(until:Date().addingTimeInterval(0.6))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle,
                        "A slightly tilted box must stay a rectangle")
         XCTAssertEqual(canvas.document.strokes.first?.finished,false,"The shape must change before lifting the pen")
@@ -47,21 +47,22 @@ final class DeskInkEditingTests: XCTestCase {
     }
 
     @MainActor
-    func testSmallHandTremorDoesNotRestartTheOneSecondHold() {
+    func testSmallHandTremorDoesNotRestartTheHalfSecondHold() {
         let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
         canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.shapeCorrection=true
         canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"hold-hand-tremor")
         canvas.layoutIfNeeded()
         XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:100,y:200),pressure:1))
         canvas.moveStroke(to:CGPoint(x:300,y:200),pressure:1)
-        for sample in 0..<9 {
-            RunLoop.main.run(until:Date().addingTimeInterval(0.1))
+        let pauseStarted=Date()
+        for sample in 0..<4 {
+            RunLoop.main.run(until:pauseStarted.addingTimeInterval(Double(sample+1)*0.08))
             canvas.moveStroke(to:CGPoint(x:300+(sample%2 == 0 ? 4 : -4),y:200),pressure:1)
         }
         XCTAssertNil(canvas.document.strokes.first?.shape)
-        RunLoop.main.run(until:Date().addingTimeInterval(0.15))
+        RunLoop.main.run(until:pauseStarted.addingTimeInterval(0.6))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.line,
-                       "A small hand tremor must not extend the one-second hold indefinitely")
+                       "A small hand tremor must not extend the half-second hold indefinitely")
         canvas.finish()
     }
 
@@ -86,11 +87,15 @@ final class DeskInkEditingTests: XCTestCase {
             pen.position=point; pen.sampleTime += 0.016
             canvas.touchesMoved([pen],with:nil)
         }
-        RunLoop.main.run(until:Date().addingTimeInterval(1.2))
+        let pauseStarted=Date()
+        RunLoop.main.run(until:pauseStarted.addingTimeInterval(0.3))
+        XCTAssertNil(canvas.document.strokes.first?.shape,"A brief pause must retain ordinary ink")
+        RunLoop.main.run(until:pauseStarted.addingTimeInterval(0.6))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle)
+        XCTAssertEqual(canvas.document.strokes.first?.finished,false,"Correction must happen before lifting")
         XCTAssertEqual(tools.tool,.pen)
         XCTAssertFalse(viewport.panGestureRecognizer.isEnabled)
-        pen.sampleTime += 1.2; canvas.touchesEnded([pen],with:nil)
+        pen.sampleTime += 0.6; canvas.touchesEnded([pen],with:nil)
         XCTAssertTrue(viewport.panGestureRecognizer.isEnabled)
 
         let next=RectanglePencilTouch(); next.position=CGPoint(x:400,y:400)
@@ -113,7 +118,7 @@ final class DeskInkEditingTests: XCTestCase {
         for sample in 0..<120 {
             canvas.moveStroke(to:CGPoint(x:300+(sample%2 == 0 ? 0.4 : -0.4),y:200),pressure:1)
         }
-        RunLoop.main.run(until:Date().addingTimeInterval(1.1))
+        RunLoop.main.run(until:Date().addingTimeInterval(0.6))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.line,
                        "A stationary hold must tolerate the Pencil's sub-pixel samples")
         canvas.finish()
@@ -153,7 +158,7 @@ final class DeskInkEditingTests: XCTestCase {
         canvas.layoutIfNeeded()
         XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:100,y:100),pressure:1))
         for p in [CGPoint(x:200,y:100),CGPoint(x:200,y:200),CGPoint(x:100,y:200),CGPoint(x:100,y:100)] { canvas.moveStroke(to:p,pressure:1) }
-        RunLoop.main.run(until:Date().addingTimeInterval(1.1))
+        RunLoop.main.run(until:Date().addingTimeInterval(0.6))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle)
         canvas.finish(); tools.select(.lasso)
         XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:150,y:150),pressure:1))

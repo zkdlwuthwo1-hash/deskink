@@ -120,7 +120,7 @@ struct DeskInkToolbar: View {
                     .disabled(!tools.editingEnabled)
                     .accessibilityLabel("도형 보정")
                     .accessibilityValue(tools.editingEnabled ? (tools.shapeCorrection ? "켜짐" : "꺼짐") : "Windows 업데이트 필요")
-                    .accessibilityHint("켜면 도형을 한 획으로 그린 뒤 펜을 떼지 않고 1초 멈추면 보정합니다")
+                    .accessibilityHint("켜면 도형을 한 획으로 그린 뒤 펜을 떼지 않고 0.5초 멈추면 보정합니다")
                     .accessibilityAddTraits(tools.shapeCorrection && tools.editingEnabled ? .isSelected : [])
                     .accessibilityIdentifier("deskink.shapeCorrection")
                 Divider().frame(height: 32)

@@ -21,7 +21,7 @@ public class InkCanvasTest {
             touch(canvas,MotionEvent.ACTION_DOWN,0,168.88f,134.15f);
             for(float[] p:new float[][]{{365.85f,168.88f},{331.12f,365.85f},{134.15f,331.12f},{168.88f,134.15f}})
                 touch(canvas,MotionEvent.ACTION_MOVE,0,p[0],p[1]);
-            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1000));
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(500));
             JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
             assertNotNull(shape);
             assertEquals("A slightly tilted box must stay a rectangle", "rectangle",shape.optString("kind"));
@@ -32,7 +32,7 @@ public class InkCanvasTest {
         }
     }
 
-    @Test public void aSmallHandTremorDoesNotRestartTheOneSecondHold() {
+    @Test public void aSmallHandTremorDoesNotRestartTheHalfSecondHold() {
         try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
             InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas);
             // Complete the window's first layout before measuring a stationary
@@ -44,7 +44,7 @@ public class InkCanvasTest {
             touch(canvas,MotionEvent.ACTION_DOWN,0,100,200);
             touch(canvas,MotionEvent.ACTION_MOVE,0,300,200);
             float jitter=4*canvas.getResources().getDisplayMetrics().density;
-            for(int sample=0;sample<9;sample++) {
+            for(int sample=0;sample<4;sample++) {
                 Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(100));
                 touch(canvas,MotionEvent.ACTION_MOVE,0,300+(sample%2==0?jitter:-jitter),200);
             }
@@ -52,7 +52,7 @@ public class InkCanvasTest {
             assertFalse(sent.stream().anyMatch(c -> c.optString("type").equals("shape")));
             Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1));
             JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
-            assertNotNull("A small hand tremor must not extend the one-second hold indefinitely",shape);
+            assertNotNull("A small hand tremor must not extend the half-second hold indefinitely",shape);
             assertEquals("line",shape.optString("kind"));
             touch(canvas,MotionEvent.ACTION_UP,0,300,200);
         }
@@ -65,13 +65,13 @@ public class InkCanvasTest {
             canvas.bind(document,c -> { sent.add(c); return true; },1000,700); canvas.editingEnabled(true);
             touch(canvas,MotionEvent.ACTION_DOWN,0,100,200);
             for(int x=120;x<=300;x+=20) touch(canvas,MotionEvent.ACTION_MOVE,0,x,200);
-            for(int sample=0;sample<120;sample++) {
+            for(int sample=0;sample<60;sample++) {
                 Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(8));
                 touch(canvas,MotionEvent.ACTION_MOVE,0,300+(sample%2==0?.4f:-.4f),200);
             }
-            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50));
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(20));
             JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
-            assertNotNull("A one-second hold with less than one pixel of pen jitter must still correct the line",shape);
+            assertNotNull("A half-second hold with less than one pixel of pen jitter must still correct the line",shape);
             assertEquals("line",shape.optString("kind"));
             touch(canvas,MotionEvent.ACTION_UP,0,300,200);
         }
@@ -83,8 +83,11 @@ public class InkCanvasTest {
             List<JSONObject> sent=new ArrayList<>(); canvas.bind(new InkDocument(),c -> { sent.add(c); return true; },1000,700);
             canvas.editingEnabled(mode!=0); canvas.shapeCorrection(mode!=1);
             touch(canvas,MotionEvent.ACTION_DOWN,0,100,100); touch(canvas,MotionEvent.ACTION_MOVE,0,300,100);
-            if(mode==2) touch(canvas,MotionEvent.ACTION_UP,0,300,100);
-            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1100));
+            if(mode==2) {
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(400));
+                touch(canvas,MotionEvent.ACTION_UP,0,300,100);
+            }
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600));
             assertFalse(sent.stream().anyMatch(c -> c.optString("type").equals("shape")));
             canvas.disconnect();
         }
@@ -122,6 +125,7 @@ public class InkCanvasTest {
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1));
         JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElseThrow();
         assertEquals("rectangle",shape.optString("kind"));
+        assertFalse("Correction must happen before lifting",document.strokes().get(0).finished);
         touch(canvas,MotionEvent.ACTION_UP,0,410,310);
         assertEquals(5,document.strokes().get(0).points.size());
         canvas.command("undo"); assertTrue(document.strokes().isEmpty());

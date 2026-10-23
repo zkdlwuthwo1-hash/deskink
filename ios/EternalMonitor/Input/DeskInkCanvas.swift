@@ -185,7 +185,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             strokePointCount += 1
             commands.append(.append(id:id,point:point))
             // Measure tremor in visible screen points, including pinch zoom.
-            // Tiny hand movement must not keep restarting the one-second hold.
+            // Tiny hand movement must not keep restarting the half-second hold.
             let holdSlop=8/(inputScale * max(1,tools?.viewport?.zoomScale ?? 1))
             if let anchor=holdAnchor, hypot(point.x-anchor.x,point.y-anchor.y)<=holdSlop { return }
             scheduleCorrection(at:point)
@@ -194,7 +194,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     private func scheduleCorrection(at point: DeskInkPoint) {
         holdTimer?.invalidate(); holdTimer=nil; holdAnchor=point; holdPointCount=strokePointCount
         guard tools?.editingEnabled==true, tools?.shapeCorrection==true, activeTool == .pen || activeTool == .highlighter else { return }
-        let timer=Timer(timeInterval:1,repeats:false) { [weak self] _ in
+        let timer=Timer(timeInterval:0.5,repeats:false) { [weak self] _ in
             guard let self, let id=self.activeID, self.tools?.editingEnabled==true, self.tools?.shapeCorrection==true,
                   let stroke=self.document.strokes.first(where:{ $0.id==id }) else { return }
             // Preserve and transmit every raw sample. Recognition alone ignores

@@ -121,10 +121,10 @@ public final class InkCanvas extends View {
         if(!editingEnabled||!shapeCorrection||shapeFrozen||(activeTool!=PenInput.Tool.PEN&&activeTool!=PenInput.Tool.HIGHLIGHTER)) return;
         float x=(float)p.optDouble("x"),y=(float)p.optDouble("y");
         // Eight logical screen pixels, independent of display density or zoom.
-        // Keep the deadline at one second despite small endpoint tremor.
+        // Keep the half-second deadline despite small endpoint tremor.
         float holdSlop=8*getResources().getDisplayMetrics().density/viewport.scale();
         if(force||Math.hypot(x-holdX,y-holdY)>holdSlop) {
-            holdX=x; holdY=y; holdPointCount=strokePointCount; removeCallbacks(hold); postDelayed(hold,1000);
+            holdX=x; holdY=y; holdPointCount=strokePointCount; removeCallbacks(hold); postDelayed(hold,500);
         }
     }
     private void move(JSONObject p) {
