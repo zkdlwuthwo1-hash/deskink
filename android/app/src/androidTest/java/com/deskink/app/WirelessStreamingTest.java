@@ -39,6 +39,12 @@ public class WirelessStreamingTest {
         } finally { screen.recycle(); }
     }
     @Test public void wirelessSessionChangesMonitorVideoBeforeTheNextPenGesture() throws Exception {
+        for(int attempt=0;attempt<5;attempt++) {
+            android.util.Log.d("DEBUG-monitor","switch trial "+attempt);
+            switchMonitor();
+        }
+    }
+    private void switchMonitor() throws Exception {
         // Android's generic loopback is ::1; the app's IP form uses IPv4.
         try(DatagramSocket host=new DatagramSocket(0,InetAddress.getByName("127.0.0.1"));
                 ActivityScenario<MainActivity> activity=ActivityScenario.launch(MainActivity.class)) {
