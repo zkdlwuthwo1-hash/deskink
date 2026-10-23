@@ -24,9 +24,7 @@ public class MainActivityTest {
             // A stopped Activity must restart before starting again; otherwise Android
             // keeps mStopped=true and silently skips its next onStop callback.
             controller.stop().restart().start();
-            try(java.net.ServerSocket available=new java.net.ServerSocket()) {
-                available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877));
-            }
+            assertUsbPortReleased();
             activity.getWindow().getDecorView().findViewWithTag("network").performClick();
             dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
             org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
@@ -40,9 +38,7 @@ public class MainActivityTest {
             }
             assertNotNull("Explicit automatic reconnect must resume the USB listener",usb);
             usb.close(); controller.stop();
-            try(java.net.ServerSocket available=new java.net.ServerSocket()) {
-                available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877));
-            }
+            assertUsbPortReleased();
         }
     }
     @Test public void lanEntryShowsThePortAndRejectsAnInvalidAddressWithoutLeavingUsb() {
@@ -136,6 +132,9 @@ public class MainActivityTest {
             assertNotNull("Foreground app must accept the PC USB tunnel",socket);
             socket.close(); controller.stop();
         }
+        assertUsbPortReleased();
+    }
+    private static void assertUsbPortReleased() throws Exception {
         // Linux can retain the listening descriptor until the blocked accept
         // returns after close. Assert bounded release, not scheduler ordering.
         boolean released=false;

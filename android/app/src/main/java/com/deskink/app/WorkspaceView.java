@@ -237,6 +237,9 @@ final class WorkspaceView extends LinearLayout {
         }
         content.addView(sizes);
         showSheet(content);
+        // The dialog takes window focus and cancels momentary pen state.
+        // Arm the chosen eraser only after the dialog has been dismissed.
+        sheet.setOnDismissListener(dialog -> { if(ink.connected()) ink.select(PenInput.Tool.ERASER); });
     }
     private void help() {
         LinearLayout content=ui.sheetContent(R.string.help,R.drawable.ic_usb); TextView text=ui.text(R.string.usb_help,14,DeskInkUi.MUTED,false); text.setLineSpacing(ui.dp(5),1);

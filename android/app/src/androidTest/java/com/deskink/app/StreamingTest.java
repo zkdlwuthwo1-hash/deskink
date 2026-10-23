@@ -127,6 +127,26 @@ public class StreamingTest {
                 activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
                 activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("tool.ERASER").performClick());
                 WorkspaceUiTest.capture("eraser-sizes");
+                activity.onActivity(a -> {
+                    boolean chosen=false;
+                    for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                        View large=window.findViewWithTag("eraser.size.48");
+                        if(large!=null) { large.performClick(); chosen=true; }
+                    }
+                    assertTrue("Eraser tap must directly show all sizes",chosen);
+                });
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+                activity.onActivity(a -> {
+                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                    assertTrue("The picker must return input focus to the canvas",canvas.hasWindowFocus());
+                    pen(canvas,MotionEvent.ACTION_DOWN,450,450); pen(canvas,MotionEvent.ACTION_UP,450,450);
+                });
+                boolean erased=false;
+                while(!erased) {
+                    byte[] packet=read(in); if(packet[0]!='D') continue;
+                    org.json.JSONObject command=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
+                    if(command.optString("type").equals("erase_begin")) { assertEquals(48,command.getDouble("radius"),.01); erased=true; }
+                }
             }
         }
     }
