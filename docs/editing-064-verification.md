@@ -19,3 +19,21 @@ Baseline: `bbaf448`. Spec: `.scratch/desk-ink/issues/16-selection-eraser-shapes.
 - Shared swept/repeated erasing fixtures cover multiple strokes, box sides, dots, repeated cuts and full removal. Unit/CI and release evidence will be recorded below after completion.
 
 Physical Pencil/S Pen feel and real display latency are not measured by these tests. Wider rectangle acceptance does not guarantee recognition of every handwritten quadrilateral.
+
+## Independent review and corrections
+
+- Standards review: fixed Float/CGFloat input precision at the partial-erasing boundary; the shared fractional-dot case now specifies the same result and undo on all three platforms. Consolidated selection transaction batching within each platform.
+- Spec review: preserved the old diagonal closure allowance for wide rectangles while adding the new gap allowance. Added a failing wide-box regression, then observed it pass after the max-of-both fix.
+- Spec review: blocked partial erasing on older hosts now closes an active Android pen stroke and cancels its shape timer before rejecting input. A MotionEvent test failed before the change and passes afterward, checking that no line bridges the blocked movement. Both tablets show an update message for Pencil/S Pen activation, not only a disabled menu item.
+- Both reviewers rechecked commit `d665402` and reported the original findings resolved. Their rechecks were read-only, separate from runtime tests.
+- The first native Android run failed when an assertion raced OS focus delivery immediately after dismissing a picker. The test now waits up to five seconds for actual window focus and retains its original assertion and input/host-command checks. This changes test synchronization, not production focus handling.
+- Windows debug verification encountered a rustc 1.98 incremental fingerprint compiler error after an interrupted build. Release compilation passed. Debug checks are rerun with incremental compilation disabled; no application code is changed for this compiler failure.
+
+## Final validation
+
+- Source `d665402`: Windows Release built successfully. `scripts/test-windows.ps1` passed 103 checks with incremental compilation disabled; three explicitly interactive desktop diagnostics were not run. The separate Windows cached-raster eraser-gap test passed.
+- [iPad run 62](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39949761415) passed all 26 selected editing, viewport, tool, wire and latency tests and built 0.6.4 (21). These include the new fractional boundary fixture and native selection delete button/undo.
+- [Android run 42](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39949765826) passed unit tests, lint, five native tablet video/input tests and two compact-window/font/keyboard tests. Release APK 0.6.4 (10) uses the existing certificate SHA-256 `d6839b84a1e2e019e546ecbef57747de5fa07483024828770bdd09c23bd1aa02`; v2/v3 signature and 16-KB alignment checks passed.
+- HTML uses unedited native selection/eraser screenshots with documented provenance. Image decoding, enlargement, current release links, console checks and no horizontal overflow passed at 1440, 820, 390 and 320 pixels. The mobile capture was visually inspected.
+
+Release downloads, update descriptors and local installation are verified separately after packaging.

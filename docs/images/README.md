@@ -1,5 +1,12 @@
 # Screenshot provenance
 
+## 2026-10-23: selection deletion and two eraser modes in 0.6.4
+
+- `ipad-selection.png`: unmodified `9E16171B-6F26-42B2-92A8-01908FD08689.png` attachment from [iPad run 62](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39949761415), source `d665402`. `DeskInkEditingTests/testSelectionShowsResizeHandlesAndDeleteButtonThenUndoRestoresIt` renders the actual UIKit canvas, eight handles and native delete button after moving a resize handle. The dark background and ink are synthetic test content. This is a component render on an iPad simulator, not a physical device or Windows desktop capture.
+- `android-eraser-modes.png`: unmodified `deskink-android-eraser-sizes.png` from [Android run 42](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39949765826), source `d665402`, API 35 Pixel C emulator. The production menu shows both erase modes and all three sizes. The app is connected to a protocol peer advertising the current editing capabilities; the circuit slide behind the dialog is synthetic video. The real native test verifies focus returns after dismissing the picker and the next eraser gesture reaches the host.
+
+Both source images were visually inspected before embedding. No crop, generated replacement controls or private account data is present. Captions identify the simulator/emulator sources. These images do not establish physical pen latency.
+
 ## 2026-10-23: direct tool pickers in 0.6.1
 
 The following are unmodified PNG attachments from [iPad run 56](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39907447241), source `07f695a`, iPad Pro 11-inch (M4) simulator with Xcode 16.4. All 206 unit tests and four native UI tests passed. These are rendered app controls, not physical Pencil or live Windows captures.
