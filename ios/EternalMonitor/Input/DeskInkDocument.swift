@@ -21,6 +21,7 @@ enum DeskInkCommand: Codable {
     case begin(id: UInt64, brush: DeskInkBrush, point: DeskInkPoint)
     case append(id: UInt64, point: DeskInkPoint)
     case end(id: UInt64)
+    case shape(id: UInt64, kind: DeskInkShape.Kind, a: DeskInkPoint, b: DeskInkPoint)
     case eraseBegin(id: UInt64, point: DeskInkPoint, radius: CGFloat)
     case eraseTo(id: UInt64, point: DeskInkPoint)
     case eraseEnd(id: UInt64)
@@ -30,12 +31,15 @@ enum DeskInkCommand: Codable {
     case pointer(point: DeskInkPoint?, color: [UInt8], radius: CGFloat, laser: Bool)
 
     private enum Keys: String, CodingKey {
-        case type, id, brush, point, radius, visible, color, laser
+        case type, id, brush, point, radius, visible, color, laser, kind, a, b
         case lifetimeMs = "lifetime_ms"
     }
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Keys.self)
         switch self {
+        case let .shape(id, kind, a, b):
+            try c.encode("shape",forKey:.type); try c.encode(id,forKey:.id); try c.encode(kind,forKey:.kind)
+            try c.encode(a,forKey:.a); try c.encode(b,forKey:.b)
         case let .begin(id, brush, point):
             try c.encode("begin", forKey: .type); try c.encode(id, forKey: .id)
             try c.encode(brush, forKey: .brush); try c.encode(point, forKey: .point)
@@ -66,6 +70,7 @@ enum DeskInkCommand: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         switch try c.decode(String.self, forKey: .type) {
+        case "shape": self = .shape(id:try c.decode(UInt64.self,forKey:.id),kind:try c.decode(DeskInkShape.Kind.self,forKey:.kind),a:try c.decode(DeskInkPoint.self,forKey:.a),b:try c.decode(DeskInkPoint.self,forKey:.b))
         case "begin": self = .begin(id: try c.decode(UInt64.self, forKey: .id), brush: try c.decode(DeskInkBrush.self, forKey: .brush), point: try c.decode(DeskInkPoint.self, forKey: .point))
         case "append": self = .append(id: try c.decode(UInt64.self, forKey: .id), point: try c.decode(DeskInkPoint.self, forKey: .point))
         case "end": self = .end(id: try c.decode(UInt64.self, forKey: .id))
@@ -98,6 +103,8 @@ struct DeskInkStroke {
     var finished = false
     var lifetimeMs: UInt32? = nil
     var expiresAt: UInt64 = 0
+    var shape: DeskInkShape?
+    var geometryRevision = 0
 }
 
 struct DeskInkPointer {
@@ -137,6 +144,10 @@ final class DeskInkDocument {
     @discardableResult
     func apply(_ command: DeskInkCommand) -> Bool {
         switch command {
+        case let .shape(id,kind,a,b):
+            guard let index=strokes.firstIndex(where: { $0.id==id && !$0.finished }) else { return false }
+            let shape=DeskInkShape(kind:kind,a:a,b:b)
+            strokes[index].shape=shape; strokes[index].points=shape.points; strokes[index].geometryRevision += 1
         case let .begin(id, brush, point):
             guard !strokes.contains(where: { $0.id == id }), !temporary.contains(where: { $0.id == id }) else { return false }
             strokes.append(.init(id: id, brush: brush, points: [point])); redoStack.removeAll()

@@ -19,8 +19,9 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     private var expiryTimer: Timer?
     private final class RenderedStroke {
         let layer = CAShapeLayer()
-        let path = CGMutablePath()
+        var path = CGMutablePath()
         var count = 0
+        var geometryRevision = 0
     }
     private var rendered: [UInt64: RenderedStroke] = [:]
 
@@ -218,6 +219,9 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
                 entry.layer.strokeColor = stroke.brush.uiColor.cgColor; entry.layer.fillColor = UIColor.clear.cgColor
                 entry.layer.lineWidth = stroke.brush.width; entry.layer.lineCap = .round; entry.layer.lineJoin = .round
                 inkLayer.insertSublayer(entry.layer, at: UInt32(index))
+            }
+            if entry.geometryRevision != stroke.geometryRevision {
+                entry.path = CGMutablePath(); entry.count = 0; entry.geometryRevision = stroke.geometryRevision
             }
             if entry.count < stroke.points.count {
                 for point in stroke.points.dropFirst(entry.count) {
