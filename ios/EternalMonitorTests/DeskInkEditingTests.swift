@@ -4,6 +4,43 @@ import UIKit
 
 final class DeskInkEditingTests: XCTestCase {
     @MainActor
+    func testPencilRectangleHoldAndNextStrokeThroughUIKitTouchCallbacks() throws {
+        let viewport=DeskInkViewportView(videoView:UIView())
+        let host=UIViewController(), window=UIWindow(frame:CGRect(x:0,y:0,width:1000,height:700))
+        host.view=viewport; window.rootViewController=host; window.makeKeyAndVisible()
+        defer { viewport.canvas.finish(); window.isHidden=true; window.rootViewController=nil }
+        let tools=DeskInkTools(); tools.editingEnabled=true; tools.shapeCorrection=true
+        viewport.configure(videoSize:CGSize(width:1000,height:700),enabled:true,
+                           connectionKey:"rectangle-pencil-touch",tools:tools,send:{ _ in })
+        viewport.layoutIfNeeded()
+        let canvas=viewport.canvas, pen=RectanglePencilTouch()
+        pen.position=CGPoint(x:140,y:140)
+        canvas.touchesBegan([pen],with:nil)
+        XCTAssertFalse(viewport.panGestureRecognizer.isEnabled,"A live Pencil contact must suppress finger panning")
+        for point in [CGPoint(x:240,y:138),CGPoint(x:340,y:142),CGPoint(x:350,y:145),
+                      CGPoint(x:352,y:245),CGPoint(x:348,y:340),CGPoint(x:345,y:350),
+                      CGPoint(x:245,y:355),CGPoint(x:145,y:349),CGPoint(x:135,y:345),
+                      CGPoint(x:138,y:245),CGPoint(x:141,y:145)] {
+            pen.position=point; pen.sampleTime += 0.016
+            canvas.touchesMoved([pen],with:nil)
+        }
+        RunLoop.main.run(until:Date().addingTimeInterval(1.2))
+        XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle)
+        XCTAssertEqual(tools.tool,.pen)
+        XCTAssertFalse(viewport.panGestureRecognizer.isEnabled)
+        pen.sampleTime += 1.2; canvas.touchesEnded([pen],with:nil)
+        XCTAssertTrue(viewport.panGestureRecognizer.isEnabled)
+
+        let next=RectanglePencilTouch(); next.position=CGPoint(x:400,y:400)
+        canvas.touchesBegan([next],with:nil)
+        next.position=CGPoint(x:500,y:400); next.sampleTime += 0.016
+        canvas.touchesMoved([next],with:nil); canvas.touchesEnded([next],with:nil)
+        XCTAssertEqual(canvas.document.strokes.count,2,"The next Pencil contact must still draw after a shape hold")
+        XCTAssertGreaterThan(canvas.document.strokes.last?.points.count ?? 0,1)
+        XCTAssertEqual(tools.tool,.pen)
+    }
+
+    @MainActor
     func testStationaryPenCorrectsALineDespiteSubPixelHoldSamples() {
         let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
         canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.shapeCorrection=true
@@ -100,4 +137,15 @@ final class DeskInkEditingTests: XCTestCase {
         document.apply(.redo)
         XCTAssertEqual(document.strokes[0].points.count, 5)
     }
+}
+
+private final class RectanglePencilTouch: UITouch {
+    var sampleTime: TimeInterval=1
+    var position=CGPoint.zero
+    override var type: UITouch.TouchType { .pencil }
+    override var timestamp: TimeInterval { sampleTime }
+    override var force: CGFloat { 2 }
+    override var maximumPossibleForce: CGFloat { 4 }
+    override func location(in view:UIView?) -> CGPoint { position }
+    override func preciseLocation(in view:UIView?) -> CGPoint { position }
 }
