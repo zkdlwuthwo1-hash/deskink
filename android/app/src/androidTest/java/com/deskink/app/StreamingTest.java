@@ -28,6 +28,13 @@ public class StreamingTest {
     }
     private static void send(OutputStream out,byte[] b) throws IOException { out.write(b.length&255); out.write(b.length>>8); out.write(b); out.flush(); }
     private static byte[] control(int type,long session,byte[] body) { return com.deskink.core.Wire.control(type,session,1,body); }
+    private static void pen(InkCanvas canvas,int action,float x,float y) {
+        MotionEvent.PointerProperties property=new MotionEvent.PointerProperties(); property.id=0; property.toolType=MotionEvent.TOOL_TYPE_STYLUS;
+        MotionEvent.PointerCoords point=new MotionEvent.PointerCoords(); point.x=canvas.viewport.x()+x*canvas.viewport.scale(); point.y=canvas.viewport.y()+y*canvas.viewport.scale(); point.pressure=1;
+        long now=android.os.SystemClock.uptimeMillis();
+        MotionEvent event=MotionEvent.obtain(now,now,action,1,new MotionEvent.PointerProperties[]{property},new MotionEvent.PointerCoords[]{point},0,0,1,1,0,0,InputDevice.SOURCE_STYLUS,0);
+        canvas.dispatchTouchEvent(event); event.recycle();
+    }
     @Test public void usbSessionDisplaysDecodedVideoAndToolbarProducesHostCommands() throws Exception {
         try(ActivityScenario<MainActivity> activity=ActivityScenario.launch(MainActivity.class)) {
             Socket host=null;
@@ -44,7 +51,7 @@ public class StreamingTest {
                 byte[] name="DeskInk PC · Screen 1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 ByteBuffer ack=ByteBuffer.allocate(33+name.length+18).order(ByteOrder.LITTLE_ENDIAN);
                 ack.put((byte)0).put((byte)2).putInt((int)nonce).putInt(42).putShort((short)1000).putShort((short)500).putShort((short)3000)
-                    .put(config.array()).put((byte)name.length).put(name).put(new byte[]{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}).putShort((short)0x7004);
+                    .put(config.array()).put((byte)name.length).put(name).put(new byte[]{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}).putShort((short)0x7804);
                 send(out,control(0x11,0,ack.array()));
                 byte[] h264=asset("deskink_workspace_1280x720.h264"); int fragments=(h264.length+1367)/1368;
                 AtomicBoolean shown=new AtomicBoolean();
@@ -82,8 +89,37 @@ public class StreamingTest {
                     }
                 });
                 WorkspaceUiTest.capture("streaming");
+                send(out,control(0x18,42,config.array()));
+                activity.onActivity(a -> {
+                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                    pen(canvas,MotionEvent.ACTION_DOWN,150,450);
+                    for(float[] p:new float[][]{{350,450},{350,600},{150,600},{150,450}}) pen(canvas,MotionEvent.ACTION_MOVE,p[0],p[1]);
+                });
+                Thread.sleep(1150);
+                activity.onActivity(a -> {
+                    InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink"); pen(canvas,MotionEvent.ACTION_UP,150,450);
+                    a.getWindow().getDecorView().findViewWithTag("tool.LASSO").performClick();
+                    pen(canvas,MotionEvent.ACTION_DOWN,250,525); pen(canvas,MotionEvent.ACTION_MOVE,310,540); pen(canvas,MotionEvent.ACTION_UP,310,540);
+                });
+                boolean corrected=false,moved=false;
+                while(!corrected||!moved) {
+                    byte[] packet=read(in); if(packet[0]!='D') continue;
+                    org.json.JSONObject inkCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
+                    if(inkCommand.optString("type").equals("shape")) { assertEquals("rectangle",inkCommand.getString("kind")); corrected=true; }
+                    if(inkCommand.optString("type").equals("edit_transform")) { assertEquals(60,inkCommand.getDouble("tx"),.1); moved=true; }
+                }
+                WorkspaceUiTest.capture("selection");
+                send(out,control(0x18,42,config.array()));
                 activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("color").performClick());
                 WorkspaceUiTest.capture("colors");
+                activity.onActivity(a -> {
+                    for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+                        View ok=window.findViewById(android.R.id.button2); if(ok!=null) ok.performClick();
+                    }
+                });
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("width").performClick());
+                WorkspaceUiTest.capture("eraser-sizes");
             }
         }
     }
