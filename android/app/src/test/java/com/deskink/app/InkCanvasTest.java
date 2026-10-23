@@ -12,6 +12,46 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void aSlightlyTiltedRectangleMustNotBecomeAnEllipse() {
+        try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
+            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+            InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
+            canvas.bind(document,c -> { sent.add(c); return true; },1000,700); canvas.editingEnabled(true);
+            // A 200-point square tilted ten degrees. Its four sides remain straight.
+            touch(canvas,MotionEvent.ACTION_DOWN,0,168.88f,134.15f);
+            for(float[] p:new float[][]{{365.85f,168.88f},{331.12f,365.85f},{134.15f,331.12f},{168.88f,134.15f}})
+                touch(canvas,MotionEvent.ACTION_MOVE,0,p[0],p[1]);
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1000));
+            JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
+            assertNotNull(shape);
+            assertEquals("A slightly tilted box must stay a rectangle", "rectangle",shape.optString("kind"));
+            touch(canvas,MotionEvent.ACTION_UP,0,168.88f,134.15f);
+            assertEquals(5,document.strokes().get(0).points.size());
+        }
+    }
+
+    @Test public void aSmallHandTremorDoesNotRestartTheOneSecondHold() {
+        try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
+            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+            InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
+            canvas.bind(document,c -> { sent.add(c); return true; },1000,700); canvas.editingEnabled(true);
+            touch(canvas,MotionEvent.ACTION_DOWN,0,100,200);
+            touch(canvas,MotionEvent.ACTION_MOVE,0,300,200);
+            float jitter=4*canvas.getResources().getDisplayMetrics().density;
+            for(int sample=0;sample<9;sample++) {
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(100));
+                touch(canvas,MotionEvent.ACTION_MOVE,0,300+(sample%2==0?jitter:-jitter),200);
+            }
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(99));
+            assertFalse(sent.stream().anyMatch(c -> c.optString("type").equals("shape")));
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1));
+            JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
+            assertNotNull("A small hand tremor must not extend the one-second hold indefinitely",shape);
+            assertEquals("line",shape.optString("kind"));
+            touch(canvas,MotionEvent.ACTION_UP,0,300,200);
+        }
+    }
+
     @Test public void aStationaryPenCanCorrectALineDespiteSubPixelHoldSamples() {
         try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
             InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);

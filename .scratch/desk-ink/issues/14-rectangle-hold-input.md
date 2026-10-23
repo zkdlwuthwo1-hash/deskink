@@ -1,7 +1,7 @@
 # Rectangle hold and unexpected loss of pen input
 
-Status: needs-info
-Blocked by: whether a fresh Pencil contact resumes drawing after the failure; the reported physical-device failure is not reproduced yet.
+Status: in-progress
+Blocked by: none for recognition and hold improvements; the earlier persistent pen-input failure remains unproven.
 Baseline: d25eeb5 (tablet 0.6.1)
 
 The user reports that a rectangle does not correct despite holding its endpoint. They confirmed drawing all four sides in one continuous stroke without lifting. They also report that pen functionality disappears and the app seems to switch to finger-touch mode. Do not explain this away as four separate strokes or claim the earlier jitter fix resolves this report.
@@ -17,6 +17,28 @@ Independent checks completed:
 
 No production code was changed. Do not change recognition thresholds or the freeze-on-correction behavior until a failing input/interaction loop distinguishes them from lost connection, tool selection or a cancelled gesture. The installed 0.6.1 builds and public release remain unchanged.
 
-An asynchronous question is pending: after fully lifting the Pencil and touching down again, does a new line draw? This distinguishes one-contact shape freezing from input remaining disabled across contacts. Do not sleep/poll for that answer. The independent CI work is complete and its log is saved under `artifacts/local/rectangle-hold/ipad-callback-tests.log`.
+The user has now clarified: the pen does not work at all, while finger taps can select toolbar tools. Treat this as persistent loss of pen input, not merely the expected freeze of a corrected shape during one contact. The user has not yet compared pen input with the tablet's built-in notes app.
 
-Next: use the user's clarification to reproduce the combined rectangle/pen symptom through the agreed input or connection seam; capture red before fixing. If the exact drawing cannot be reproduced, obtain a short recording or targeted input trace rather than treating an unrelated synthetic failure as this bug. The diagnostics skill requires a red-capable loop before root-cause hypotheses or a production fix; no root cause has yet been established for this report.
+A second read-only screenshot, explicitly targeting the connected iPad after a second Apple device appeared, also returned an entirely black image (`artifacts/local/rectangle-hold/ipad-pen-unresponsive.png`). It provides no evidence of the app's selected tool, foreground state, or connection state. Do not infer a cause from that image. No app restart, device input, production edit or new installation was performed.
+
+The earlier Notes comparison is no longer needed for the current working pen: the user restarted and confirmed pen input recovered. Its root cause remains unproven. The independent CI log is saved under `artifacts/local/rectangle-hold/ipad-callback-tests.log`.
+
+## Subsequent physical-device evidence
+
+After reopening, `artifacts/local/rectangle-hold/ipad-after-reopen.png` showed live USB video, ordinary ink and a white Shapes toggle. Reading only the relevant app preference confirmed `deskink.shape-correction=false`; the temporary full preference file was removed. The user enabled correction and confirmed it changes shapes.
+
+The user then reported two remaining issues: the hold feels much longer than one second, and rectangles sometimes become circles. They requested approximately one second and better recognition. The screenshot contains tilted, uneven boxes; it is not a timestamped Pencil trace.
+
+## New reproduction
+
+- Android's actual MotionEvent input test `InkCanvasTest.aSmallHandTremorDoesNotRestartTheOneSecondHold` fails on the baseline: +/-4 dp endpoint movement repeatedly resets the one-second hold. At 1000 ms no shape command is sent. Red XML: `artifacts/local/rectangle-hold/tremor-red.xml`.
+- A diagnostic probe of the production recognizer reports a mathematical square rotated ten degrees as `ellipse`; zero, two and four degrees report `rectangle`. Six and eight degrees are rejected. The probe is `artifacts/local/rectangle-hold/ShapeProbe.java`. This is a constructed minimal reproduction of the reported classification, not a captured physical-device trace.
+- Matching real canvas input tests are added for the tilted rectangle and hold tremor on both platforms. The public input/document/transmission seam was already approved in `docs/verification-plan.md`.
+
+## Ranked predictions shown to the user
+
+1. Small hand movement restarts the hold: changing only the screen-space movement allowance should produce a correction at one second while ordinary movement still postpones it.
+2. Tilt prevents rectangle matching: aligning the same square's sides before comparing geometry should keep it a rectangle while leaving circles/ovals as ellipses.
+3. Dense stationary samples corrupt the geometry: comparing the movement prefix with its stationary tail would change the result. Existing subpixel tests and movement-prefix handling already cover this; do not discard live ink samples.
+
+Keep the deadline at 1000 ms; tolerate small endpoint tremor rather than shortening the requested hold. Retain pen/highlighter styling, original raw ink during drawing, one undo step, lift cancellation, next-stroke input, and the existing USB/network paths. Do not claim enabling Shapes fixes the earlier persistent input interruption.

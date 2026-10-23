@@ -4,6 +4,43 @@ import UIKit
 
 final class DeskInkEditingTests: XCTestCase {
     @MainActor
+    func testSlightlyTiltedRectangleMustNotBecomeAnEllipse() {
+        let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
+        canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.shapeCorrection=true
+        canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"tilted-rectangle")
+        canvas.layoutIfNeeded()
+        // A 200-point square tilted ten degrees, not an oval.
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:168.88,y:134.15),pressure:1))
+        for p in [CGPoint(x:365.85,y:168.88),CGPoint(x:331.12,y:365.85),
+                  CGPoint(x:134.15,y:331.12),CGPoint(x:168.88,y:134.15)] {
+            canvas.moveStroke(to:p,pressure:1)
+        }
+        RunLoop.main.run(until:Date().addingTimeInterval(1.1))
+        XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle,
+                       "A slightly tilted box must stay a rectangle")
+        canvas.finish()
+    }
+
+    @MainActor
+    func testSmallHandTremorDoesNotRestartTheOneSecondHold() {
+        let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
+        canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.shapeCorrection=true
+        canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"hold-hand-tremor")
+        canvas.layoutIfNeeded()
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:100,y:200),pressure:1))
+        canvas.moveStroke(to:CGPoint(x:300,y:200),pressure:1)
+        for sample in 0..<9 {
+            RunLoop.main.run(until:Date().addingTimeInterval(0.1))
+            canvas.moveStroke(to:CGPoint(x:300+(sample%2 == 0 ? 4 : -4),y:200),pressure:1)
+        }
+        XCTAssertNil(canvas.document.strokes.first?.shape)
+        RunLoop.main.run(until:Date().addingTimeInterval(0.15))
+        XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.line,
+                       "A small hand tremor must not extend the one-second hold indefinitely")
+        canvas.finish()
+    }
+
+    @MainActor
     func testPencilRectangleHoldAndNextStrokeThroughUIKitTouchCallbacks() throws {
         let viewport=DeskInkViewportView(videoView:UIView())
         let host=UIViewController(), window=UIWindow(frame:CGRect(x:0,y:0,width:1000,height:700))
