@@ -34,7 +34,9 @@ public class StreamingTest {
         java.util.concurrent.ScheduledExecutorService timer=java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
         AtomicReference<IOException> failure=new AtomicReference<>();
         timer.scheduleAtFixedRate(() -> {
-            try { send(out,control(0x12,42,config)); }
+            ByteBuffer heartbeat=ByteBuffer.allocate(8+config.length).order(ByteOrder.LITTLE_ENDIAN);
+            heartbeat.putLong(System.nanoTime()/1000).put(config);
+            try { send(out,control(0x12,42,heartbeat.array())); }
             catch(IOException error) { failure.compareAndSet(null,error); }
         },0,500,java.util.concurrent.TimeUnit.MILLISECONDS);
         return () -> {
@@ -88,7 +90,9 @@ public class StreamingTest {
                 assertTrue("Decoded fixture must appear on the TextureView",shown.get());
                 try(AutoCloseable heartbeat=keepAlive(out,config.array())) {
                     activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("clear").performClick());
-                    byte[] command; do { command=read(in); } while(command[0]!='D');
+                    long clearDeadline=android.os.SystemClock.uptimeMillis()+5000;
+                    byte[] command; do { command=read(in); } while(command[0]!='D'&&android.os.SystemClock.uptimeMillis()<clearDeadline);
+                    assertEquals("Expected clear command before deadline",'D',command[0]);
                     String json=new String(command,4,command.length-4,java.nio.charset.StandardCharsets.UTF_8);
                     assertEquals("clear",new org.json.JSONObject(json).getJSONObject("command").getString("type"));
                     activity.onActivity(a -> {
@@ -118,12 +122,15 @@ public class StreamingTest {
                         pen(canvas,MotionEvent.ACTION_DOWN,250,525); pen(canvas,MotionEvent.ACTION_MOVE,310,540); pen(canvas,MotionEvent.ACTION_UP,310,540);
                     });
                     boolean corrected=false,moved=false;
-                    while(!corrected||!moved) {
+                    long editDeadline=android.os.SystemClock.uptimeMillis()+5000;
+                    while((!corrected||!moved)&&android.os.SystemClock.uptimeMillis()<editDeadline) {
                         byte[] packet=read(in); if(packet[0]!='D') continue;
                         org.json.JSONObject inkCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
                         if(inkCommand.optString("type").equals("shape")) { assertEquals("rectangle",inkCommand.getString("kind")); corrected=true; }
                         if(inkCommand.optString("type").equals("edit_transform")) { assertEquals(60,inkCommand.getDouble("tx"),.1); moved=true; }
                     }
+                    assertTrue("Expected shape command before deadline",corrected);
+                    assertTrue("Expected edit_transform command before deadline",moved);
                     WorkspaceUiTest.capture("selection");
                     send(out,control(0x18,42,config.array()));
                     activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("color").performClick());
@@ -160,11 +167,13 @@ public class StreamingTest {
                         pen(canvas,MotionEvent.ACTION_DOWN,450,450); pen(canvas,MotionEvent.ACTION_UP,450,450);
                     });
                     boolean erased=false;
-                    while(!erased) {
+                    long eraseDeadline=android.os.SystemClock.uptimeMillis()+5000;
+                    while(!erased&&android.os.SystemClock.uptimeMillis()<eraseDeadline) {
                         byte[] packet=read(in); if(packet[0]!='D') continue;
                         org.json.JSONObject eraseCommand=new org.json.JSONObject(new String(packet,4,packet.length-4,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("command");
                         if(eraseCommand.optString("type").equals("erase_begin")) { assertEquals(48,eraseCommand.getDouble("radius"),.01); erased=true; }
                     }
+                    assertTrue("Expected erase_begin command before deadline",erased);
                 }
             }
         }
