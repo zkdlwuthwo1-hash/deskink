@@ -22,6 +22,10 @@ enum DeskInkCommand: Codable {
     case append(id: UInt64, point: DeskInkPoint)
     case end(id: UInt64)
     case shape(id: UInt64, kind: DeskInkShape.Kind, a: DeskInkPoint, b: DeskInkPoint)
+    case editBegin(id: UInt64)
+    case editAdd(id: UInt64, ids: [UInt64])
+    case editTransform(id: UInt64, sx: CGFloat, sy: CGFloat, tx: CGFloat, ty: CGFloat)
+    case editEnd(id: UInt64)
     case eraseBegin(id: UInt64, point: DeskInkPoint, radius: CGFloat)
     case eraseTo(id: UInt64, point: DeskInkPoint)
     case eraseEnd(id: UInt64)
@@ -31,12 +35,19 @@ enum DeskInkCommand: Codable {
     case pointer(point: DeskInkPoint?, color: [UInt8], radius: CGFloat, laser: Bool)
 
     private enum Keys: String, CodingKey {
-        case type, id, brush, point, radius, visible, color, laser, kind, a, b
+        case type, id, brush, point, radius, visible, color, laser, kind, a, b, ids, sx, sy, tx, ty
         case lifetimeMs = "lifetime_ms"
     }
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Keys.self)
         switch self {
+        case let .editBegin(id): try c.encode("edit_begin",forKey:.type); try c.encode(id,forKey:.id)
+        case let .editEnd(id): try c.encode("edit_end",forKey:.type); try c.encode(id,forKey:.id)
+        case let .editAdd(id,ids):
+            try c.encode("edit_add",forKey:.type); try c.encode(id,forKey:.id); try c.encode(ids,forKey:.ids)
+        case let .editTransform(id,sx,sy,tx,ty):
+            try c.encode("edit_transform",forKey:.type); try c.encode(id,forKey:.id)
+            try c.encode(sx,forKey:.sx); try c.encode(sy,forKey:.sy); try c.encode(tx,forKey:.tx); try c.encode(ty,forKey:.ty)
         case let .shape(id, kind, a, b):
             try c.encode("shape",forKey:.type); try c.encode(id,forKey:.id); try c.encode(kind,forKey:.kind)
             try c.encode(a,forKey:.a); try c.encode(b,forKey:.b)
@@ -70,6 +81,10 @@ enum DeskInkCommand: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         switch try c.decode(String.self, forKey: .type) {
+        case "edit_begin": self = .editBegin(id:try c.decode(UInt64.self,forKey:.id))
+        case "edit_end": self = .editEnd(id:try c.decode(UInt64.self,forKey:.id))
+        case "edit_add": self = .editAdd(id:try c.decode(UInt64.self,forKey:.id),ids:try c.decode([UInt64].self,forKey:.ids))
+        case "edit_transform": self = .editTransform(id:try c.decode(UInt64.self,forKey:.id),sx:try c.decode(CGFloat.self,forKey:.sx),sy:try c.decode(CGFloat.self,forKey:.sy),tx:try c.decode(CGFloat.self,forKey:.tx),ty:try c.decode(CGFloat.self,forKey:.ty))
         case "shape": self = .shape(id:try c.decode(UInt64.self,forKey:.id),kind:try c.decode(DeskInkShape.Kind.self,forKey:.kind),a:try c.decode(DeskInkPoint.self,forKey:.a),b:try c.decode(DeskInkPoint.self,forKey:.b))
         case "begin": self = .begin(id: try c.decode(UInt64.self, forKey: .id), brush: try c.decode(DeskInkBrush.self, forKey: .brush), point: try c.decode(DeskInkPoint.self, forKey: .point))
         case "append": self = .append(id: try c.decode(UInt64.self, forKey: .id), point: try c.decode(DeskInkPoint.self, forKey: .point))
@@ -128,6 +143,13 @@ final class DeskInkDocument {
     private var redoStack: [Edit] = []
     private struct Erase { let id: UInt64; var last: DeskInkPoint; let radius: CGFloat; var removed: [(Int, DeskInkStroke)] }
     private var eraser: Erase?
+    private struct SelectionEdit {
+        let id: UInt64
+        var original: [(Int,DeskInkStroke)] = []
+        var transformed = false
+        var changed = false
+    }
+    private var selectionEdit: SelectionEdit?
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
     var renderStrokes: [DeskInkStroke] { visible ? strokes + temporary : [] }
@@ -135,6 +157,7 @@ final class DeskInkDocument {
     /// Mirror the host's reconnect rule. An interrupted stroke remains an
     /// ordinary undoable edit; a stale laser or temporary stroke is not revived.
     func suspend() {
+        if let edit=selectionEdit { apply(.editEnd(id:edit.id)) }
         for id in strokes.filter({ !$0.finished }).map(\.id) { apply(.end(id: id)) }
         if let eraser { apply(.eraseEnd(id: eraser.id)) }
         temporary.removeAll()
@@ -143,7 +166,36 @@ final class DeskInkDocument {
 
     @discardableResult
     func apply(_ command: DeskInkCommand) -> Bool {
+        if selectionEdit != nil {
+            switch command { case .editAdd, .editTransform, .editEnd, .pointer, .setVisible: break; default: return false }
+        }
         switch command {
+        case let .editBegin(id):
+            guard eraser == nil, !strokes.contains(where: { !$0.finished }) else { return false }
+            selectionEdit=SelectionEdit(id:id)
+        case let .editAdd(id,ids):
+            guard var edit=selectionEdit, edit.id==id, !edit.transformed, !ids.isEmpty, ids.count<=32,
+                  edit.original.count+ids.count<=4096, Set(ids).count==ids.count else { return false }
+            var additions: [(Int,DeskInkStroke)] = []
+            for selected in ids {
+                guard !edit.original.contains(where: { $0.1.id==selected }), let index=strokes.firstIndex(where: { $0.id==selected && $0.finished }) else { return false }
+                additions.append((index,strokes[index]))
+            }
+            edit.original += additions; selectionEdit=edit
+        case let .editTransform(id,sx,sy,tx,ty):
+            guard var edit=selectionEdit, edit.id==id, !edit.original.isEmpty,
+                  [sx,sy,tx,ty].allSatisfy(\.isFinite), sx>0, sy>0 else { return false }
+            func transform(_ p: DeskInkPoint) -> DeskInkPoint { .init(x:p.x*sx+tx,y:p.y*sy+ty,pressure:p.pressure) }
+            for (index,original) in edit.original {
+                var replacement=original; replacement.points=original.points.map(transform)
+                if let shape=original.shape { replacement.shape=DeskInkShape(kind:shape.kind,a:transform(shape.a),b:transform(shape.b)) }
+                replacement.geometryRevision=strokes[index].geometryRevision+1; strokes[index]=replacement
+            }
+            edit.transformed=true; edit.changed=sx != 1 || sy != 1 || tx != 0 || ty != 0; selectionEdit=edit
+        case let .editEnd(id):
+            guard let edit=selectionEdit, edit.id==id else { return false }
+            if edit.changed { remember(Edit(remove:edit.original.map { $0.1.id },insert:edit.original.sorted { $0.0<$1.0 })) }
+            selectionEdit=nil
         case let .shape(id,kind,a,b):
             guard let index=strokes.firstIndex(where: { $0.id==id && !$0.finished }) else { return false }
             let shape=DeskInkShape(kind:kind,a:a,b:b)
