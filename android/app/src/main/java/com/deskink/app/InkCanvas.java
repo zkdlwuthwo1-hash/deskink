@@ -26,10 +26,13 @@ public final class InkCanvas extends View {
     private float eraserRadius=12;
     private boolean editingEnabled,shapeCorrection=true,shapeFrozen;
     private float holdX,holdY;
+    private int strokePointCount,holdPointCount;
     private final Runnable hold=() -> {
         if(!editingEnabled||!shapeCorrection||shapeFrozen||pointerId<0||(activeTool!=PenInput.Tool.PEN&&activeTool!=PenInput.Tool.HIGHLIGHTER)) return;
         for(InkDocument.Stroke stroke:document.strokes()) if(stroke.id==gestureId&&!stroke.finished) {
-            InkShape shape=InkShape.recognize(stroke.points);
+            // Keep live ink unchanged, but do not mistake a stationary pen's
+            // dense jitter samples for extra travel around the drawn shape.
+            InkShape shape=InkShape.recognize(stroke.points.subList(0,Math.min(holdPointCount,stroke.points.size())));
             if(shape!=null) { shapeFrozen=true; emit(shape.command(gestureId)); }
             break;
         }
@@ -104,7 +107,7 @@ public final class InkCanvas extends View {
         return Ink.point(Math.max(0,Math.min(desktopWidth,p[0])),Math.max(0,Math.min(desktopHeight,p[1])),pressure);
     }
     private void begin(PenInput.Tool tool,JSONObject p) {
-        activeTool=tool; gestureId=++nextId; shapeFrozen=false;
+        activeTool=tool; gestureId=++nextId; shapeFrozen=false; strokePointCount=1;
         if(tool==PenInput.Tool.LASSO) { selection.begin(selectionPoint(p),viewport.scale(),gestureId); invalidate(); return; }
         if(!document.visible) emit(Ink.object("type","set_visible","visible",true));
         if(tool==PenInput.Tool.ERASER) emit(Ink.object("type","erase_begin","id",gestureId,"point",p,"radius",eraserRadius));
@@ -118,14 +121,14 @@ public final class InkCanvas extends View {
         if(!editingEnabled||!shapeCorrection||shapeFrozen||(activeTool!=PenInput.Tool.PEN&&activeTool!=PenInput.Tool.HIGHLIGHTER)) return;
         float x=(float)p.optDouble("x"),y=(float)p.optDouble("y");
         if(force||Math.hypot(x-holdX,y-holdY)>3/viewport.scale()) {
-            holdX=x; holdY=y; removeCallbacks(hold); postDelayed(hold,1000);
+            holdX=x; holdY=y; holdPointCount=strokePointCount; removeCallbacks(hold); postDelayed(hold,1000);
         }
     }
     private void move(JSONObject p) {
         if(activeTool==PenInput.Tool.LASSO) { selection.move(selectionPoint(p),SystemClock.uptimeMillis()); invalidate(); return; }
         if(shapeFrozen) return;
         if(activeTool==PenInput.Tool.ERASER) emit(Ink.at("erase_to",gestureId,p));
-        else if(activeTool!=PenInput.Tool.LASER) emit(Ink.at("append",gestureId,p));
+        else if(activeTool!=PenInput.Tool.LASER) { strokePointCount++; emit(Ink.at("append",gestureId,p)); }
         armHold(p,false);
     }
     private void finish(boolean lift) {

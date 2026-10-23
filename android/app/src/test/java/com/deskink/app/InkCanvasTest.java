@@ -12,6 +12,25 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void aStationaryPenCanCorrectALineDespiteSubPixelHoldSamples() {
+        try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
+            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+            InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
+            canvas.bind(document,c -> { sent.add(c); return true; },1000,700); canvas.editingEnabled(true);
+            touch(canvas,MotionEvent.ACTION_DOWN,0,100,200);
+            for(int x=120;x<=300;x+=20) touch(canvas,MotionEvent.ACTION_MOVE,0,x,200);
+            for(int sample=0;sample<120;sample++) {
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(8));
+                touch(canvas,MotionEvent.ACTION_MOVE,0,300+(sample%2==0?.4f:-.4f),200);
+            }
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50));
+            JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
+            assertNotNull("A one-second hold with less than one pixel of pen jitter must still correct the line",shape);
+            assertEquals("line",shape.optString("kind"));
+            touch(canvas,MotionEvent.ACTION_UP,0,300,200);
+        }
+    }
+
     @Test public void oldHostsDisabledCorrectionAndLiftingEarlyAlwaysKeepOrdinaryInk() {
         for(int mode=0;mode<3;mode++) try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
             InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);

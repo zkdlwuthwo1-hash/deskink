@@ -118,7 +118,14 @@ public class StreamingTest {
                     }
                 });
                 InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("width").performClick());
+                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
+                activity.onActivity(a -> {
+                    View shape=a.getWindow().getDecorView().findViewWithTag("shape");
+                    assertFalse(shape.isSelected()); assertTrue(shape.isShown()); assertTrue(shape.isEnabled());
+                });
+                WorkspaceUiTest.capture("shape-off");
+                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("shape").performClick());
+                activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("tool.ERASER").performClick());
                 WorkspaceUiTest.capture("eraser-sizes");
             }
         }

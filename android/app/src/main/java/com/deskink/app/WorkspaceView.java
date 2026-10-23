@@ -80,7 +80,10 @@ final class WorkspaceView extends LinearLayout {
         int[] icons={R.drawable.ic_pen,R.drawable.ic_highlighter,R.drawable.ic_eraser,R.drawable.ic_laser,R.drawable.ic_fade,R.drawable.ic_lasso};
         PenInput.Tool[] values=PenInput.Tool.values();
         for(int i=0;i<values.length;i++) {
-            PenInput.Tool tool=values[i]; ToolButton button=tool(dock,names[i],descriptions[i],icons[i],"tool."+tool,() -> ink.select(tool)); tools.put(tool,button);
+            PenInput.Tool tool=values[i]; ToolButton button=tool(dock,names[i],descriptions[i],icons[i],"tool."+tool,() -> {
+                ink.select(tool);
+                if(tool==PenInput.Tool.ERASER) eraserSizes();
+            }); tools.put(tool,button);
         }
         shape=tool(dock,R.string.shape_short,R.string.shape_hint,R.drawable.ic_shapes,"shape",() -> {
             ink.shapeCorrection(!ink.shapeCorrection()); drawingPreferences.edit().putBoolean("shape-correction",ink.shapeCorrection()).apply(); refreshControls();
@@ -213,7 +216,10 @@ final class WorkspaceView extends LinearLayout {
             LayoutParams lp=new LayoutParams(ui.dp(20),ui.dp(20)); lp.setMarginStart(ui.dp(22)); choice.addView(check,lp);
             choice.setOnClickListener(v -> { selectedWidth=value; ink.width(value); width.thickness(value); refreshControls(); closeSheet(); }); content.addView(choice);
         }
-        content.addView(ui.space(16)); content.addView(ui.text(R.string.eraser_size,15,DeskInkUi.TEXT,true));
+        showSheet(content);
+    }
+    private void eraserSizes() {
+        LinearLayout content=ui.sheetContent(R.string.eraser_size,R.drawable.ic_eraser);
         content.addView(ui.text(R.string.eraser_hint,12,DeskInkUi.MUTED,false)); content.addView(ui.space(8));
         LinearLayout sizes=ui.row();
         float[] radii={12,24,48}; int[] labels={R.string.small,R.string.medium,R.string.large};
