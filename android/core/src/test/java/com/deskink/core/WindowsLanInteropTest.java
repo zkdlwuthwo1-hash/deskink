@@ -13,7 +13,7 @@ import static org.junit.Assume.assumeTrue;
 
 /** Opt-in cross-language check against the real Windows Rust sender, without USB. */
 public class WindowsLanInteropTest {
-    @Test public void aNewAndroidTabletPairsOverLanAndExchangesVideoAndInkWithWindows() throws Exception {
+    @Test public void aNewAndroidTabletPairsAndReceivesASwitchedMonitorWithoutPenInput() throws Exception {
         String readyFile=System.getenv("DESKINK_INTEROP_READY");
         assumeTrue("Start the Windows android_lan_fixture and set DESKINK_INTEROP_READY",
             readyFile!=null&&!readyFile.isEmpty());
@@ -24,7 +24,7 @@ public class WindowsLanInteropTest {
         BlockingQueue<UdpClient.Failure> failures=new LinkedBlockingQueue<>();
         AutoConnectSession.Listener observed=new AutoConnectSession.Listener() {
             public void state(UsbClient.State state) { states.add(state); }
-            public void stream(UsbClient.Binding binding) { bindings.add(binding); }
+            public void stream(UsbClient.Binding binding) { frames.clear(); bindings.add(binding); }
             public void frame(FrameAssembler.Frame frame) { frames.offer(frame); }
             public void failure(UdpClient.Failure failure) { failures.add(failure); }
         };
@@ -61,6 +61,18 @@ public class WindowsLanInteropTest {
             assertNull("Windows must acknowledge ink and keep the wireless session alive",
                 failures.poll(500,TimeUnit.MILLISECONDS));
             assertTrue("The authenticated monitor must remain selected after clear",app.owns(binding));
+
+            Files.writeString(Path.of(ready.getString("switchPath")),"switch\n");
+            UsbClient.Binding second=bindings.poll(3,TimeUnit.SECONDS);
+            assertNotNull("Changing the Windows monitor must rebind Android without pen input; failures="+failures,second);
+            assertNotEquals("The monitor label must identify the newly selected display",binding.host,second.host);
+            assertNotEquals("A monitor restart must change the video epoch",binding.config.epoch,second.config.epoch);
+            assertFalse("The old monitor binding must no longer accept pen commands",app.owns(binding));
+            FrameAssembler.Frame switched=frames.poll(3,TimeUnit.SECONDS);
+            assertNotNull("New monitor video must arrive before the next pen gesture; failures="+failures,switched);
+            assertArrayEquals("The tablet must receive the new monitor, not the old screenshot",
+                Files.readAllBytes(Path.of(ready.getString("secondFramePath"))),switched.bytes);
+            assertTrue("The new monitor binding must be usable",app.owns(second));
         } finally {
             Files.writeString(Path.of(ready.getString("stopPath")),"stop\n");
         }

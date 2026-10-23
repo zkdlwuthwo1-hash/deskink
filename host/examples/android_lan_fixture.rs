@@ -45,7 +45,8 @@ async fn main() -> FixtureResult<()> {
     let ready = std::path::absolute(ready)?;
     let result = ready.with_extension("result.json");
     let stop = ready.with_extension("stop");
-    for output in [&ready, &result, &stop] {
+    let switch = ready.with_extension("switch");
+    for output in [&ready, &result, &stop, &switch] {
         if output.exists() {
             return Err(format!("use a fresh fixture path: {}", output.display()).into());
         }
@@ -54,6 +55,10 @@ async fn main() -> FixtureResult<()> {
         .join("../proto/testdata/deskink_workspace_1280x720.h264")
         .canonicalize()?;
     let frame = std::fs::read(&frame_path)?;
+    let second_frame_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../proto/testdata/monitor_switch_green_1280x720.h264")
+        .canonicalize()?;
+    let second_frame = std::fs::read(&second_frame_path)?;
     eternal_host::clock::init();
 
     let reservation = std::net::UdpSocket::bind("0.0.0.0:0")?;
@@ -93,18 +98,20 @@ async fn main() -> FixtureResult<()> {
         ink.reconnect(0, 0);
     }
     let mut shared = SharedControl::new(port, 4_000_000);
-    shared.annotation = Some(Arc::new(AnnotationWorkspace::new(board.clone())));
+    let workspace = Arc::new(AnnotationWorkspace::new(board.clone()));
+    shared.annotation = Some(workspace.clone());
     shared.lan_enabled.store(true, Ordering::SeqCst);
     shared.running.store(true, Ordering::SeqCst);
     shared.pairing.lock().require_usb_code = true;
     let code = shared.pairing.lock().code();
-    let (nal, nal_rx) = mpsc::channel(2);
-    let (_audio, audio_rx) = mpsc::channel(2);
+    let (mut nal, nal_rx) = mpsc::channel(2);
+    let (mut _audio, audio_rx) = mpsc::channel(2);
     let (supervisor, _supervisor_rx) = std_mpsc::channel();
     let control = shared.clone();
     drop(reservation);
+    let supervisor_clone = supervisor.clone();
     let mut sender = tokio::spawn(async move {
-        start_sender(nal_rx, audio_rx, port, control, supervisor)
+        start_sender(nal_rx, audio_rx, port, control, supervisor_clone)
             .await
             .map_err(|error| error.to_string())
     });
@@ -116,21 +123,53 @@ async fn main() -> FixtureResult<()> {
     publish_new(
         &ready,
         json!({"address":"127.0.0.1","port":port,"code":code,
-            "framePath":frame_path,"resultPath":result,"stopPath":stop}),
+            "framePath":frame_path,"secondFramePath":second_frame_path,
+            "switchPath":switch,"resultPath":result,"stopPath":stop}),
     )?;
     println!("Disposable LAN fixture ready (synthetic pairing; no capture/devices).");
 
     let deadline = Instant::now() + Duration::from_secs(45);
     let mut sent = 0_u64;
     let mut passed = false;
+    let mut switched = false;
     while Instant::now() < deadline && !stop.exists() {
+        if !switched && switch.exists() {
+            // Same public transport lifecycle as a capture pipeline restart:
+            // retain the authenticated Session, use a new monitor and epoch.
+            drop(nal);
+            tokio::time::timeout(Duration::from_secs(2), &mut sender).await???;
+            let second_board = Arc::new(AnnotationState::new(
+                OutputInfo {
+                    device_name: "interop-second-display".into(),
+                    left: 1280,
+                    is_primary: false,
+                    ..board.output.clone()
+                },
+                0,
+            ));
+            workspace.select(second_board);
+            let (next_nal, next_nal_rx) = mpsc::channel(2);
+            let (next_audio, next_audio_rx) = mpsc::channel(2);
+            nal = next_nal;
+            _audio = next_audio;
+            let control = shared.clone();
+            let supervisor_clone = supervisor.clone();
+            sender = tokio::spawn(async move {
+                start_sender(next_nal_rx, next_audio_rx, port, control, supervisor_clone)
+                    .await
+                    .map_err(|error| error.to_string())
+            });
+            sent = 0;
+            switched = true;
+            println!("Switched to the second monitor without a pen command.");
+        }
         if sender.is_finished() {
             return Err(format!("transport stopped unexpectedly: {:?}", sender.await).into());
         }
         if shared.client_connected() {
             sent += 1;
             nal.send(NALUnit {
-                data: frame.clone(),
+                data: if switched { second_frame.clone() } else { frame.clone() },
                 sequence: sent,
                 timestamp: Instant::now(),
                 encode_duration_us: 0,
