@@ -25,6 +25,8 @@ public class InkCanvasTest {
             JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElse(null);
             assertNotNull(shape);
             assertEquals("A slightly tilted box must stay a rectangle", "rectangle",shape.optString("kind"));
+            assertFalse("The corrected shape must already exist while the pen is down",document.strokes().get(0).finished);
+            assertEquals(5,document.strokes().get(0).points.size());
             touch(canvas,MotionEvent.ACTION_UP,0,168.88f,134.15f);
             assertEquals(5,document.strokes().get(0).points.size());
         }
@@ -32,7 +34,11 @@ public class InkCanvasTest {
 
     @Test public void aSmallHandTremorDoesNotRestartTheOneSecondHold() {
         try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
-            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas);
+            // Complete the window's first layout before measuring a stationary
+            // screen-space hold; a resize would legitimately change coordinates.
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            canvas.layout(0,0,1000,700);
             InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
             canvas.bind(document,c -> { sent.add(c); return true; },1000,700); canvas.editingEnabled(true);
             touch(canvas,MotionEvent.ACTION_DOWN,0,100,200);

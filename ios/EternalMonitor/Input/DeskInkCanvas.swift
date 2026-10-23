@@ -184,7 +184,10 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             guard !shapeFrozen else { return }
             strokePointCount += 1
             commands.append(.append(id:id,point:point))
-            if let anchor=holdAnchor, hypot(point.x-anchor.x,point.y-anchor.y)<=3/inputScale { return }
+            // Measure tremor in visible screen points, including pinch zoom.
+            // Tiny hand movement must not keep restarting the one-second hold.
+            let holdSlop=8/(inputScale * max(1,tools?.viewport?.zoomScale ?? 1))
+            if let anchor=holdAnchor, hypot(point.x-anchor.x,point.y-anchor.y)<=holdSlop { return }
             scheduleCorrection(at:point)
         }
     }

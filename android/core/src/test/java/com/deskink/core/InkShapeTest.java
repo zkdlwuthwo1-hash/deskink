@@ -4,6 +4,32 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class InkShapeTest {
+    @Test public void tiltedAndRoundedBoxesStayDistinctFromCirclesOvalsAndHandwriting() throws Exception {
+        org.json.JSONArray fixtures;
+        try(java.io.InputStream input=getClass().getResourceAsStream("/deskink-shape-cases.json")) {
+            assertNotNull(input);
+            fixtures=new org.json.JSONArray(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));
+        }
+        for(int i=0;i<fixtures.length();i++) {
+            org.json.JSONObject fixture=fixtures.getJSONObject(i);
+            for(int degrees:new int[]{-15,-10,0,10,15}) for(float scale:new float[]{.5f,1,3}) {
+                double angle=Math.toRadians(degrees),c=Math.cos(angle),s=Math.sin(angle);
+                List<InkDocument.Point> path=new ArrayList<>();
+                org.json.JSONArray coordinates=fixture.getJSONArray("points");
+                for(int j=0;j<coordinates.length();j++) {
+                    org.json.JSONArray xy=coordinates.getJSONArray(j); double x=xy.getDouble(0)-200,y=xy.getDouble(1)-200;
+                    path.add(new InkDocument.Point((float)(600+scale*(x*c-y*s)),(float)(600+scale*(x*s+y*c)),.5f));
+                }
+                InkShape shape=InkShape.recognize(path);
+                String expected=fixture.isNull("expected")?null:fixture.getString("expected");
+                // Rotated elongated ellipses were not always recognized before
+                // this fix. They may retain their ink, but must never become boxes.
+                if(degrees!=0&&fixture.optBoolean("allowUnrecognizedWhenTilted")&&shape==null) continue;
+                assertEquals(fixture.getString("name")+" at "+degrees+" degrees, scale "+scale,expected,shape==null?null:shape.kind);
+            }
+        }
+    }
+
     private static List<InkDocument.Point> points(float... xy) {
         List<InkDocument.Point> result=new ArrayList<>(); for(int i=0;i<xy.length;i+=2) result.add(new InkDocument.Point(xy[i],xy[i+1],.5f)); return result;
     }

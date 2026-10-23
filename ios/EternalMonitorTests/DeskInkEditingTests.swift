@@ -3,6 +3,30 @@ import UIKit
 @testable import EternalMonitor
 
 final class DeskInkEditingTests: XCTestCase {
+    func testTiltedAndRoundedBoxesStayDistinctFromCirclesOvalsAndHandwriting() throws {
+        struct Fixture: Decodable {
+            let name: String; let expected: String?; let points: [[CGFloat]]
+            let allowUnrecognizedWhenTilted: Bool?
+        }
+        let url=try XCTUnwrap(Bundle(for:Self.self).url(forResource:"deskink-shape-cases",withExtension:"json",subdirectory:"testdata"))
+        let fixtures=try JSONDecoder().decode([Fixture].self,from:Data(contentsOf:url))
+        for fixture in fixtures {
+            for degrees in [-15,-10,0,10,15] { for scale: CGFloat in [0.5,1,3] {
+                let angle=CGFloat(degrees) * .pi/180, c=cos(angle), s=sin(angle)
+                let points=fixture.points.map { xy -> DeskInkPoint in
+                    let x=xy[0]-200, y=xy[1]-200
+                    return .init(x:600+scale*(x*c-y*s),y:600+scale*(x*s+y*c),pressure:0.5)
+                }
+                let shape=DeskInkShape.recognize(points)
+                // Existing unsupported tilted ovals may retain their ink, but
+                // widening rectangle recognition must not turn them into boxes.
+                if degrees != 0, fixture.allowUnrecognizedWhenTilted==true, shape==nil { continue }
+                XCTAssertEqual(shape?.kind.rawValue,fixture.expected,
+                               "\(fixture.name) at \(degrees) degrees, scale \(scale)")
+            } }
+        }
+    }
+
     @MainActor
     func testSlightlyTiltedRectangleMustNotBecomeAnEllipse() {
         let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
@@ -18,6 +42,7 @@ final class DeskInkEditingTests: XCTestCase {
         RunLoop.main.run(until:Date().addingTimeInterval(1.1))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.rectangle,
                        "A slightly tilted box must stay a rectangle")
+        XCTAssertEqual(canvas.document.strokes.first?.finished,false,"The shape must change before lifting the pen")
         canvas.finish()
     }
 

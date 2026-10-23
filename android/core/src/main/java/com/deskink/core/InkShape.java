@@ -43,14 +43,7 @@ public final class InkShape {
         if(raw.size()<5) return null;
         if(w<16||h<16||distance(raw.get(0),raw.get(raw.size()-1))>Math.max(10,diagonal*.16)) return null;
         List<InkDocument.Point> samples=resample(raw,length,64);
-        double error=0; boolean[] corners=new boolean[4];
-        for(InkDocument.Point p:samples) {
-            error+=Math.min(Math.min(Math.abs(p.x-left),Math.abs(p.x-right)),Math.min(Math.abs(p.y-top),Math.abs(p.y-bottom)));
-            float[] xs={left,right,right,left},ys={top,top,bottom,bottom};
-            for(int i=0;i<4;i++) if(Math.hypot(p.x-xs[i],p.y-ys[i])<Math.min(w,h)*.22) corners[i]=true;
-        }
-        if(error/samples.size()<diagonal*.025&&corners[0]&&corners[1]&&corners[2]&&corners[3]
-                &&length>1.6*(w+h)&&length<2.6*(w+h)) {
+        if(matchesRectangle(samples,length)) {
             return new InkShape("rectangle",new InkDocument.Point(left,top,.5f),new InkDocument.Point(right,bottom,.5f));
         }
         double radialError=0,maxError=0,turn=0,travel=0,previous=0;
@@ -67,6 +60,32 @@ public final class InkShape {
             return new InkShape("ellipse",new InkDocument.Point(left,top,.5f),new InkDocument.Point(right,bottom,.5f));
         }
         return null;
+    }
+    /** Compare against the box's own axes before trying an ellipse. A small
+     * hand-drawn tilt must not make four straight sides look like an oval.
+     * Snapping still produces an upright rectangle inside the original bounds. */
+    private static boolean matchesRectangle(List<InkDocument.Point> samples,double length) {
+        for(int step=0;step<=16;step++) {
+            double angle=Math.toRadians(step==0?0:((step+1)/2)*2.5*(step%2==0?-1:1));
+            double cos=Math.cos(angle),sin=Math.sin(angle);
+            double left=Double.POSITIVE_INFINITY,top=left,right=Double.NEGATIVE_INFINITY,bottom=right;
+            double[] xs=new double[samples.size()],ys=new double[samples.size()];
+            for(int i=0;i<samples.size();i++) {
+                InkDocument.Point p=samples.get(i);
+                xs[i]=p.x*cos+p.y*sin; ys[i]=-p.x*sin+p.y*cos;
+                left=Math.min(left,xs[i]); right=Math.max(right,xs[i]); top=Math.min(top,ys[i]); bottom=Math.max(bottom,ys[i]);
+            }
+            double w=right-left,h=bottom-top;
+            if(w<16||h<16||length<=1.6*(w+h)||length>=2.6*(w+h)) continue;
+            double error=0; boolean[] corners=new boolean[4];
+            double[] cx={left,right,right,left},cy={top,top,bottom,bottom};
+            for(int i=0;i<xs.length;i++) {
+                error+=Math.min(Math.min(Math.abs(xs[i]-left),Math.abs(xs[i]-right)),Math.min(Math.abs(ys[i]-top),Math.abs(ys[i]-bottom)));
+                for(int corner=0;corner<4;corner++) if(Math.hypot(xs[i]-cx[corner],ys[i]-cy[corner])<Math.min(w,h)*.22) corners[corner]=true;
+            }
+            if(error/xs.length<Math.hypot(w,h)*.025&&corners[0]&&corners[1]&&corners[2]&&corners[3]) return true;
+        }
+        return false;
     }
     private static double distance(InkDocument.Point a,InkDocument.Point b) { return Math.hypot(a.x-b.x,a.y-b.y); }
     private static List<InkDocument.Point> resample(List<InkDocument.Point> raw,double length,int count) {
