@@ -6,6 +6,15 @@ import org.json.*;
 
 /** Lasso selection and a single undoable move/resize gesture in desktop coordinates. */
 public final class InkSelection {
+    private enum Gesture { NONE, LASSO, MOVE, RESIZE }
+    private enum Handle {
+        TOP_LEFT(-1,-1), TOP(0,-1), TOP_RIGHT(1,-1), RIGHT(1,0),
+        BOTTOM_RIGHT(1,1), BOTTOM(0,1), BOTTOM_LEFT(-1,1), LEFT(-1,0);
+        final int xSide,ySide;
+        Handle(int xSide,int ySide) { this.xSide=xSide; this.ySide=ySide; }
+        boolean corner() { return xSide!=0&&ySide!=0; }
+        float[] position(float[] b) { return new float[]{xSide<0?b[0]:xSide>0?b[2]:(b[0]+b[2])/2,ySide<0?b[1]:ySide>0?b[3]:(b[1]+b[3])/2}; }
+    }
     private final InkDocument document;
     private final Consumer<JSONObject> emit;
     private final float width,height;
@@ -13,7 +22,8 @@ public final class InkSelection {
     private final List<InkDocument.Point> lasso=new ArrayList<>();
     private float[] original;
     private InkDocument.Point start,last;
-    private int mode=-1; // 0..7 handles clockwise, 8 move, 9 lasso
+    private Gesture gesture=Gesture.NONE;
+    private Handle handle;
     private long id,lastSent;
     private float scale;
     private boolean editing;
@@ -24,37 +34,39 @@ public final class InkSelection {
         if(selected.isEmpty()) return null;
         float l=Float.POSITIVE_INFINITY,t=l,r=Float.NEGATIVE_INFINITY,b=r;
         for(InkDocument.Stroke s:document.strokes()) if(selected.contains(s.id)) for(InkDocument.Point p:s.points) { l=Math.min(l,p.x); t=Math.min(t,p.y); r=Math.max(r,p.x); b=Math.max(b,p.y); }
-        if(r-l<1) { l-=.5f; r+=.5f; } if(b-t<1) { t-=.5f; b+=.5f; }
+        if(r-l<1) { l=clamp(l-.5f,0,width-1); r=l+1; }
+        if(b-t<1) { t=clamp(t-.5f,0,height-1); b=t+1; }
         return new float[]{l,t,r,b};
     }
     public static float[][] handles(float[] b) {
-        float cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;
-        return new float[][]{{b[0],b[1]},{cx,b[1]},{b[2],b[1]},{b[2],cy},{b[2],b[3]},{cx,b[3]},{b[0],b[3]},{b[0],cy}};
+        return Arrays.stream(Handle.values()).map(handle -> handle.position(b)).toArray(float[][]::new);
     }
     public void clear() { end(); selected.clear(); lasso.clear(); }
     public void begin(InkDocument.Point p,float scale,long id) {
-        end(); this.start=this.last=p; this.scale=scale; this.id=id; original=bounds(); mode=-1;
+        end(); this.start=this.last=p; this.scale=scale; this.id=id; original=bounds(); gesture=Gesture.NONE;
         if(original!=null) {
-            float[][] handles=handles(original);
-            for(int i=0;i<8;i++) if(Math.hypot(p.x-handles[i][0],p.y-handles[i][1])<=12/scale) { mode=i; break; }
-            if(mode<0&&insideBounds(p,original)) mode=8;
+            for(Handle candidate:Handle.values()) {
+                float[] position=candidate.position(original);
+                if(Math.hypot(p.x-position[0],p.y-position[1])<=12/scale) { gesture=Gesture.RESIZE; handle=candidate; break; }
+            }
+            if(gesture==Gesture.NONE&&insideBounds(p,original)) gesture=Gesture.MOVE;
         }
-        if(mode<0) {
+        if(gesture==Gesture.NONE) {
             selected.clear();
             List<InkDocument.Stroke> strokes=document.strokes();
             for(int i=strokes.size()-1;i>=0;i--) {
-                InkDocument.Stroke s=strokes.get(i); if(s.finished&&hit(s,p,8/scale)) { selected.add(s.id); mode=8; break; }
+                InkDocument.Stroke s=strokes.get(i); if(s.finished&&hit(s,p,8/scale)) { selected.add(s.id); gesture=Gesture.MOVE; break; }
             }
             original=bounds();
         }
-        if(mode<0) { mode=9; lasso.add(p); }
+        if(gesture==Gesture.NONE) { gesture=Gesture.LASSO; lasso.add(p); }
     }
     public void move(InkDocument.Point p,long now) {
         last=p;
-        if(mode==9) {
+        if(gesture==Gesture.LASSO) {
             InkDocument.Point previous=lasso.get(lasso.size()-1);
             if(Math.hypot(p.x-previous.x,p.y-previous.y)>2/scale) lasso.add(p);
-        } else if(mode>=0&&Math.hypot(p.x-start.x,p.y-start.y)>2/scale) {
+        } else if(gesture!=Gesture.NONE&&Math.hypot(p.x-start.x,p.y-start.y)>2/scale) {
             if(!editing) {
                 editing=true; emit.accept(Ink.id("edit_begin",id));
                 List<Long> ids=new ArrayList<>(selected);
@@ -65,31 +77,32 @@ public final class InkSelection {
     }
     public void end() {
         if(editing) { preview(); emit.accept(Ink.id("edit_end",id)); editing=false; }
-        else if(mode==9&&lasso.size()>=3) {
+        else if(gesture==Gesture.LASSO&&lasso.size()>=3) {
             for(InkDocument.Stroke s:document.strokes()) if(s.finished&&selected.size()<4096&&s.points.stream().allMatch(p -> inside(p,lasso))) selected.add(s.id);
         }
-        mode=-1; lasso.clear();
+        gesture=Gesture.NONE; lasso.clear();
     }
     private void preview() {
         float l=original[0],t=original[1],r=original[2],b=original[3],w=r-l,h=b-t;
         float sx=1,sy=1,tx=0,ty=0;
-        if(mode==8) {
-            tx=clamp(last.x-start.x,.5f-l,width-.5f-r); ty=clamp(last.y-start.y,.5f-t,height-.5f-b);
+        if(gesture==Gesture.MOVE) {
+            tx=clamp(last.x-start.x,-l,width-r); ty=clamp(last.y-start.y,-t,height-b);
         } else {
-            boolean left=mode==0||mode==6||mode==7,right=mode==2||mode==3||mode==4,top=mode<=2,bottom=mode>=4&&mode<=6;
-            if(left) l=clamp(last.x,.5f,r-4); if(right) r=clamp(last.x,l+4,width-.5f);
-            if(top) t=clamp(last.y,.5f,b-4); if(bottom) b=clamp(last.y,t+4,height-.5f);
-            sx=(r-l)/w; sy=(b-t)/h;
-            if(mode%2==0) {
-                float anchorX=left?original[2]:original[0],anchorY=top?original[3]:original[1];
-                float maxX=left?(anchorX-.5f)/w:(width-.5f-anchorX)/w,maxY=top?(anchorY-.5f)/h:(height-.5f-anchorY)/h;
-                sx=sy=Math.max(.001f,Math.min(Math.max(sx,sy),Math.min(maxX,maxY)));
-                tx=anchorX*(1-sx); ty=anchorY*(1-sy);
-            } else { tx=l-original[0]*sx; ty=t-original[1]*sy; }
+            float anchorX=handle.xSide<0?r:l,anchorY=handle.ySide<0?b:t;
+            float maxX=Math.min(1000,(handle.xSide<0?anchorX:width-anchorX)/w);
+            float maxY=Math.min(1000,(handle.ySide<0?anchorY:height-anchorY)/h);
+            if(handle.xSide!=0) sx=clamp(handle.xSide*(last.x-anchorX)/w,Math.min(4/w,maxX),maxX);
+            if(handle.ySide!=0) sy=clamp(handle.ySide*(last.y-anchorY)/h,Math.min(4/h,maxY),maxY);
+            if(handle.corner()) {
+                sx=sy=Math.min(Math.max(sx,sy),Math.min(maxX,maxY));
+            }
+            sx=clamp(sx,.001f,1000); sy=clamp(sy,.001f,1000);
+            tx=clamp(anchorX*(1-sx),-l*sx,width-r*sx);
+            ty=clamp(anchorY*(1-sy),-t*sy,height-b*sy);
         }
         emit.accept(Ink.object("type","edit_transform","id",id,"sx",sx,"sy",sy,"tx",tx,"ty",ty));
     }
-    private static float clamp(float v,float min,float max) { return Math.max(min,Math.min(max,v)); }
+    private static float clamp(float v,float min,float max) { return min>max?0:Math.max(min,Math.min(max,v)); }
     private static boolean insideBounds(InkDocument.Point p,float[] b) { return p.x>=b[0]&&p.y>=b[1]&&p.x<=b[2]&&p.y<=b[3]; }
     private static boolean hit(InkDocument.Stroke s,InkDocument.Point p,float tolerance) {
         if(s.shape!=null&&!s.shape.kind.equals("line")&&inside(p,s.points)) return true;

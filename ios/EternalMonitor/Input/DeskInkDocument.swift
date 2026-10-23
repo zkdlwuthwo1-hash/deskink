@@ -184,7 +184,7 @@ final class DeskInkDocument {
             edit.original += additions; selectionEdit=edit
         case let .editTransform(id,sx,sy,tx,ty):
             guard var edit=selectionEdit, edit.id==id, !edit.original.isEmpty,
-                  [sx,sy,tx,ty].allSatisfy(\.isFinite), sx>0, sy>0 else { return false }
+                  [sx,sy,tx,ty].allSatisfy(\.isFinite), (0.001...1000).contains(sx), (0.001...1000).contains(sy) else { return false }
             func transform(_ p: DeskInkPoint) -> DeskInkPoint { .init(x:p.x*sx+tx,y:p.y*sy+ty,pressure:p.pressure) }
             for (index,original) in edit.original {
                 var replacement=original; replacement.points=original.points.map(transform)

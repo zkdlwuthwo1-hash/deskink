@@ -16,6 +16,12 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     private var lastPointerAt: TimeInterval = 0
     private let inkLayer = CALayer()
     private let pointerLayer = CAShapeLayer()
+    private let selectionLayer = CAShapeLayer()
+    private let handlesLayer = CAShapeLayer()
+    private var selection: DeskInkSelection?
+    private var holdTimer: Timer?
+    private var holdAnchor: DeskInkPoint?
+    private var shapeFrozen = false
     private var expiryTimer: Timer?
     private final class RenderedStroke {
         let layer = CAShapeLayer()
@@ -29,6 +35,9 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         super.init(frame: frame)
         backgroundColor = .clear; isOpaque = false; isMultipleTouchEnabled = true
         layer.addSublayer(inkLayer); layer.addSublayer(pointerLayer)
+        layer.addSublayer(selectionLayer); layer.addSublayer(handlesLayer)
+        selectionLayer.strokeColor=UIColor.systemBlue.cgColor; selectionLayer.fillColor=UIColor.clear.cgColor
+        handlesLayer.strokeColor=UIColor.systemBlue.cgColor; handlesLayer.fillColor=UIColor.white.cgColor
         let pencil = UIPencilInteraction(); pencil.delegate = self; addInteraction(pencil)
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(hovered(_:)))
         hover.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.pencil.rawValue)]
@@ -54,6 +63,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         finish(sendEnd: false)
         self.document.suspend()
         self.document = document
+        resetSelection()
         // Remove old layers even if two restored boards contain the same ID.
         for stroke in rendered.values { stroke.layer.removeFromSuperlayer() }
         rendered.removeAll()
@@ -65,6 +75,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         if self.connectionKey != connectionKey || self.videoSize != videoSize {
             finish(sendEnd: false)
             self.connectionKey = connectionKey; self.videoSize = videoSize
+            resetSelection()
             setNeedsLayout()
         }
         if self.enabled && !enabled { finish() }
@@ -81,14 +92,20 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         let rect = imageRect
         guard rect.width > 0 else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
-        for canvasLayer in [inkLayer, pointerLayer] {
+        for canvasLayer in [inkLayer, pointerLayer, selectionLayer, handlesLayer] {
             canvasLayer.anchorPoint = .zero
             canvasLayer.bounds = CGRect(origin: .zero, size: videoSize)
             canvasLayer.position = rect.origin
             canvasLayer.setAffineTransform(CGAffineTransform(scaleX: rect.width/videoSize.width, y: rect.height/videoSize.height))
         }
         CATransaction.commit()
+        synchronizeSelection()
     }
+    private var inputScale: CGFloat { videoSize.width>0 ? max(0.001,imageRect.width/videoSize.width):1 }
+    private func resetSelection() {
+        selection=DeskInkSelection(document:document,size:videoSize) { [weak self] command,transmit in self?.submit([command],transmit:transmit) }
+    }
+    func clearSelection() { selection?.clear(); synchronizeSelection() }
     private func reading(location: CGPoint, pressure: CGFloat) -> DeskInkPoint? {
         let rect = imageRect
         guard rect.width > 0, rect.height > 0 else { return nil }
@@ -121,32 +138,63 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         if !document.visible { submit([.setVisible(true)]); updateControls() }
         let id = UInt64.random(in: 1...UInt64.max)
         activeID = id; activeTool = tools.tool
+        shapeFrozen=false
         var commands: [DeskInkCommand] = []
         switch tools.tool {
+        case .lasso:
+            guard tools.editingEnabled else { activeID=nil; activeTool=nil; return false }
+            selection?.begin(point,scale:inputScale,id:id); synchronizeSelection(); return true
         case .eraser: commands.append(.eraseBegin(id: id, point: point, radius: tools.eraserSize.radius))
         case .laser: break
         case .vanishing: commands.append(.transientBegin(id: id, brush: tools.brush, point: point, lifetimeMs: 2000))
         case .pen, .highlighter: commands.append(.begin(id: id, brush: tools.brush, point: point))
         }
         commands.append(pointerCommand(point)); submit(commands)
+        scheduleCorrection(at:point)
         return true
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = activeTouch, touches.contains(touch), let id = activeID else { return }
+        guard let touch = activeTouch, touches.contains(touch), activeID != nil else { return }
         var commands: [DeskInkCommand] = []; var lastPoint: DeskInkPoint?
         for sample in event?.coalescedTouches(for: touch) ?? [touch] {
             guard sample.timestamp > lastTimestamp, let point = reading(sample) else { continue }
             lastTimestamp = sample.timestamp; lastPoint = point
-            switch activeTool {
-            case .eraser: commands.append(.eraseTo(id: id, point: point))
-            case .laser, .none: break
-            default: commands.append(.append(id: id, point: point))
-            }
+            appendMovement(point,to:&commands)
         }
-        if let point = lastPoint, ProcessInfo.processInfo.systemUptime-lastPointerAt >= 1.0/60 {
+        if activeTool != .lasso, let point = lastPoint, ProcessInfo.processInfo.systemUptime-lastPointerAt >= 1.0/60 {
             commands.append(pointerCommand(point)); lastPointerAt = ProcessInfo.processInfo.systemUptime
         }
         submit(commands)
+    }
+    /// The same movement path is used by coalesced UIKit samples and input tests.
+    func moveStroke(to location: CGPoint,pressure: CGFloat) {
+        guard activeID != nil, let point=reading(location:location,pressure:pressure) else { return }
+        var commands: [DeskInkCommand]=[]
+        appendMovement(point,to:&commands); submit(commands)
+    }
+    private func appendMovement(_ point: DeskInkPoint,to commands: inout [DeskInkCommand]) {
+        guard let id=activeID else { return }
+        switch activeTool {
+        case .lasso: selection?.move(point,now:Self.nowMs); synchronizeSelection()
+        case .eraser: commands.append(.eraseTo(id:id,point:point))
+        case .laser,.none: break
+        default:
+            guard !shapeFrozen else { return }
+            commands.append(.append(id:id,point:point))
+            if let anchor=holdAnchor, hypot(point.x-anchor.x,point.y-anchor.y)<=3/inputScale { return }
+            scheduleCorrection(at:point)
+        }
+    }
+    private func scheduleCorrection(at point: DeskInkPoint) {
+        holdTimer?.invalidate(); holdTimer=nil; holdAnchor=point
+        guard tools?.editingEnabled==true, tools?.shapeCorrection==true, activeTool == .pen || activeTool == .highlighter else { return }
+        let timer=Timer(timeInterval:1,repeats:false) { [weak self] _ in
+            guard let self, let id=self.activeID, self.tools?.editingEnabled==true, self.tools?.shapeCorrection==true,
+                  let stroke=self.document.strokes.first(where:{ $0.id==id }), let shape=DeskInkShape.recognize(stroke.points) else { return }
+            self.shapeFrozen=true
+            self.submit([.shape(id:id,kind:shape.kind,a:shape.a,b:shape.b)])
+        }
+        RunLoop.main.add(timer,forMode:.common); holdTimer=timer
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = activeTouch, touches.contains(touch) else { return }
@@ -156,9 +204,11 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         guard let touch = activeTouch, touches.contains(touch) else { return }; finish()
     }
     func finish(sendEnd: Bool = true) {
+        holdTimer?.invalidate(); holdTimer=nil; holdAnchor=nil
         guard let id = activeID else { return }
         let wasErasing = activeTool == .eraser
-        let command: DeskInkCommand? = activeTool == .laser ? nil : activeTool == .eraser ? .eraseEnd(id: id) : .end(id: id)
+        if activeTool == .lasso { selection?.end(transmit:sendEnd); synchronizeSelection() }
+        let command: DeskInkCommand? = activeTool == .laser || activeTool == .lasso ? nil : activeTool == .eraser ? .eraseEnd(id: id) : .end(id: id)
         activeTouch = nil; activeID = nil; activeTool = nil
         if let command { submit([command], transmit: sendEnd) }
         if wasErasing {
@@ -175,7 +225,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         updateControls()
     }
     func perform(_ command: DeskInkCommand) {
-        guard enabled else { return }; finish(); submit([command]); updateControls()
+        guard enabled else { return }; finish(); clearSelection(); submit([command]); updateControls()
     }
     private func submit(_ commands: [DeskInkCommand], transmit: Bool = true) {
         guard !commands.isEmpty else { return }
@@ -242,5 +292,25 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             pointerLayer.strokeColor = UIColor.white.cgColor; pointerLayer.lineWidth = 2
         } else { pointerLayer.path = nil }
         CATransaction.commit()
+        synchronizeSelection()
+    }
+    private func synchronizeSelection() {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        selectionLayer.path=nil; handlesLayer.path=nil
+        guard document.visible, tools?.tool == .lasso, tools?.editingEnabled==true, let selection else { return }
+        let path=CGMutablePath(), handles=CGMutablePath(), radius=5/inputScale
+        if let bounds=selection.bounds {
+            path.addRect(bounds)
+            for handle in DeskInkSelection.Handle.allCases {
+                let p=handle.position(in:bounds)
+                handles.addEllipse(in:CGRect(x:p.x-radius,y:p.y-radius,width:radius*2,height:radius*2))
+            }
+        }
+        for (index,p) in selection.lasso.enumerated() {
+            if index==0 { path.move(to:CGPoint(x:p.x,y:p.y)) } else { path.addLine(to:CGPoint(x:p.x,y:p.y)) }
+        }
+        selectionLayer.lineWidth=1.5/inputScale; selectionLayer.lineDashPattern=[NSNumber(value:Double(6/inputScale)),NSNumber(value:Double(4/inputScale))]
+        handlesLayer.lineWidth=1.5/inputScale; selectionLayer.path=path; handlesLayer.path=handles
     }
 }

@@ -2,13 +2,13 @@ import SwiftUI
 import Observation
 
 enum DeskInkTool: String, CaseIterable, Identifiable {
-    case pen, highlighter, eraser, laser, vanishing
+    case pen, highlighter, eraser, laser, vanishing, lasso
     var id: String { rawValue }
     var title: String {
-        switch self { case .pen: return "펜"; case .highlighter: return "형광펜"; case .eraser: return "지우개"; case .laser: return "레이저"; case .vanishing: return "사라지는 펜" }
+        switch self { case .pen: return "펜"; case .highlighter: return "형광펜"; case .eraser: return "지우개"; case .laser: return "레이저"; case .vanishing: return "사라지는 펜"; case .lasso: return "올가미" }
     }
     var icon: String {
-        switch self { case .pen: return "pencil.tip"; case .highlighter: return "highlighter"; case .eraser: return "eraser"; case .laser: return "scope"; case .vanishing: return "pencil.tip.crop.circle.badge.minus" }
+        switch self { case .pen: return "pencil.tip"; case .highlighter: return "highlighter"; case .eraser: return "eraser"; case .laser: return "scope"; case .vanishing: return "pencil.tip.crop.circle.badge.minus"; case .lasso: return "lasso" }
     }
 }
 
@@ -43,6 +43,17 @@ final class DeskInkTools {
     var tool: DeskInkTool = .pen
     var color: DeskInkColor = .orange
     var width: CGFloat = 4
+    var editingEnabled = false {
+        didSet {
+            if !editingEnabled {
+                canvas?.finish(sendEnd:false); canvas?.clearSelection()
+                if tool == .lasso { tool = .pen }
+            }
+        }
+    }
+    var shapeCorrection: Bool {
+        didSet { defaults.set(shapeCorrection, forKey:"deskink.shape-correction") }
+    }
     var eraserSize: DeskInkEraserSize {
         didSet { defaults.set(eraserSize.rawValue, forKey: "deskink.eraser-size") }
     }
@@ -58,6 +69,7 @@ final class DeskInkTools {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         eraserSize = DeskInkEraserSize(rawValue: defaults.string(forKey: "deskink.eraser-size") ?? "") ?? .small
+        shapeCorrection = defaults.object(forKey:"deskink.shape-correction") as? Bool ?? true
     }
 
     var brush: DeskInkBrush {
@@ -66,7 +78,9 @@ final class DeskInkTools {
         return DeskInkBrush(color: rgba, width: tool == .highlighter ? width * 5 : width)
     }
     func select(_ tool: DeskInkTool) {
+        guard tool != .lasso || editingEnabled else { return }
         canvas?.finish()
+        canvas?.clearSelection()
         if tool == .eraser, self.tool != .eraser { previousTool = self.tool }
         self.tool = tool
     }
@@ -93,7 +107,14 @@ struct DeskInkToolbar: View {
                         .background(tools.tool == tool ? Color.blue.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 10))
                         .accessibilityLabel(tool.title)
                         .accessibilityAddTraits(tools.tool == tool ? .isSelected : [])
+                        .disabled(tool == .lasso && !tools.editingEnabled)
                 }
+                Button { tools.shapeCorrection.toggle() } label: { item("도형 보정", "square.on.circle") }
+                    .foregroundStyle(tools.shapeCorrection && tools.editingEnabled ? Color.blue : Color.secondary)
+                    .background(tools.shapeCorrection && tools.editingEnabled ? Color.blue.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius:10))
+                    .disabled(!tools.editingEnabled)
+                    .accessibilityLabel(tools.editingEnabled ? "도형 보정 \(tools.shapeCorrection ? "켜짐" : "꺼짐")" : "도형 편집은 Windows DeskInk 업데이트가 필요합니다")
+                    .accessibilityAddTraits(tools.shapeCorrection ? .isSelected : [])
                 Divider().frame(height: 32)
                 Menu {
                     Picker("색상", selection: $tools.color) {
@@ -123,7 +144,7 @@ struct DeskInkToolbar: View {
         }
         .buttonStyle(.plain)
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: 700)
+        .frame(maxWidth: 820)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.16), radius: 12, y: 3)
     }

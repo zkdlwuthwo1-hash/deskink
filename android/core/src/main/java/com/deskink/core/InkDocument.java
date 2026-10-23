@@ -81,7 +81,7 @@ public final class InkDocument {
             case "edit_transform":
                 if(editBefore==null||editId!=id||editIds.isEmpty()) return;
                 float sx=(float)c.optDouble("sx"),sy=(float)c.optDouble("sy"),tx=(float)c.optDouble("tx"),ty=(float)c.optDouble("ty");
-                if(!Float.isFinite(sx)||!Float.isFinite(sy)||!Float.isFinite(tx)||!Float.isFinite(ty)||sx<=0||sy<=0) return;
+                if(!Float.isFinite(sx)||!Float.isFinite(sy)||!Float.isFinite(tx)||!Float.isFinite(ty)||sx<.001f||sy<.001f||sx>1000||sy>1000) return;
                 for(int i=0;i<editBefore.size();i++) {
                     Stroke original=editBefore.get(i); if(!editIds.contains(original.id)) continue;
                     List<Point> transformed=new ArrayList<>(); for(Point p:original.points) transformed.add(transform(p,sx,sy,tx,ty));

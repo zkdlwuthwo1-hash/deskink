@@ -566,6 +566,7 @@ final class ConnectionManager: ObservableObject {
                         monitor: info.hostCaps & 0x4000 != 0 ? info.hostName : "default")
                 }
                 self.hostInfo = info
+                self.deskInkTools.editingEnabled = info.hostCaps & 0x0800 != 0
                 if self.awaitingPairing {
                     self.awaitingPairing = false
                     self.pairingPrompt = nil
@@ -1073,6 +1074,7 @@ final class ConnectionManager: ObservableObject {
         degradedSinceUs = nil
         prevCounters = FrameAssembler.Counters()
         hostInfo = nil
+        deskInkTools.editingEnabled = false
         hostStreamConfig = nil
         UIApplication.shared.isIdleTimerDisabled = false
     }
