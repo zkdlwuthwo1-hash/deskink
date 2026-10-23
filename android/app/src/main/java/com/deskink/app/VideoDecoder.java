@@ -25,15 +25,12 @@ public final class VideoDecoder implements AutoCloseable {
         this.requestKeyframe=requestKeyframe; this.decoded=decoded; thread.start(); handler=new Handler(thread.getLooper());
     }
     public synchronized void configure(Wire.Config value) {
-        android.util.Log.d("DEBUG-monitor", "configure " + value.epoch);
         config=value; pending.clear(); waiting=true; resetNeeded=true; schedule();
     }
     public synchronized void surface(Surface value) {
-        android.util.Log.d("DEBUG-monitor", "surface " + (value!=null));
         surface=value; pending.clear(); waiting=true; resetNeeded=true; schedule(); handler.post(requestKeyframe);
     }
     public synchronized void offer(FrameAssembler.Frame frame) {
-        if(frame.keyframe) android.util.Log.d("DEBUG-monitor", "keyframe " + frame.bytes.length);
         if(closed||surface==null||config==null) return;
         if(pending.size()>=2) { pending.clear(); waiting=true; resetNeeded=true; handler.post(requestKeyframe); }
         if(waiting&&!frame.keyframe) return;
@@ -72,7 +69,6 @@ public final class VideoDecoder implements AutoCloseable {
                 if(buffer==null||buffer.capacity()<frame.bytes.length) { fail(); return; }
                 buffer.clear(); buffer.put(frame.bytes);
                 codec.queueInputBuffer(index,0,frame.bytes.length,System.nanoTime()/1000,0); inFlight++;
-                android.util.Log.d("DEBUG-monitor", "queued " + frame.bytes.length);
             }
         } catch(Exception error) { fail(); }
     }
@@ -93,7 +89,6 @@ public final class VideoDecoder implements AutoCloseable {
                 if(source!=codec||closed) return;
                 try {
                     source.releaseOutputBuffer(index,true); inFlight=Math.max(0,inFlight-1); completed++; handler.post(decoded);
-                    android.util.Log.d("DEBUG-monitor", "rendered " + completed);
                     synchronized(VideoDecoder.this) { schedule(); }
                 } catch(IllegalStateException error) { fail(); }
             }
@@ -103,7 +98,6 @@ public final class VideoDecoder implements AutoCloseable {
         codec.configure(format,output,null,0); codec.start();
     }
     private void fail() {
-        android.util.Log.d("DEBUG-monitor", "decoder failed");
         disposeCodec();
         synchronized(this) { pending.clear(); waiting=true; }
         handler.post(requestKeyframe);

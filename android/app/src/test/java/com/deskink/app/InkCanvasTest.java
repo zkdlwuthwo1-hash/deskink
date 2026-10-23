@@ -12,6 +12,18 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void oldHostsDisabledCorrectionAndLiftingEarlyAlwaysKeepOrdinaryInk() {
+        for(int mode=0;mode<3;mode++) try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
+            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+            List<JSONObject> sent=new ArrayList<>(); canvas.bind(new InkDocument(),c -> { sent.add(c); return true; },1000,700);
+            canvas.editingEnabled(mode!=0); canvas.shapeCorrection(mode!=1);
+            touch(canvas,MotionEvent.ACTION_DOWN,0,100,100); touch(canvas,MotionEvent.ACTION_MOVE,0,300,100);
+            if(mode==2) touch(canvas,MotionEvent.ACTION_UP,0,300,100);
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1100));
+            assertFalse(sent.stream().anyMatch(c -> c.optString("type").equals("shape")));
+            canvas.disconnect();
+        }
+    }
     @Test public void lassoMovesAndCornerResizesMultipleObjectsWithOneUndoPerGesture() {
         InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
         InkDocument document=new InkDocument();

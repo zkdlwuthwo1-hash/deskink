@@ -61,7 +61,11 @@ public final class InkCanvas extends View {
     public void color(int[] rgba) { color=rgba.clone(); }
     public void width(float value) { width=value; }
     public void eraserRadius(float value) { eraserRadius=value==24||value==48?value:12; }
-    public void editingEnabled(boolean value) { editingEnabled=value; if(!value) removeCallbacks(hold); }
+    public void editingEnabled(boolean value) {
+        editingEnabled=value;
+        if(!value) { removeCallbacks(hold); if(selection!=null) selection.clear(); if(pen.tool()==PenInput.Tool.LASSO) select(PenInput.Tool.PEN); }
+        stateChanged.run();
+    }
     public boolean editingEnabled() { return editingEnabled; }
     public void shapeCorrection(boolean value) { shapeCorrection=value; if(!value) removeCallbacks(hold); }
     public boolean shapeCorrection() { return shapeCorrection; }
@@ -262,6 +266,6 @@ public final class InkCanvas extends View {
         } else { paint.setStyle(Paint.Style.STROKE); canvas.drawPath(shape.path,paint); }
     }
     @Override protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow(); if(completedInk!=null) { completedInk.recycle(); completedInk=null; }
+        finish(true); super.onDetachedFromWindow(); if(completedInk!=null) { completedInk.recycle(); completedInk=null; }
     }
 }

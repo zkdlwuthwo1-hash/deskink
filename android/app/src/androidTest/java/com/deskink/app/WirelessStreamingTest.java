@@ -40,7 +40,6 @@ public class WirelessStreamingTest {
     }
     @Test public void wirelessSessionChangesMonitorVideoBeforeTheNextPenGesture() throws Exception {
         for(int attempt=0;attempt<5;attempt++) {
-            android.util.Log.d("DEBUG-monitor","switch trial "+attempt);
             switchMonitor();
         }
     }

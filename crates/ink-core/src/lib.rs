@@ -23,19 +23,35 @@ pub struct Stroke {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ShapeKind { Rectangle, Ellipse, Line }
+pub enum ShapeKind {
+    Rectangle,
+    Ellipse,
+    Line,
+}
 
 fn shape_points(kind: ShapeKind, a: Point, b: Point) -> Vec<Point> {
     match kind {
-        ShapeKind::Rectangle => vec![a, Point { x:b.x, ..a }, b, Point { y:b.y, ..a }, a],
-        ShapeKind::Line => vec![a,b],
+        ShapeKind::Rectangle => vec![a, Point { x: b.x, ..a }, b, Point { y: b.y, ..a }, a],
+        ShapeKind::Line => vec![a, b],
         ShapeKind::Ellipse => {
-            let (cx,cy,rx,ry)=((a.x+b.x)/2.,(a.y+b.y)/2.,(b.x-a.x)/2.,(b.y-a.y)/2.);
-            let mut points: Vec<Point>=(0..64).map(|i| {
-                let t=i as f32*std::f32::consts::TAU/64.;
-                Point { x:cx+rx*t.cos(),y:cy+ry*t.sin(),pressure:a.pressure }
-            }).collect();
-            points.push(points[0]); points
+            let (cx, cy, rx, ry) = (
+                (a.x + b.x) / 2.,
+                (a.y + b.y) / 2.,
+                (b.x - a.x) / 2.,
+                (b.y - a.y) / 2.,
+            );
+            let mut points: Vec<Point> = (0..64)
+                .map(|i| {
+                    let t = i as f32 * std::f32::consts::TAU / 64.;
+                    Point {
+                        x: cx + rx * t.cos(),
+                        y: cy + ry * t.sin(),
+                        pressure: a.pressure,
+                    }
+                })
+                .collect();
+            points.push(points[0]);
+            points
         }
     }
 }
@@ -55,11 +71,29 @@ pub enum Command {
     End {
         id: u64,
     },
-    Shape { id: u64, kind: ShapeKind, a: Point, b: Point },
-    EditBegin { id: u64 },
-    EditAdd { id: u64, ids: Vec<u64> },
-    EditTransform { id: u64, sx: f32, sy: f32, tx: f32, ty: f32 },
-    EditEnd { id: u64 },
+    Shape {
+        id: u64,
+        kind: ShapeKind,
+        a: Point,
+        b: Point,
+    },
+    EditBegin {
+        id: u64,
+    },
+    EditAdd {
+        id: u64,
+        ids: Vec<u64>,
+    },
+    EditTransform {
+        id: u64,
+        sx: f32,
+        sy: f32,
+        tx: f32,
+        ty: f32,
+    },
+    EditEnd {
+        id: u64,
+    },
     EraseBegin {
         id: u64,
         point: Point,
@@ -153,41 +187,95 @@ impl Board {
     }
 
     pub fn apply(&mut self, command: Command) -> Result<(), InkError> {
-        if self.selection_edit.is_some() && !matches!(command, Command::EditAdd {..}|Command::EditTransform {..}|Command::EditEnd {..}|Command::Pointer {..}|Command::SetVisible {..}) {
+        if self.selection_edit.is_some()
+            && !matches!(
+                command,
+                Command::EditAdd { .. }
+                    | Command::EditTransform { .. }
+                    | Command::EditEnd { .. }
+                    | Command::Pointer { .. }
+                    | Command::SetVisible { .. }
+            )
+        {
             return Err(InkError::InvalidStroke);
         }
         match command {
             Command::EditBegin { id } => {
-                if self.eraser.is_some() || self.strokes.iter().any(|s|!s.finished) { return Err(InkError::InvalidStroke); }
-                self.selection_edit=Some(SelectionEdit { id,original:vec![],transformed:false,changed:false });
+                if self.eraser.is_some() || self.strokes.iter().any(|s| !s.finished) {
+                    return Err(InkError::InvalidStroke);
+                }
+                self.selection_edit = Some(SelectionEdit {
+                    id,
+                    original: vec![],
+                    transformed: false,
+                    changed: false,
+                });
             }
-            Command::EditAdd { id,ids } => {
-                let edit=self.selection_edit.as_mut().filter(|e|e.id==id&&!e.transformed).ok_or(InkError::InvalidStroke)?;
-                if ids.is_empty() || ids.len()>32 || edit.original.len()+ids.len()>4096 { return Err(InkError::InvalidMessage); }
-                let mut added=Vec::new();
+            Command::EditAdd { id, ids } => {
+                let edit = self
+                    .selection_edit
+                    .as_mut()
+                    .filter(|e| e.id == id && !e.transformed)
+                    .ok_or(InkError::InvalidStroke)?;
+                if ids.is_empty() || ids.len() > 32 || edit.original.len() + ids.len() > 4096 {
+                    return Err(InkError::InvalidMessage);
+                }
+                let mut added = Vec::new();
                 for id in ids {
-                    if edit.original.iter().chain(added.iter()).any(|(_,s): &(usize,Stroke)|s.id==id) { return Err(InkError::InvalidStroke); }
-                    let index=self.strokes.iter().position(|s|s.id==id&&s.finished).ok_or(InkError::InvalidStroke)?;
-                    added.push((index,self.strokes[index].clone()));
+                    if edit
+                        .original
+                        .iter()
+                        .chain(added.iter())
+                        .any(|(_, s): &(usize, Stroke)| s.id == id)
+                    {
+                        return Err(InkError::InvalidStroke);
+                    }
+                    let index = self
+                        .strokes
+                        .iter()
+                        .position(|s| s.id == id && s.finished)
+                        .ok_or(InkError::InvalidStroke)?;
+                    added.push((index, self.strokes[index].clone()));
                 }
                 edit.original.extend(added);
             }
-            Command::EditTransform { id,sx,sy,tx,ty } => {
-                let edit=self.selection_edit.as_mut().filter(|e|e.id==id&&!e.original.is_empty()).ok_or(InkError::InvalidStroke)?;
-                if ![sx,sy,tx,ty].iter().all(|v|v.is_finite()) || sx<=0. || sy<=0. { return Err(InkError::InvalidMessage); }
-                for (index,original) in &edit.original {
-                    let stroke=&mut self.strokes[*index];
-                    stroke.points=original.points.iter().map(|p|Point { x:p.x*sx+tx,y:p.y*sy+ty,..*p }).collect();
+            Command::EditTransform { id, sx, sy, tx, ty } => {
+                let edit = self
+                    .selection_edit
+                    .as_mut()
+                    .filter(|e| e.id == id && !e.original.is_empty())
+                    .ok_or(InkError::InvalidStroke)?;
+                if ![sx, sy, tx, ty].iter().all(|v| v.is_finite()) || sx <= 0. || sy <= 0. {
+                    return Err(InkError::InvalidMessage);
                 }
-                edit.transformed=true; edit.changed=sx!=1.||sy!=1.||tx!=0.||ty!=0.;
+                for (index, original) in &edit.original {
+                    let stroke = &mut self.strokes[*index];
+                    stroke.points = original
+                        .points
+                        .iter()
+                        .map(|p| Point {
+                            x: p.x * sx + tx,
+                            y: p.y * sy + ty,
+                            ..*p
+                        })
+                        .collect();
+                }
+                edit.transformed = true;
+                edit.changed = sx != 1. || sy != 1. || tx != 0. || ty != 0.;
             }
             Command::EditEnd { id } => {
-                if self.selection_edit.as_ref().map(|e|e.id)!=Some(id) { return Err(InkError::InvalidStroke); }
+                if self.selection_edit.as_ref().map(|e| e.id) != Some(id) {
+                    return Err(InkError::InvalidStroke);
+                }
                 self.finish_selection_edit();
             }
             Command::Shape { id, kind, a, b } => {
-                let stroke=self.strokes.iter_mut().find(|s|s.id==id&&!s.finished).ok_or(InkError::InvalidStroke)?;
-                stroke.points=shape_points(kind,a,b);
+                let stroke = self
+                    .strokes
+                    .iter_mut()
+                    .find(|s| s.id == id && !s.finished)
+                    .ok_or(InkError::InvalidStroke)?;
+                stroke.points = shape_points(kind, a, b);
             }
             Command::Begin { id, brush, point } => {
                 if self.strokes.iter().any(|stroke| stroke.id == id)
@@ -437,10 +525,14 @@ impl Board {
     }
 
     fn finish_selection_edit(&mut self) {
-        if let Some(edit)=self.selection_edit.take() {
+        if let Some(edit) = self.selection_edit.take() {
             if edit.changed {
-                let mut original=edit.original; original.sort_by_key(|(index,_)|*index);
-                self.remember(Edit { remove:original.iter().map(|(_,s)|s.id).collect(),insert:original });
+                let mut original = edit.original;
+                original.sort_by_key(|(index, _)| *index);
+                self.remember(Edit {
+                    remove: original.iter().map(|(_, s)| s.id).collect(),
+                    insert: original,
+                });
             }
         }
     }
@@ -577,13 +669,29 @@ impl InkSession {
                 return Err(InkError::InvalidMessage);
             }
         }
-        if let Command::Shape { a,b,.. } = &envelope.command {
-            if [a,b].iter().any(|p| !self.valid_point(p)) { return Err(InkError::InvalidMessage); }
+        if let Command::Shape { a, b, .. } = &envelope.command {
+            if [a, b].iter().any(|p| !self.valid_point(p)) {
+                return Err(InkError::InvalidMessage);
+            }
         }
-        if let Command::EditTransform { id,sx,sy,tx,ty }=&envelope.command {
-            let edit=self.board.selection_edit.as_ref().filter(|e|e.id==*id).ok_or(InkError::InvalidStroke)?;
-            if ![sx,sy,tx,ty].iter().all(|v|v.is_finite()) || !(0.001..=1000.).contains(sx) || !(0.001..=1000.).contains(sy)
-                || edit.original.iter().flat_map(|(_,s)|&s.points).any(|p|!self.valid_point(&Point { x:p.x*sx+tx,y:p.y*sy+ty,..*p })) {
+        if let Command::EditTransform { id, sx, sy, tx, ty } = &envelope.command {
+            let edit = self
+                .board
+                .selection_edit
+                .as_ref()
+                .filter(|e| e.id == *id)
+                .ok_or(InkError::InvalidStroke)?;
+            if ![sx, sy, tx, ty].iter().all(|v| v.is_finite())
+                || !(0.001..=1000.).contains(sx)
+                || !(0.001..=1000.).contains(sy)
+                || edit.original.iter().flat_map(|(_, s)| &s.points).any(|p| {
+                    !self.valid_point(&Point {
+                        x: p.x * sx + tx,
+                        y: p.y * sy + ty,
+                        ..*p
+                    })
+                })
+            {
                 return Err(InkError::InvalidMessage);
             }
         }
@@ -614,8 +722,11 @@ impl InkSession {
         &self.board
     }
     fn valid_point(&self, p: &Point) -> bool {
-        p.x.is_finite() && p.y.is_finite() && p.pressure.is_finite()
-            && (0.0..=self.width as f32).contains(&p.x) && (0.0..=self.height as f32).contains(&p.y)
+        p.x.is_finite()
+            && p.y.is_finite()
+            && p.pressure.is_finite()
+            && (0.0..=self.width as f32).contains(&p.x)
+            && (0.0..=self.height as f32).contains(&p.y)
             && (0.0..=1.0).contains(&p.pressure)
     }
     pub fn accepted_sequence(&self) -> u64 {

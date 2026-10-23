@@ -136,9 +136,15 @@ public class MainActivityTest {
             assertNotNull("Foreground app must accept the PC USB tunnel",socket);
             socket.close(); controller.stop();
         }
-        try(java.net.ServerSocket available=new java.net.ServerSocket()) {
-            available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877));
+        // Linux can retain the listening descriptor until the blocked accept
+        // returns after close. Assert bounded release, not scheduler ordering.
+        boolean released=false;
+        for(int attempt=0;attempt<20&&!released;attempt++) {
+            try(java.net.ServerSocket available=new java.net.ServerSocket()) {
+                available.setReuseAddress(true); available.bind(new java.net.InetSocketAddress("127.0.0.1",9877)); released=true;
+            } catch(java.net.BindException busy) { Thread.sleep(25); }
         }
+        assertTrue("Closing the Activity must release its USB listener within 500 ms",released);
     }
     @Test public void toolbarSelectsToolsAndClearUndoControlsTheVisibleDocument() {
         try(org.robolectric.android.controller.ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create()) {
