@@ -1,6 +1,30 @@
 import XCTest
 
 final class DeskInkViewportUITests: XCTestCase {
+    func testTappingEraserOffersAllThreeSizesWithoutOpeningWidthSettings() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-didSeeOnboarding", "YES", "-allowUSB", "NO"]
+        app.launchEnvironment["EM_UI_PREVIEW"] = "deskink"
+        app.launch()
+        defer { app.terminate() }
+
+        let eraser = app.buttons["지우개"]
+        XCTAssertTrue(eraser.waitForExistence(timeout: 10))
+        eraser.tap()
+        let large = app.buttons["지우개 크기: 크게"]
+        XCTAssertTrue(large.waitForExistence(timeout: 3), "Tapping the eraser must expose its sizes directly")
+        XCTAssertTrue(app.buttons["지우개 크기: 작게"].isHittable)
+        XCTAssertTrue(app.buttons["지우개 크기: 보통"].isHittable)
+        capture("deskink-eraser-sizes", app: app)
+        large.tap()
+        XCTAssertTrue(eraser.isSelected)
+        eraser.tap()
+        XCTAssertTrue(large.waitForExistence(timeout: 3))
+        XCTAssertTrue(large.isSelected, "The chosen size must remain selected when reopened")
+    }
+
     func testControlsStayOutsideTheDrawingViewportInLandscape() {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
