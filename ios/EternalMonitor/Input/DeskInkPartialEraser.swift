@@ -3,7 +3,7 @@ import Foundation
 /// Clip against a swept circular eraser, preserving disconnected stroke contours.
 enum DeskInkPartialEraser {
     static func cut(_ stroke: DeskInkStroke, from: DeskInkPoint, to: DeskInkPoint, radius: CGFloat) -> (points:[DeskInkPoint],breaks:Set<Int>)? {
-        let radius=Double(Float(radius+stroke.brush.width/2))
+        let radius=Double(Float(radius)+Float(stroke.brush.width)/2)
         var points:[DeskInkPoint]=[], breaks=Set<Int>(), changed=false, start=0
         for end in stroke.breaks.sorted()+[stroke.points.count] {
             if end-start==1 {
@@ -34,13 +34,15 @@ enum DeskInkPartialEraser {
     }
     private static func interpolate(_ a:DeskInkPoint,_ b:DeskInkPoint,_ t:Double)->DeskInkPoint {
         if t==0 { return a }; if t==1 { return b }
-        return .init(x:CGFloat(Float(Double(a.x)+(Double(b.x)-Double(a.x))*t)),
-                     y:CGFloat(Float(Double(a.y)+(Double(b.y)-Double(a.y))*t)),
-                     pressure:CGFloat(Float(Double(a.pressure)+(Double(b.pressure)-Double(a.pressure))*t)))
+        return .init(x:CGFloat(Float(wire(a.x)+(wire(b.x)-wire(a.x))*t)),
+                     y:CGFloat(Float(wire(a.y)+(wire(b.y)-wire(a.y))*t)),
+                     pressure:CGFloat(Float(wire(a.pressure)+(wire(b.pressure)-wire(a.pressure))*t)))
     }
+    // Windows and Android decode wire coordinates as Float before geometry.
+    private static func wire(_ value:CGFloat)->Double { Double(Float(value)) }
     private static func interval(_ a:DeskInkPoint,_ b:DeskInkPoint,_ from:DeskInkPoint,_ to:DeskInkPoint,_ r:Double)->(Double,Double)? {
-        let ax=Double(a.x),ay=Double(a.y),dx=Double(b.x)-ax,dy=Double(b.y)-ay
-        let fx=Double(from.x),fy=Double(from.y),tx=Double(to.x),ty=Double(to.y)
+        let ax=wire(a.x),ay=wire(a.y),dx=wire(b.x)-ax,dy=wire(b.y)-ay
+        let fx=wire(from.x),fy=wire(from.y),tx=wire(to.x),ty=wire(to.y)
         if min(ax,ax+dx)>max(fx,tx)+r || max(ax,ax+dx)<min(fx,tx)-r || min(ay,ay+dy)>max(fy,ty)+r || max(ay,ay+dy)<min(fy,ty)-r { return nil }
         var ranges:[(Double,Double)]=[]
         let length2=dx*dx+dy*dy

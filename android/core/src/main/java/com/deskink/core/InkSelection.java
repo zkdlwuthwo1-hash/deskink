@@ -44,10 +44,13 @@ public final class InkSelection {
     public void clear() { end(); selected.clear(); lasso.clear(); }
     public void deleteSelected(long id) {
         end(); if(bounds()==null) return;
+        beginEdit(id);
+        emit.accept(Ink.id("edit_delete",id)); emit.accept(Ink.id("edit_end",id)); selected.clear();
+    }
+    private void beginEdit(long id) {
         emit.accept(Ink.id("edit_begin",id));
         List<Long> ids=new ArrayList<>(selected);
         for(int i=0;i<ids.size();i+=32) emit.accept(Ink.object("type","edit_add","id",id,"ids",new JSONArray(ids.subList(i,Math.min(i+32,ids.size())))));
-        emit.accept(Ink.id("edit_delete",id)); emit.accept(Ink.id("edit_end",id)); selected.clear();
     }
     public void begin(InkDocument.Point p,float scale,long id) {
         end(); this.start=this.last=p; this.scale=scale; this.id=id; original=bounds(); gesture=Gesture.NONE;
@@ -75,9 +78,7 @@ public final class InkSelection {
             if(Math.hypot(p.x-previous.x,p.y-previous.y)>2/scale) lasso.add(p);
         } else if(gesture!=Gesture.NONE&&Math.hypot(p.x-start.x,p.y-start.y)>2/scale) {
             if(!editing) {
-                editing=true; emit.accept(Ink.id("edit_begin",id));
-                List<Long> ids=new ArrayList<>(selected);
-                for(int i=0;i<ids.size();i+=32) emit.accept(Ink.object("type","edit_add","id",id,"ids",new JSONArray(ids.subList(i,Math.min(i+32,ids.size())))));
+                editing=true; beginEdit(id);
             }
             if(now-lastSent>=16) { preview(); lastSent=now; }
         }

@@ -1,4 +1,5 @@
 [
+  {"name":"wide-box-closing-gap","expected":"rectangle","points":[[100,100],[500,100],[500,200],[100,200],[100,150]]},
   {"name":"closing-gap-box","expected":"rectangle","points":[[100,100],[300,100],[300,300],[100,300],[100,160]]},
   {"name":"diagonal-box","expected":"rectangle","points":[[200,100],[400,300],[300,400],[100,200],[200,100]]},
   {"name":"box","expected":"rectangle","points":[[100,100],[300,100],[300,300],[100,300],[100,100]]},

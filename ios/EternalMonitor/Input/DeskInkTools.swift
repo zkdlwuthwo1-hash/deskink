@@ -51,6 +51,7 @@ final class DeskInkTools {
     var color: DeskInkColor = .orange
     var width: CGFloat = 4
     var erasingEnabled = false
+    var eraserUpdateRequired = false
     var editingEnabled = false {
         didSet {
             if !editingEnabled {
@@ -165,6 +166,11 @@ struct DeskInkToolbar: View {
         .frame(maxWidth: 820)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.16), radius: 12, y: 3)
+        .alert("Windows 업데이트 필요", isPresented: $tools.eraserUpdateRequired) {
+            Button("확인",role:.cancel) {}
+        } message: {
+            Text("닿은 부분만 지우려면 Windows DeskInk를 0.6.4 이상으로 업데이트하세요. 지금은 지우개 메뉴에서 ‘획 전체 지우기’를 선택할 수 있습니다.")
+        }
     }
     private func presenting(_ panel: ToolPopover) -> Binding<Bool> {
         Binding(get: { popover == panel }, set: { visible in

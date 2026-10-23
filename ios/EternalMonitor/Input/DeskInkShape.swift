@@ -43,7 +43,7 @@ struct DeskInkShape {
         let samples=resample(raw,length:length)
         // A slightly unfinished fourth side is still a box. Round shapes retain
         // the stricter closure rule so open handwriting is not corrected.
-        if chord<=max(10,min(w,h)*0.35), matchesRectangle(samples,length:length) {
+        if chord<=max(10,max(diagonal*0.16,min(w,h)*0.35)), matchesRectangle(samples,length:length) {
             return .init(kind:.rectangle,a:.init(x:left,y:top,pressure:0.5),b:.init(x:right,y:bottom,pressure:0.5))
         }
         guard chord<=max(10,diagonal*0.16) else { return nil }

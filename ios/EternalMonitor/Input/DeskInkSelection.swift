@@ -39,10 +39,13 @@ final class DeskInkSelection {
     func clear(transmit: Bool=true) { end(transmit:transmit); selected.removeAll(); lasso.removeAll() }
     func deleteSelected(id: UInt64) {
         end(); guard bounds != nil else { return }
+        beginEdit(id:id)
+        emit(.editDelete(id:id),true); emit(.editEnd(id:id),true); selected.removeAll()
+    }
+    private func beginEdit(id: UInt64) {
         emit(.editBegin(id:id),true)
         let ids=selected.sorted()
         for offset in stride(from:0,to:ids.count,by:32) { emit(.editAdd(id:id,ids:Array(ids[offset..<min(offset+32,ids.count)])),true) }
-        emit(.editDelete(id:id),true); emit(.editEnd(id:id),true); selected.removeAll()
     }
     func begin(_ point: DeskInkPoint,scale: CGFloat,id: UInt64) {
         end(); self.start=point; last=point; self.scale=scale; self.id=id; gesture = .none
@@ -68,9 +71,7 @@ final class DeskInkSelection {
         if case .none=gesture { return }
         guard hypot(point.x-start.x,point.y-start.y)>2/scale else { return }
         if !editing {
-            editing=true; emit(.editBegin(id:id),true)
-            let ids=selected.sorted()
-            for offset in stride(from:0,to:ids.count,by:32) { emit(.editAdd(id:id,ids:Array(ids[offset..<min(offset+32,ids.count)])),true) }
+            editing=true; beginEdit(id:id)
         }
         if now>=lastSent+16 { preview(); lastSent=now }
     }

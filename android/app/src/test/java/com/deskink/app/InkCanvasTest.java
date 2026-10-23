@@ -12,6 +12,26 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void unsupportedPartialEraserEndsThePenBeforeAButtonPressAndReportsWhy() {
+        InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
+        List<JSONObject> sent=new ArrayList<>(); InkDocument d=new InkDocument();
+        canvas.bind(d,c -> { sent.add(c); return true; },1000,700);
+        canvas.editingEnabled(true); canvas.partialEraser(true);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,100,100);
+        touch(canvas,MotionEvent.ACTION_MOVE,0,200,100);
+        touch(canvas,MotionEvent.ACTION_MOVE,MotionEvent.BUTTON_STYLUS_PRIMARY,300,100);
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600));
+        assertTrue("The pen stroke must end before blocking an unsupported eraser",d.strokes().get(0).finished);
+        assertNull("The blocked eraser must cancel the pen's shape hold",d.strokes().get(0).shape);
+        assertEquals(canvas.getContext().getString(R.string.erasing_update_required),org.robolectric.shadows.ShadowToast.getTextOfLatestToast());
+        touch(canvas,MotionEvent.ACTION_MOVE,MotionEvent.BUTTON_STYLUS_PRIMARY,400,100);
+        touch(canvas,MotionEvent.ACTION_MOVE,0,500,100);
+        touch(canvas,MotionEvent.ACTION_UP,0,600,100);
+        assertEquals(2,d.strokes().size());
+        assertEquals(200,d.strokes().get(0).points.get(1).x,.01);
+        assertEquals(500,d.strokes().get(1).points.get(0).x,.01);
+        assertFalse(sent.stream().anyMatch(c -> c.optString("type").startsWith("erase")));
+    }
     @Test public void selectedInkShowsADeleteButtonAndDeletionIsUndoable() {
         InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
         InkDocument d=new InkDocument();

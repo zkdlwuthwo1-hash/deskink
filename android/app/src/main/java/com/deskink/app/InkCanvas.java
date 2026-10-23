@@ -27,7 +27,7 @@ public final class InkCanvas extends FrameLayout {
     private float width=4;
     private float eraserRadius=12;
     private boolean editingEnabled,shapeCorrection=true,shapeFrozen;
-    private boolean erasingEnabled,partialEraser;
+    private boolean erasingEnabled,partialEraser,unsupportedEraseContact;
     private final Button deleteSelection;
     private float holdX,holdY;
     private int strokePointCount,holdPointCount;
@@ -165,7 +165,7 @@ public final class InkCanvas extends FrameLayout {
             else if(activeTool!=PenInput.Tool.LASER) emit(Ink.id("end",gestureId));
             activeTool=null;
         }
-        if(lift) { pen.contactEnded(); stateChanged.run(); }
+        if(lift) { unsupportedEraseContact=false; pen.contactEnded(); stateChanged.run(); }
         updateSelectionControls();
     }
     private static InkDocument.Point selectionPoint(JSONObject p) { return new InkDocument.Point((float)p.optDouble("x"),(float)p.optDouble("y"),(float)p.optDouble("pressure")); }
@@ -197,10 +197,18 @@ public final class InkCanvas extends FrameLayout {
         buttons(e); if(sender==null) return true;
         PenInput.Tool tool=e.getToolType(i)==MotionEvent.TOOL_TYPE_ERASER?PenInput.Tool.ERASER:pen.tool();
         if(tool==PenInput.Tool.ERASER&&partialEraser&&!erasingEnabled) {
-            if(action==MotionEvent.ACTION_DOWN) android.widget.Toast.makeText(getContext(),R.string.erasing_update_required,android.widget.Toast.LENGTH_SHORT).show();
-            if(action==MotionEvent.ACTION_UP) { finish(true); pointerId=-1; }
+            // End ink and its correction timer before blocking an eraser that
+            // this host cannot handle. Release starts a new pen stroke.
+            finish(false);
+            if(!unsupportedEraseContact) {
+                android.widget.Toast.makeText(getContext(),R.string.erasing_update_required,android.widget.Toast.LENGTH_SHORT).show();
+                cursor(null,false); unsupportedEraseContact=true;
+            }
+            if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN) pointerId=e.getPointerId(i);
+            if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_POINTER_UP) { finish(true); pointerId=-1; }
             return true;
         }
+        unsupportedEraseContact=false;
         JSONObject p=point(e.getX(i),e.getY(i),e.getPressure(i));
         if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN) {
             if(!viewport.contains(e.getX(i),e.getY(i))) return true;

@@ -45,7 +45,7 @@ public final class InkShape {
         List<InkDocument.Point> samples=resample(raw,length,64);
         // Four sides are enough evidence for a box even when the final side
         // stops a little short. Keep the stricter closure rule for round shapes.
-        if(chord<=Math.max(10,Math.min(w,h)*.35)&&matchesRectangle(samples,length)) {
+        if(chord<=Math.max(10,Math.max(diagonal*.16,Math.min(w,h)*.35))&&matchesRectangle(samples,length)) {
             return new InkShape("rectangle",new InkDocument.Point(left,top,.5f),new InkDocument.Point(right,bottom,.5f));
         }
         if(chord>Math.max(10,diagonal*.16)) return null;

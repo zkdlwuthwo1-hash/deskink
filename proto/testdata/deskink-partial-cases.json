@@ -1,5 +1,11 @@
 [
   {
+    "name":"fractional dot boundary uses the same wire precision on every platform",
+    "strokes":[[[100,100]],[[300,100]]],
+    "erase":[[100,112.000001]],
+    "expected":[{"id":2,"points":[[300,100]],"breaks":[]}]
+  },
+  {
     "name":"fast sweep crosses two separate lines",
     "strokes":[[[100,100],[300,100]],[[100,200],[300,200]],[[500,400]]],
     "erase":[[200,50],[200,250]],

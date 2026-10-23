@@ -68,7 +68,7 @@ public class StreamingTest {
                 byte[] name="DeskInk PC · Screen 1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 ByteBuffer ack=ByteBuffer.allocate(33+name.length+18).order(ByteOrder.LITTLE_ENDIAN);
                 ack.put((byte)0).put((byte)2).putInt((int)nonce).putInt(42).putShort((short)1000).putShort((short)500).putShort((short)3000)
-                    .put(config.array()).put((byte)name.length).put(name).put(new byte[]{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}).putShort((short)0x7804);
+                    .put(config.array()).put((byte)name.length).put(name).put(new byte[]{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}).putShort((short)0x7c04);
                 send(out,control(0x11,0,ack.array()));
                 byte[] h264=asset("deskink_workspace_1280x720.h264"); int fragments=(h264.length+1367)/1368;
                 AtomicBoolean shown=new AtomicBoolean();
@@ -161,6 +161,17 @@ public class StreamingTest {
                         assertTrue("Eraser tap must directly show all sizes",chosen);
                     });
                     InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+                    // Dialog dismissal and OS focus delivery are separate
+                    // events. An idle main queue need not have focus back yet.
+                    AtomicBoolean focusReturned=new AtomicBoolean();
+                    long focusDeadline=android.os.SystemClock.uptimeMillis()+5000;
+                    while(!focusReturned.get()&&android.os.SystemClock.uptimeMillis()<focusDeadline) {
+                        activity.onActivity(a -> {
+                            InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
+                            focusReturned.set(canvas.hasWindowFocus());
+                        });
+                        if(!focusReturned.get()) Thread.sleep(25);
+                    }
                     activity.onActivity(a -> {
                         InkCanvas canvas=a.getWindow().getDecorView().findViewWithTag("ink");
                         assertTrue("The picker must return input focus to the canvas",canvas.hasWindowFocus());

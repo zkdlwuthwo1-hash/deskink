@@ -71,6 +71,7 @@ final class DeskInkEditingTests: XCTestCase {
         var sent:[DeskInkCommand]=[]; canvas.send={ sent += $0 }
         tools.select(.eraser)
         XCTAssertFalse(canvas.beginStroke(at:CGPoint(x:200,y:100),pressure:1)); XCTAssertTrue(sent.isEmpty)
+        XCTAssertTrue(tools.eraserUpdateRequired,"Pencil erasing must explain why an older PC cannot handle partial erasing")
         tools.erasingEnabled=true
         XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:200,y:100),pressure:1))
         guard case let .erasePartialBegin(_,_,radius)=sent.first else { return XCTFail("Expected partial eraser command") }

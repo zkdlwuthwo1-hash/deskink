@@ -162,7 +162,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             selection?.begin(point,scale:inputScale,id:id); synchronizeSelection(); return true
         case .eraser:
             if tools.eraserMode == .partial {
-                guard tools.erasingEnabled else { activeID=nil; activeTool=nil; return false }
+                guard tools.erasingEnabled else { activeID=nil; activeTool=nil; tools.eraserUpdateRequired=true; return false }
                 commands.append(.erasePartialBegin(id:id,point:point,radius:tools.eraserSize.radius))
             } else { commands.append(.eraseBegin(id: id, point: point, radius: tools.eraserSize.radius)) }
         case .laser: break
