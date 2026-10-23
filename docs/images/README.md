@@ -1,8 +1,18 @@
 # Screenshot provenance
 
+## 2026-10-23: direct tool pickers in 0.6.1
+
+The following are unmodified PNG attachments from [iPad run 56](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39907447241), source `07f695a`, iPad Pro 11-inch (M4) simulator with Xcode 16.4. All 206 unit tests and four native UI tests passed. These are rendered app controls, not physical Pencil or live Windows captures.
+
+- `ipad-tools-preview.png`: `919E2F9F-1080-4592-9F9A-C358B8F34E27.png`, the landscape toolbar component preview with synthetic windows behind it; replaces the 0.6.0 preview below.
+- `ipad-eraser-sizes.png`: `F8FEDB06-D2E2-48C0-9B3B-5F0317ED2991.png`, `testTappingEraserOffersAllThreeSizesWithoutOpeningWidthSettings`. Tapping Eraser opens three pointer sizes directly. Width contains only pen widths.
+- `ipad-colors.png`: `D44C9AFA-4EE2-461B-AA19-6334F12240C4.png`, `testColorSwatchesAndShapeToggleRemainAvailableInBothStates`. Twelve names have actual color swatches on the left and a check on the selected color.
+
+The two picker captures show a blue desktop rectangle, yellow center marker and an event counter from the native UI test fixture. The same run's on/off screenshots were visually inspected: turning shape correction off retains its icon and removes only the blue selected styling. Source pixels are copied without a crop or edit; the HTML embeds the originals and offers enlargement.
+
 ## 2026-10-23: shape editing, eraser sizes and colors
 
-`ipad-tools-preview.png` is now the unmodified landscape attachment `575A02DA-E2E8-4E46-85A2-29C3B1224EDC.png` from [iPad run 53, attempt 2](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39901514113/attempts/2), source `e70dafc`. It renders the real SwiftUI toolbar with editing enabled and a synthetic desktop backdrop. Both portrait and landscape attachments were visually inspected; this is a component preview, not a live connected desktop.
+The previous `ipad-tools-preview.png` was the unmodified landscape attachment `575A02DA-E2E8-4E46-85A2-29C3B1224EDC.png` from [iPad run 53, attempt 2](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39901514113/attempts/2), source `e70dafc`. It rendered the real SwiftUI toolbar with editing enabled and a synthetic desktop backdrop. Both portrait and landscape attachments were visually inspected; this was a component preview, not a live connected desktop.
 
 `android-selection.png`, `android-eraser-sizes.png` and `android-colors.png` are unmodified PNGs from [native Android run 32](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39901516665), source `e70dafc`, API 35 Pixel C emulator. The test uses the production socket, MediaCodec, native stylus input and toolbar. Its synthetic circuit slide is test video, not a private desktop. The selection shows eight handles, the width menu shows three eraser sizes, and the palette shows twelve colors. The top-right down-arrow opens app updates. Captures were visually inspected before embedding in the guide. They do not establish physical Galaxy Tab latency or a successful OS package replacement.
 
