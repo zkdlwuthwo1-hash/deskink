@@ -4,6 +4,28 @@ import SwiftUI
 
 final class DeskInkToolsTests: XCTestCase {
     @MainActor
+    func testEraserSizesSurviveRelaunchAndControlTheActualStrokeAndPointer() throws {
+        let suite = "DeskInkToolsTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for (size, radius) in [(DeskInkEraserSize.small, CGFloat(12)), (.medium, CGFloat(24)), (.large, CGFloat(48))] {
+            let settings = DeskInkTools(defaults: defaults)
+            settings.eraserSize = size
+            let tools = DeskInkTools(defaults: defaults), canvas = InkCanvasView()
+            tools.canvas = canvas; canvas.tools = tools
+            canvas.frame = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+            canvas.configure(videoSize: canvas.bounds.size, enabled: true, connectionKey: "eraser")
+            tools.width = 8; tools.select(.highlighter); tools.toggleEraser()
+            var sent: [DeskInkCommand] = []; canvas.send = { sent += $0 }
+            XCTAssertTrue(canvas.beginStroke(at: CGPoint(x: 500, y: 350), pressure: 1))
+            guard case let .eraseBegin(_, _, actual) = sent.first else { return XCTFail("Expected erase gesture") }
+            XCTAssertEqual(actual, radius)
+            XCTAssertEqual(canvas.document.pointer?.radius, radius)
+            canvas.finish()
+            XCTAssertEqual(tools.tool, .highlighter)
+        }
+    }
+    @MainActor
     func testLiftingAfterErasingRestoresThePreviousPen() {
         let tools = DeskInkTools()
         tools.select(.eraser)
