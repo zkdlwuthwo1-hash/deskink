@@ -2,6 +2,20 @@ package com.deskink.core;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class InkDocumentTest {
+    @Test public void partialErasingCutsTheMiddleWithoutDeletingEitherEndAndUndoRestoresIt() {
+        InkDocument d=new InkDocument();
+        d.apply(Ink.begin(1,Ink.point(100,100,1),new int[]{255,80,40,255},4,false));
+        d.apply(Ink.at("append",1,Ink.point(300,100,1))); d.apply(Ink.id("end",1));
+        d.apply(Ink.object("type","erase_partial_begin","id",2,"radius",10,"point",Ink.point(200,100,1)));
+        d.apply(Ink.id("erase_end",2));
+        assertArrayEquals(new float[]{100,188,212,300},xs(d),.001f);
+        d.apply(Ink.command("undo")); assertArrayEquals(new float[]{100,300},xs(d),.001f);
+        d.apply(Ink.command("redo")); assertArrayEquals(new float[]{100,188,212,300},xs(d),.001f);
+    }
+    private static float[] xs(InkDocument d) {
+        java.util.List<InkDocument.Point> p=d.strokes().get(0).points;
+        float[] result=new float[p.size()]; for(int i=0;i<result.length;i++) result[i]=p.get(i).x; return result;
+    }
     @Test public void selectionPreviewsUseTheOriginalGeometryAndCommitOneUndoStep() {
         InkDocument d=new InkDocument();
         for(int id=1;id<=2;id++) { d.apply(Ink.begin(id,Ink.point(id*100,100,1),new int[]{255,0,0,255},4,false)); d.apply(Ink.id("end",id)); }

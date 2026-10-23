@@ -5,13 +5,15 @@ import android.graphics.*;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.Button;
 import com.deskink.core.*;
 import org.json.*;
 import java.util.function.Predicate;
 import java.util.*;
 
 /** Native stylus input; fingers never generate Windows ink or mouse events. */
-public final class InkCanvas extends View {
+public final class InkCanvas extends FrameLayout {
     private final PenInput pen=new PenInput();
     public final Viewport viewport=new Viewport();
     private InkDocument document=new InkDocument();
@@ -25,6 +27,8 @@ public final class InkCanvas extends View {
     private float width=4;
     private float eraserRadius=12;
     private boolean editingEnabled,shapeCorrection=true,shapeFrozen;
+    private boolean erasingEnabled,partialEraser;
+    private final Button deleteSelection;
     private float holdX,holdY;
     private int strokePointCount,holdPointCount;
     private final Runnable hold=() -> {
@@ -47,7 +51,21 @@ public final class InkCanvas extends View {
     private long cachedRevision=-1;
     private float cachedScale,cachedX,cachedY;
     private static final class StrokePath { final Path path=new Path(); int count; }
-    public InkCanvas(Context context) { super(context); setFocusable(true); setContentDescription("DeskInk drawing surface"); }
+    public InkCanvas(Context context) {
+        super(context); setWillNotDraw(false); setFocusable(true); setContentDescription("DeskInk drawing surface");
+        deleteSelection=new Button(context); deleteSelection.setText(R.string.delete_selection);
+        deleteSelection.setTextColor(0xffffb4ab); deleteSelection.setAllCaps(false); deleteSelection.setTextSize(13);
+        deleteSelection.setTag("selection.delete"); deleteSelection.setContentDescription(context.getString(R.string.delete_selection));
+        android.graphics.drawable.GradientDrawable background=new android.graphics.drawable.GradientDrawable();
+        background.setColor(0xee252932); background.setCornerRadius(20*getResources().getDisplayMetrics().density);
+        deleteSelection.setBackground(background); deleteSelection.setVisibility(GONE);
+        float density=getResources().getDisplayMetrics().density;
+        addView(deleteSelection,new FrameLayout.LayoutParams((int)(132*density),(int)(44*density)));
+        deleteSelection.setOnClickListener(v -> {
+            if(!erasingEnabled||sender==null||selection==null) return;
+            finish(true); selection.deleteSelected(++nextId); updateSelectionControls(); invalidate(); stateChanged.run();
+        });
+    }
     public void bind(InkDocument document,Predicate<JSONObject> sender,int w,int h) {
         disconnect(); this.document=document; this.sender=sender; desktopWidth=w; desktopHeight=h;
         paths.clear(); cachedRevision=-1;
@@ -60,10 +78,13 @@ public final class InkCanvas extends View {
     public boolean connected() { return sender!=null; }
     public boolean canUndo() { return document.canUndo(); }
     public boolean canRedo() { return document.canRedo(); }
-    public void select(PenInput.Tool tool) { finish(true); if(tool==PenInput.Tool.LASSO&&!editingEnabled) return; if(selection!=null) selection.clear(); pen.select(tool); stateChanged.run(); invalidate(); }
+    public void select(PenInput.Tool tool) { finish(true); if(tool==PenInput.Tool.LASSO&&!editingEnabled) return; if(selection!=null) selection.clear(); pen.select(tool); updateSelectionControls(); stateChanged.run(); invalidate(); }
     public void color(int[] rgba) { color=rgba.clone(); }
     public void width(float value) { width=value; }
     public void eraserRadius(float value) { eraserRadius=value==24||value==48?value:12; }
+    public void erasingEnabled(boolean value) { erasingEnabled=value; updateSelectionControls(); stateChanged.run(); }
+    public boolean erasingEnabled() { return erasingEnabled; }
+    public void partialEraser(boolean value) { finish(true); partialEraser=value; }
     public void editingEnabled(boolean value) {
         editingEnabled=value;
         if(!value) { removeCallbacks(hold); if(selection!=null) selection.clear(); if(pen.tool()==PenInput.Tool.LASSO) select(PenInput.Tool.PEN); }
@@ -72,20 +93,22 @@ public final class InkCanvas extends View {
     public boolean editingEnabled() { return editingEnabled; }
     public void shapeCorrection(boolean value) { shapeCorrection=value; if(!value) removeCallbacks(hold); }
     public boolean shapeCorrection() { return shapeCorrection; }
-    public void command(String type) { finish(true); if(selection!=null) selection.clear(); emit(Ink.command(type)); }
+    public void command(String type) { finish(true); if(selection!=null) selection.clear(); emit(Ink.command(type)); updateSelectionControls(); }
     public void visible(boolean visible) { finish(true); emit(Ink.object("type","set_visible","visible",visible)); }
     private void emit(JSONObject command) {
         if(sender==null) return;
         if(!sender.test(command)) { sender=null; document.suspend(); stateChanged.run(); return; }
         document.advanceTime(SystemClock.uptimeMillis()); document.apply(command); invalidate();
+        updateSelectionControls();
         String type=command.optString("type");
         if(!type.equals("append")&&!type.equals("pointer")&&!type.equals("erase_to")) stateChanged.run();
     }
     @Override protected void onSizeChanged(int w,int h,int oldW,int oldH) {
         viewport.resize(w,h,desktopWidth,desktopHeight);
         transformChanged.run();
+        updateSelectionControls();
     }
-    public void resetZoom() { viewport.reset(); transformChanged.run(); invalidate(); }
+    public void resetZoom() { viewport.reset(); transformChanged.run(); updateSelectionControls(); invalidate(); }
     private void fingers(MotionEvent e) {
         int a=-1,b=-1;
         for(int i=0;i<e.getPointerCount();i++) if(e.getToolType(i)==MotionEvent.TOOL_TYPE_FINGER) {
@@ -98,7 +121,7 @@ public final class InkCanvas extends View {
         float x=(e.getX(a)+e.getX(b))/2,y=(e.getY(a)+e.getY(b))/2;
         float span=(float)Math.hypot(e.getX(a)-e.getX(b),e.getY(a)-e.getY(b));
         if(fingerA==e.getPointerId(a)&&fingerB==e.getPointerId(b)&&action==MotionEvent.ACTION_MOVE&&fingerSpan>1) {
-            viewport.gesture(span/fingerSpan,fingerX,fingerY,x,y); transformChanged.run(); invalidate();
+            viewport.gesture(span/fingerSpan,fingerX,fingerY,x,y); transformChanged.run(); updateSelectionControls(); invalidate();
         }
         fingerA=e.getPointerId(a); fingerB=e.getPointerId(b); fingerX=x; fingerY=y; fingerSpan=span;
     }
@@ -108,9 +131,9 @@ public final class InkCanvas extends View {
     }
     private void begin(PenInput.Tool tool,JSONObject p) {
         activeTool=tool; gestureId=++nextId; shapeFrozen=false; strokePointCount=1;
-        if(tool==PenInput.Tool.LASSO) { selection.begin(selectionPoint(p),viewport.scale(),gestureId); invalidate(); return; }
+        if(tool==PenInput.Tool.LASSO) { selection.begin(selectionPoint(p),viewport.scale(),gestureId); updateSelectionControls(); invalidate(); return; }
         if(!document.visible) emit(Ink.object("type","set_visible","visible",true));
-        if(tool==PenInput.Tool.ERASER) emit(Ink.object("type","erase_begin","id",gestureId,"point",p,"radius",eraserRadius));
+        if(tool==PenInput.Tool.ERASER) emit(Ink.object("type",partialEraser?"erase_partial_begin":"erase_begin","id",gestureId,"point",p,"radius",eraserRadius));
         else if(tool!=PenInput.Tool.LASER) {
             int[] rgba=color.clone(); if(tool==PenInput.Tool.HIGHLIGHTER) rgba[3]=80;
             emit(Ink.begin(gestureId,p,rgba,tool==PenInput.Tool.HIGHLIGHTER?width*5:width,tool==PenInput.Tool.VANISHING));
@@ -128,7 +151,7 @@ public final class InkCanvas extends View {
         }
     }
     private void move(JSONObject p) {
-        if(activeTool==PenInput.Tool.LASSO) { selection.move(selectionPoint(p),SystemClock.uptimeMillis()); invalidate(); return; }
+        if(activeTool==PenInput.Tool.LASSO) { selection.move(selectionPoint(p),SystemClock.uptimeMillis()); updateSelectionControls(); invalidate(); return; }
         if(shapeFrozen) return;
         if(activeTool==PenInput.Tool.ERASER) emit(Ink.at("erase_to",gestureId,p));
         else if(activeTool!=PenInput.Tool.LASER) { strokePointCount++; emit(Ink.at("append",gestureId,p)); }
@@ -143,6 +166,7 @@ public final class InkCanvas extends View {
             activeTool=null;
         }
         if(lift) { pen.contactEnded(); stateChanged.run(); }
+        updateSelectionControls();
     }
     private static InkDocument.Point selectionPoint(JSONObject p) { return new InkDocument.Point((float)p.optDouble("x"),(float)p.optDouble("y"),(float)p.optDouble("pressure")); }
     private void cursor(JSONObject p,boolean laser) {
@@ -172,6 +196,11 @@ public final class InkCanvas extends View {
         if(i<0||!stylus(e,i)) { fingers(e); return true; }
         buttons(e); if(sender==null) return true;
         PenInput.Tool tool=e.getToolType(i)==MotionEvent.TOOL_TYPE_ERASER?PenInput.Tool.ERASER:pen.tool();
+        if(tool==PenInput.Tool.ERASER&&partialEraser&&!erasingEnabled) {
+            if(action==MotionEvent.ACTION_DOWN) android.widget.Toast.makeText(getContext(),R.string.erasing_update_required,android.widget.Toast.LENGTH_SHORT).show();
+            if(action==MotionEvent.ACTION_UP) { finish(true); pointerId=-1; }
+            return true;
+        }
         JSONObject p=point(e.getX(i),e.getY(i),e.getPressure(i));
         if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN) {
             if(!viewport.contains(e.getX(i),e.getY(i))) return true;
@@ -256,6 +285,19 @@ public final class InkCanvas extends View {
         }
         paint.setPathEffect(null);
     }
+    private void updateSelectionControls() {
+        if(deleteSelection==null) return;
+        float[] b=selection==null?null:selection.bounds();
+        boolean show=b!=null&&sender!=null&&document.visible&&pen.tool()==PenInput.Tool.LASSO&&editingEnabled&&erasingEnabled;
+        deleteSelection.setVisibility(show?VISIBLE:GONE);
+        if(!show) return;
+        float density=getResources().getDisplayMetrics().density,w=132*density,h=44*density,gap=16*density;
+        float right=b[2]*viewport.scale()+viewport.x(),top=b[1]*viewport.scale()+viewport.y();
+        float bottom=b[3]*viewport.scale()+viewport.y();
+        deleteSelection.setX(Math.max(4*density,Math.min(getWidth()-w-4*density,right-w)));
+        deleteSelection.setY(Math.max(4*density,Math.min(getHeight()-h-4*density,top>=h+gap?top-h-gap:bottom+gap)));
+        deleteSelection.setEnabled(activeTool==null);
+    }
     private void transform(Canvas canvas) {
         canvas.translate(viewport.x(),viewport.y()); canvas.scale(viewport.scale(),viewport.scale());
         canvas.clipRect(0,0,desktopWidth,desktopHeight);
@@ -264,7 +306,8 @@ public final class InkCanvas extends View {
         StrokePath shape=paths.computeIfAbsent(stroke,ignored -> new StrokePath());
         for(;shape.count<stroke.points.size();shape.count++) {
             InkDocument.Point p=stroke.points.get(shape.count);
-            if(shape.count==0) shape.path.moveTo(p.x,p.y); else shape.path.lineTo(p.x,p.y);
+            if(shape.count==0||stroke.breaks.contains(shape.count)) { shape.path.moveTo(p.x,p.y); shape.path.lineTo(p.x+.001f,p.y); }
+            else shape.path.lineTo(p.x,p.y);
         }
         paint.setColor(stroke.color); paint.setStrokeWidth(stroke.width); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeJoin(Paint.Join.ROUND);
         if(stroke.points.size()==1) {

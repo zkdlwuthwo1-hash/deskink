@@ -12,6 +12,47 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void selectedInkShowsADeleteButtonAndDeletionIsUndoable() {
+        InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
+        InkDocument d=new InkDocument();
+        d.apply(Ink.begin(1,Ink.point(100,100,1),new int[]{255,80,40,255},4,false));
+        d.apply(new InkShape("rectangle",new InkDocument.Point(100,100,1),new InkDocument.Point(300,300,1)).command(1)); d.apply(Ink.id("end",1));
+        d.apply(Ink.begin(2,Ink.point(600,500,1),new int[]{255,80,40,255},4,false)); d.apply(Ink.id("end",2));
+        canvas.bind(d,c -> true,1000,700); canvas.editingEnabled(true); canvas.erasingEnabled(true); canvas.select(PenInput.Tool.LASSO);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,200,200); touch(canvas,MotionEvent.ACTION_UP,0,200,200);
+        View delete=canvas.findViewWithTag("selection.delete");
+        assertEquals(View.VISIBLE,delete.getVisibility()); assertTrue(delete.isEnabled());
+        // The existing eight handles still resize the same selected object.
+        touch(canvas,MotionEvent.ACTION_DOWN,0,300,300); touch(canvas,MotionEvent.ACTION_MOVE,0,400,400); touch(canvas,MotionEvent.ACTION_UP,0,400,400);
+        assertEquals(400,d.strokes().get(0).points.get(2).x,.01);
+        delete.performClick(); assertEquals(1,d.strokes().size()); assertEquals(2,d.strokes().get(0).id);
+        assertEquals(View.GONE,delete.getVisibility());
+        canvas.command("undo"); assertEquals(2,d.strokes().size()); assertEquals(400,d.strokes().get(0).points.get(2).x,.01);
+        canvas.command("undo"); assertEquals(300,d.strokes().get(0).points.get(2).x,.01);
+    }
+
+    @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    public void partialEraserLeavesATransparentGapAndBarrelReleaseRestoresPen() {
+        InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
+        InkDocument d=new InkDocument();
+        d.apply(Ink.begin(1,Ink.point(100,100,1),new int[]{255,80,40,255},4,false));
+        d.apply(Ink.at("append",1,Ink.point(300,100,1))); d.apply(Ink.id("end",1));
+        List<JSONObject> sent=new ArrayList<>(); canvas.bind(d,c -> { sent.add(c); return true; },1000,700);
+        canvas.erasingEnabled(true); canvas.partialEraser(true);
+        touch(canvas,MotionEvent.ACTION_DOWN,MotionEvent.BUTTON_STYLUS_PRIMARY,200,100);
+        touch(canvas,MotionEvent.ACTION_UP,MotionEvent.BUTTON_STYLUS_PRIMARY,200,100);
+        // Physical button release is independent of pen lift.
+        touch(canvas,MotionEvent.ACTION_DOWN,0,700,500); touch(canvas,MotionEvent.ACTION_UP,0,710,500);
+        assertEquals(PenInput.Tool.PEN,canvas.tool());
+        assertTrue(sent.stream().anyMatch(c -> c.optString("type").equals("erase_partial_begin")));
+        assertEquals(new TreeSet<>(Collections.singletonList(2)),d.strokes().get(0).breaks);
+        android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(1000,700,android.graphics.Bitmap.Config.ARGB_8888);
+        canvas.draw(new android.graphics.Canvas(bitmap));
+        assertEquals(0,android.graphics.Color.alpha(bitmap.getPixel(200,100)));
+        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(150,100))>200);
+        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(250,100))>200);
+        bitmap.recycle();
+    }
     @Test public void aSlightlyTiltedRectangleMustNotBecomeAnEllipse() {
         try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
             InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);

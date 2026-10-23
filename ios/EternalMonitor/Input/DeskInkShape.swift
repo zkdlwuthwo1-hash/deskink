@@ -39,11 +39,14 @@ struct DeskInkShape {
             }
             if deviation<max(3,chord*0.035) { return .init(kind:.line,a:first,b:last) }
         }
-        guard raw.count>=5, w>=16, h>=16, distance(first,last)<=max(10,diagonal*0.16) else { return nil }
+        guard raw.count>=5, w>=16, h>=16 else { return nil }
         let samples=resample(raw,length:length)
-        if matchesRectangle(samples,length:length) {
+        // A slightly unfinished fourth side is still a box. Round shapes retain
+        // the stricter closure rule so open handwriting is not corrected.
+        if chord<=max(10,min(w,h)*0.35), matchesRectangle(samples,length:length) {
             return .init(kind:.rectangle,a:.init(x:left,y:top,pressure:0.5),b:.init(x:right,y:bottom,pressure:0.5))
         }
+        guard chord<=max(10,diagonal*0.16) else { return nil }
         let cx=(left+right)/2, cy=(top+bottom)/2
         var radialError: CGFloat=0, maxError: CGFloat=0, turn: CGFloat=0, travel: CGFloat=0, previous: CGFloat=0
         for (index,p) in samples.enumerated() {
@@ -65,7 +68,7 @@ struct DeskInkShape {
     /// Test the box's own axes before trying an ellipse. Snapping still returns
     /// an upright rectangle inside the original bounds, as the wire format expects.
     private static func matchesRectangle(_ samples: [DeskInkPoint],length: CGFloat) -> Bool {
-        for step in 0...16 {
+        for step in 0...36 {
             let degrees: CGFloat=step==0 ? 0 : CGFloat((step+1)/2)*2.5*(step%2==0 ? -1 : 1)
             let angle=degrees * .pi/180, c=cos(angle), s=sin(angle)
             let rotated=samples.map { CGPoint(x:$0.x*c+$0.y*s,y: -$0.x*s+$0.y*c) }

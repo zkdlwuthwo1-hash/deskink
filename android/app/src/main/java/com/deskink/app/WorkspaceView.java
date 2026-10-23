@@ -30,6 +30,7 @@ final class WorkspaceView extends LinearLayout {
     private int selectedColor;
     private float selectedWidth=4;
     private float selectedEraserRadius=12;
+    private boolean partialEraser;
     private final android.content.SharedPreferences drawingPreferences;
     private boolean visible=true;
     private AlertDialog sheet;
@@ -40,6 +41,7 @@ final class WorkspaceView extends LinearLayout {
         drawingPreferences=activity.getSharedPreferences("drawing-tools",0);
         float savedRadius=drawingPreferences.getFloat("eraser-radius",12);
         selectedEraserRadius=savedRadius==24||savedRadius==48?savedRadius:12;
+        partialEraser=drawingPreferences.getBoolean("partial-eraser",false);
         setOrientation(VERTICAL); setBackgroundColor(DeskInkUi.CANVAS);
         LinearLayout header=ui.row(); header.setPadding(ui.dp(14),ui.dp(4),ui.dp(12),ui.dp(4));
         connection=ui.row(); connection.setTag("pair"); connection.setPadding(ui.dp(12),ui.dp(6),ui.dp(12),ui.dp(6));
@@ -57,6 +59,7 @@ final class WorkspaceView extends LinearLayout {
         lan.compact(); header.addView(lan,new LayoutParams(ui.dp(56),ui.dp(48)));
         ink=new InkCanvas(activity); ink.setTag("ink");
         ink.eraserRadius(selectedEraserRadius);
+        ink.partialEraser(partialEraser);
         ink.shapeCorrection(drawingPreferences.getBoolean("shape-correction",true));
         fit=new ToolButton(activity,R.string.fit_short,R.string.fit,R.drawable.ic_fit,"fit",ink::resetZoom);
         fit.compact();
@@ -220,6 +223,20 @@ final class WorkspaceView extends LinearLayout {
     }
     private void eraserSizes() {
         LinearLayout content=ui.sheetContent(R.string.eraser_size,R.drawable.ic_eraser);
+        for(boolean partial:new boolean[]{false,true}) {
+            int label=partial?R.string.erase_partial:R.string.erase_stroke;
+            TextView mode=ui.text(label,14,DeskInkUi.TEXT,true); mode.setTag(partial?"eraser.partial":"eraser.stroke");
+            mode.setPadding(ui.dp(14),ui.dp(12),ui.dp(14),ui.dp(12)); mode.setMinimumHeight(ui.dp(48));
+            mode.setFocusable(true); mode.setClickable(true); mode.setSelected(partialEraser==partial);
+            mode.setBackground(ui.controlBackground(partialEraser==partial?DeskInkUi.SELECTED:Color.TRANSPARENT,12));
+            mode.setEnabled(!partial||ink.erasingEnabled()); mode.setAlpha(mode.isEnabled()?1:.45f);
+            mode.setOnClickListener(v -> {
+                partialEraser=partial; ink.partialEraser(partial); drawingPreferences.edit().putBoolean("partial-eraser",partial).apply();
+                eraserSizes();
+            }); content.addView(mode);
+        }
+        if(!ink.erasingEnabled()) content.addView(ui.text(R.string.erasing_update_required,12,DeskInkUi.MUTED,false));
+        content.addView(ui.space(12));
         content.addView(ui.text(R.string.eraser_hint,12,DeskInkUi.MUTED,false)); content.addView(ui.space(8));
         LinearLayout sizes=ui.row();
         float[] radii={12,24,48}; int[] labels={R.string.small,R.string.medium,R.string.large};

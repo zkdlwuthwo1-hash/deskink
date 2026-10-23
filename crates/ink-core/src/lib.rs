@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+mod partial_erase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Point {
@@ -18,6 +19,8 @@ pub struct Stroke {
     pub id: u64,
     pub brush: Brush,
     pub points: Vec<Point>,
+    /// Index of the first point of every disconnected contour after the first.
+    pub breaks: Vec<usize>,
     pub finished: bool,
 }
 
@@ -94,7 +97,15 @@ pub enum Command {
     EditEnd {
         id: u64,
     },
+    EditDelete {
+        id: u64,
+    },
     EraseBegin {
+        id: u64,
+        point: Point,
+        radius: f32,
+    },
+    ErasePartialBegin {
         id: u64,
         point: Point,
         radius: f32,
@@ -150,6 +161,7 @@ struct SelectionEdit {
     original: Vec<(usize, Stroke)>,
     transformed: bool,
     changed: bool,
+    deleted: bool,
 }
 
 #[derive(Clone)]
@@ -179,6 +191,7 @@ struct EraseGesture {
     last: Point,
     radius: f32,
     removed: Vec<(usize, Stroke)>,
+    partial_before: Option<Vec<Stroke>>,
 }
 
 impl Board {
@@ -193,6 +206,7 @@ impl Board {
                 Command::EditAdd { .. }
                     | Command::EditTransform { .. }
                     | Command::EditEnd { .. }
+                    | Command::EditDelete { .. }
                     | Command::Pointer { .. }
                     | Command::SetVisible { .. }
             )
@@ -209,6 +223,7 @@ impl Board {
                     original: vec![],
                     transformed: false,
                     changed: false,
+                    deleted: false,
                 });
             }
             Command::EditAdd { id, ids } => {
@@ -243,7 +258,7 @@ impl Board {
                 let edit = self
                     .selection_edit
                     .as_mut()
-                    .filter(|e| e.id == id && !e.original.is_empty())
+                    .filter(|e| e.id == id && !e.original.is_empty() && !e.deleted)
                     .ok_or(InkError::InvalidStroke)?;
                 if ![sx, sy, tx, ty].iter().all(|v| v.is_finite()) || sx <= 0. || sy <= 0. {
                     return Err(InkError::InvalidMessage);
@@ -269,6 +284,19 @@ impl Board {
                 }
                 self.finish_selection_edit();
             }
+            Command::EditDelete { id } => {
+                let edit = self
+                    .selection_edit
+                    .as_mut()
+                    .filter(|e| e.id == id && !e.original.is_empty() && !e.deleted)
+                    .ok_or(InkError::InvalidStroke)?;
+                let ids: std::collections::HashSet<_> =
+                    edit.original.iter().map(|(_, s)| s.id).collect();
+                self.strokes.retain(|s| !ids.contains(&s.id));
+                edit.deleted = true;
+                edit.transformed = true;
+                edit.changed = true;
+            }
             Command::Shape { id, kind, a, b } => {
                 let stroke = self
                     .strokes
@@ -276,6 +304,7 @@ impl Board {
                     .find(|s| s.id == id && !s.finished)
                     .ok_or(InkError::InvalidStroke)?;
                 stroke.points = shape_points(kind, a, b);
+                stroke.breaks.clear();
             }
             Command::Begin { id, brush, point } => {
                 if self.strokes.iter().any(|stroke| stroke.id == id)
@@ -287,6 +316,7 @@ impl Board {
                     id,
                     brush,
                     points: vec![point],
+                    breaks: vec![],
                     finished: false,
                 });
                 self.redo.clear();
@@ -337,6 +367,21 @@ impl Board {
                     last: point,
                     radius,
                     removed,
+                    partial_before: None,
+                });
+            }
+            Command::ErasePartialBegin { id, point, radius } => {
+                if self.eraser.is_some() || self.strokes.iter().any(|s| !s.finished) {
+                    return Err(InkError::InvalidStroke);
+                }
+                let before = self.strokes.clone();
+                self.erase_partial_between(point, point, radius);
+                self.eraser = Some(EraseGesture {
+                    id,
+                    last: point,
+                    radius,
+                    removed: vec![],
+                    partial_before: Some(before),
                 });
             }
             Command::EraseTo { id, point } => {
@@ -346,7 +391,12 @@ impl Board {
                     .filter(|e| e.id == id)
                     .ok_or(InkError::InvalidStroke)?;
                 let (last, radius) = (eraser.last, eraser.radius);
-                let removed = self.erase_between(last, point, radius);
+                let removed = if eraser.partial_before.is_some() {
+                    self.erase_partial_between(last, point, radius);
+                    vec![]
+                } else {
+                    self.erase_between(last, point, radius)
+                };
                 let eraser = self.eraser.as_mut().unwrap();
                 eraser.last = point;
                 eraser.removed.extend(removed);
@@ -407,6 +457,7 @@ impl Board {
                         id,
                         brush,
                         points: vec![point],
+                        breaks: vec![],
                         finished: false,
                     },
                     lifetime_ms,
@@ -488,14 +539,13 @@ impl Board {
         while index < self.strokes.len() {
             let stroke = &self.strokes[index];
             let limit = (radius + stroke.brush.width / 2.0).powi(2);
-            let hit = if stroke.points.len() == 1 {
-                point_segment_distance_squared(stroke.points[0], from, to) <= limit
-            } else {
-                stroke
-                    .points
-                    .windows(2)
-                    .any(|p| segment_distance_squared(from, to, p[0], p[1]) <= limit)
-            };
+            let hit = stroke.points.iter().enumerate().any(|(i, p)| {
+                if i == 0 || stroke.breaks.binary_search(&i).is_ok() {
+                    point_segment_distance_squared(*p, from, to) <= limit
+                } else {
+                    segment_distance_squared(from, to, stroke.points[i - 1], *p) <= limit
+                }
+            });
             if hit {
                 removed.push((index, self.strokes.remove(index)));
             } else {
@@ -503,6 +553,16 @@ impl Board {
             }
         }
         removed
+    }
+
+    fn erase_partial_between(&mut self, from: Point, to: Point, radius: f32) {
+        for stroke in &mut self.strokes {
+            if let Some((points, breaks)) = partial_erase::cut(stroke, from, to, radius) {
+                stroke.points = points;
+                stroke.breaks = breaks;
+            }
+        }
+        self.strokes.retain(|s| !s.points.is_empty());
     }
 
     fn remember(&mut self, edit: Edit) {
@@ -515,7 +575,14 @@ impl Board {
 
     fn finish_erase(&mut self) {
         if let Some(eraser) = self.eraser.take() {
-            if !eraser.removed.is_empty() {
+            if let Some(before) = eraser.partial_before {
+                if before != self.strokes {
+                    self.remember(Edit {
+                        remove: self.strokes.iter().map(|s| s.id).collect(),
+                        insert: before.into_iter().enumerate().collect(),
+                    });
+                }
+            } else if !eraser.removed.is_empty() {
                 self.remember(Edit {
                     remove: vec![],
                     insert: eraser.removed.into_iter().rev().collect(),
@@ -659,7 +726,9 @@ impl InkSession {
                 return Err(InkError::InvalidMessage);
             }
         }
-        if let Command::EraseBegin { radius, .. } = &envelope.command {
+        if let Command::EraseBegin { radius, .. } | Command::ErasePartialBegin { radius, .. } =
+            &envelope.command
+        {
             if !radius.is_finite() || !(1.0..=128.0).contains(radius) {
                 return Err(InkError::InvalidMessage);
             }
@@ -700,6 +769,7 @@ impl InkSession {
             | Command::Append { point, .. }
             | Command::TransientBegin { point, .. }
             | Command::EraseBegin { point, .. }
+            | Command::ErasePartialBegin { point, .. }
             | Command::EraseTo { point, .. } => Some(point),
             Command::Pointer { point, .. } => point.as_ref(),
             _ => None,

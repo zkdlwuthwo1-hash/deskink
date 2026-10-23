@@ -50,4 +50,8 @@
     <string name="usb_details">USB · %1$d × %2$d</string><string name="color_hint">Choose a color for your next stroke.</string>
     <string name="width_hint">Choose the width of your next stroke.</string>
     <string name="connected_accessibility">Connected to %1$s</string>
+    <string name="erase_stroke">Erase whole stroke</string>
+    <string name="erase_partial">Erase touched area</string>
+    <string name="delete_selection">Delete selection</string>
+    <string name="erasing_update_required">Update Windows DeskInk to 0.6.4 or later for partial erasing and selection deletion.</string>
 </resources>

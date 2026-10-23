@@ -38,11 +38,19 @@ enum DeskInkEraserSize: String, CaseIterable, Identifiable {
     var radius: CGFloat { switch self { case .small: return 12; case .medium: return 24; case .large: return 48 } }
 }
 
+enum DeskInkEraserMode: String, CaseIterable, Identifiable {
+    case stroke, partial
+    var id: String { rawValue }
+    var title: String { self == .stroke ? "획 전체 지우기":"닿은 부분만 지우기" }
+    var icon: String { self == .stroke ? "line.diagonal":"eraser" }
+}
+
 @MainActor @Observable
 final class DeskInkTools {
     var tool: DeskInkTool = .pen
     var color: DeskInkColor = .orange
     var width: CGFloat = 4
+    var erasingEnabled = false
     var editingEnabled = false {
         didSet {
             if !editingEnabled {
@@ -57,6 +65,9 @@ final class DeskInkTools {
     var eraserSize: DeskInkEraserSize {
         didSet { defaults.set(eraserSize.rawValue, forKey: "deskink.eraser-size") }
     }
+    var eraserMode: DeskInkEraserMode {
+        didSet { defaults.set(eraserMode.rawValue, forKey:"deskink.eraser-mode") }
+    }
     @ObservationIgnored private let defaults: UserDefaults
     var fingerDrawing = false
     var visible = true
@@ -69,6 +80,7 @@ final class DeskInkTools {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         eraserSize = DeskInkEraserSize(rawValue: defaults.string(forKey: "deskink.eraser-size") ?? "") ?? .small
+        eraserMode = DeskInkEraserMode(rawValue: defaults.string(forKey:"deskink.eraser-mode") ?? "") ?? .stroke
         shapeCorrection = defaults.object(forKey:"deskink.shape-correction") as? Bool ?? true
     }
 
@@ -183,6 +195,26 @@ private struct DeskInkEraserPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            Text("지우는 방식").font(.headline)
+            ForEach(DeskInkEraserMode.allCases) { mode in
+                Button { tools.eraserMode=mode } label: {
+                    HStack {
+                        Label(mode.title,systemImage:mode.icon)
+                        Spacer()
+                        Image(systemName:"checkmark").opacity(tools.eraserMode==mode ? 1:0)
+                    }.padding(12)
+                        .frame(minHeight:44)
+                        .background(tools.eraserMode==mode ? Color.blue.opacity(0.14):Color.clear,in:RoundedRectangle(cornerRadius:10))
+                        .contentShape(Rectangle())
+                }
+                .disabled(mode == .partial && !tools.erasingEnabled)
+                .foregroundStyle(tools.eraserMode==mode ? Color.blue:Color.primary)
+                .accessibilityIdentifier("deskink.eraser.\(mode.rawValue)")
+                .accessibilityAddTraits(tools.eraserMode==mode ? .isSelected:[])
+            }
+            if !tools.erasingEnabled {
+                Text("부분 지우기·선택 삭제는 Windows DeskInk 0.6.4 이상이 필요합니다.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            }
             Text("지우개 크기").font(.headline)
             HStack(spacing: 8) {
                 ForEach(DeskInkEraserSize.allCases) { size in

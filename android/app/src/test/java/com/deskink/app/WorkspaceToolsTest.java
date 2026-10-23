@@ -16,6 +16,29 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class WorkspaceToolsTest {
+    @Test public void eraserModeCanBeSelectedAndRememberedWithoutChangingPenWidth() {
+        try(org.robolectric.android.controller.ActivityController<Activity> controller=Robolectric.buildActivity(Activity.class).setup().visible()) {
+            WorkspaceView workspace=new WorkspaceView(controller.get(),() -> {},() -> {}); controller.get().setContentView(workspace);
+            java.util.List<org.json.JSONObject> sent=new java.util.ArrayList<>();
+            workspace.ink.bind(new InkDocument(),c -> { sent.add(c); return true; },1000,700); workspace.ink.erasingEnabled(true);
+            workspace.findViewWithTag("tool.ERASER").performClick();
+            ShadowAlertDialog.getLatestAlertDialog().getWindow().getDecorView().findViewWithTag("eraser.partial").performClick();
+            View menu=ShadowAlertDialog.getLatestAlertDialog().getWindow().getDecorView();
+            assertTrue(menu.findViewWithTag("eraser.partial").isSelected());
+            menu.findViewWithTag("eraser.size.24").performClick();
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            workspace.ink.layout(0,0,1000,700); workspace.ink.onWindowFocusChanged(true);
+            InkCanvasTest.touch(workspace.ink,MotionEvent.ACTION_DOWN,0,200,200);
+            InkCanvasTest.touch(workspace.ink,MotionEvent.ACTION_UP,0,200,200);
+            org.json.JSONObject erase=sent.stream().filter(c -> c.optString("type").equals("erase_partial_begin")).findFirst().orElseThrow();
+            assertEquals(24,erase.optDouble("radius"),.01);
+            WorkspaceView reopened=new WorkspaceView(controller.get(),() -> {},() -> {});
+            reopened.ink.bind(new InkDocument(),c -> true,1000,700); reopened.ink.erasingEnabled(true);
+            reopened.findViewWithTag("tool.ERASER").performClick();
+            assertTrue(ShadowAlertDialog.getLatestAlertDialog().getWindow().getDecorView().findViewWithTag("eraser.partial").isSelected());
+            reopened.closeSheet(); workspace.closeSheet();
+        }
+    }
     @Test public void eraserOpensItsOwnSizesAndWidthOnlyOffersPenWidths() {
         try(org.robolectric.android.controller.ActivityController<Activity> controller=Robolectric.buildActivity(Activity.class).setup().visible()) {
             WorkspaceView workspace=new WorkspaceView(controller.get(),() -> {},() -> {});

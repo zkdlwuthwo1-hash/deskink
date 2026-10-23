@@ -1,0 +1,33 @@
+[
+  {
+    "name":"fast sweep crosses two separate lines",
+    "strokes":[[[100,100],[300,100]],[[100,200],[300,200]],[[500,400]]],
+    "erase":[[200,50],[200,250]],
+    "expected":[{"id":1,"points":[[100,100],[188,100],[212,100],[300,100]],"breaks":[2]},{"id":2,"points":[[100,200],[188,200],[212,200],[300,200]],"breaks":[2]},{"id":3,"points":[[500,400]],"breaks":[]}]
+  },
+  {
+    "name":"a corrected box keeps its other three sides",
+    "strokes":[[[100,100],[300,100],[300,300],[100,300],[100,100]]],
+    "erase":[[200,80],[200,120]],
+    "expected":[{"id":1,"points":[[100,100],[188,100],[212,100],[300,100],[300,300],[100,300],[100,100]],"breaks":[2]}]
+  },
+  {
+    "name":"erasing a dot leaves the other dot alone",
+    "strokes":[[[200,100]],[[300,100]]],
+    "erase":[[200,100]],
+    "expected":[{"id":2,"points":[[300,100]],"breaks":[]}]
+  },
+  {
+    "name":"a second pass never reconnects a previously erased gap",
+    "strokes":[[[100,100],[300,100]]],
+    "erase":[[160,100]],
+    "secondErase":[[240,100]],
+    "expected":[{"id":1,"points":[[100,100],[148,100],[172,100],[228,100],[252,100],[300,100]],"breaks":[2,4]}]
+  },
+  {
+    "name":"fully erased ink is removed",
+    "strokes":[[[100,100],[300,100]]],
+    "erase":[[90,100],[310,100]],
+    "expected":[]
+  }
+]

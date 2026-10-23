@@ -41,11 +41,14 @@ public final class InkShape {
             if(maximum<Math.max(3,chord*.035)) return new InkShape("line",first,last);
         }
         if(raw.size()<5) return null;
-        if(w<16||h<16||distance(raw.get(0),raw.get(raw.size()-1))>Math.max(10,diagonal*.16)) return null;
+        if(w<16||h<16) return null;
         List<InkDocument.Point> samples=resample(raw,length,64);
-        if(matchesRectangle(samples,length)) {
+        // Four sides are enough evidence for a box even when the final side
+        // stops a little short. Keep the stricter closure rule for round shapes.
+        if(chord<=Math.max(10,Math.min(w,h)*.35)&&matchesRectangle(samples,length)) {
             return new InkShape("rectangle",new InkDocument.Point(left,top,.5f),new InkDocument.Point(right,bottom,.5f));
         }
+        if(chord>Math.max(10,diagonal*.16)) return null;
         double radialError=0,maxError=0,turn=0,travel=0,previous=0;
         float cx=(left+right)/2,cy=(top+bottom)/2;
         for(int i=0;i<samples.size();i++) {
@@ -65,7 +68,7 @@ public final class InkShape {
      * hand-drawn tilt must not make four straight sides look like an oval.
      * Snapping still produces an upright rectangle inside the original bounds. */
     private static boolean matchesRectangle(List<InkDocument.Point> samples,double length) {
-        for(int step=0;step<=16;step++) {
+        for(int step=0;step<=36;step++) {
             double angle=Math.toRadians(step==0?0:((step+1)/2)*2.5*(step%2==0?-1:1));
             double cos=Math.cos(angle),sin=Math.sin(angle);
             double left=Double.POSITIVE_INFINITY,top=left,right=Double.NEGATIVE_INFINITY,bottom=right;

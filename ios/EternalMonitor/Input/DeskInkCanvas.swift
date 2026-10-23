@@ -18,6 +18,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     private let pointerLayer = CAShapeLayer()
     private let selectionLayer = CAShapeLayer()
     private let handlesLayer = CAShapeLayer()
+    private let deleteSelectionButton=UIButton(type:.system)
     private var selection: DeskInkSelection?
     private var holdTimer: Timer?
     private var holdAnchor: DeskInkPoint?
@@ -44,6 +45,19 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(hovered(_:)))
         hover.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.pencil.rawValue)]
         addGestureRecognizer(hover)
+        var config=UIButton.Configuration.tinted()
+        config.title="선택 삭제"; config.image=UIImage(systemName:"trash"); config.imagePadding=6
+        config.baseForegroundColor = .systemRed; config.baseBackgroundColor = .secondarySystemBackground
+        config.background.backgroundColor = .secondarySystemBackground; config.cornerStyle = .capsule
+        deleteSelectionButton.configuration=config; deleteSelectionButton.isHidden=true
+        deleteSelectionButton.accessibilityIdentifier="deskink.selection.delete"
+        deleteSelectionButton.accessibilityLabel="선택한 필기 삭제, 실행 취소로 복원 가능"
+        deleteSelectionButton.addAction(UIAction { [weak self] _ in
+            guard let self, self.enabled, self.tools?.erasingEnabled==true else { return }
+            self.finish(); self.selection?.deleteSelected(id:UInt64.random(in:1...UInt64.max))
+            self.synchronizeSelection(); self.updateControls()
+        },for:.touchUpInside)
+        addSubview(deleteSelectionButton)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
 
@@ -146,7 +160,11 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         case .lasso:
             guard tools.editingEnabled else { activeID=nil; activeTool=nil; return false }
             selection?.begin(point,scale:inputScale,id:id); synchronizeSelection(); return true
-        case .eraser: commands.append(.eraseBegin(id: id, point: point, radius: tools.eraserSize.radius))
+        case .eraser:
+            if tools.eraserMode == .partial {
+                guard tools.erasingEnabled else { activeID=nil; activeTool=nil; return false }
+                commands.append(.erasePartialBegin(id:id,point:point,radius:tools.eraserSize.radius))
+            } else { commands.append(.eraseBegin(id: id, point: point, radius: tools.eraserSize.radius)) }
         case .laser: break
         case .vanishing: commands.append(.transientBegin(id: id, brush: tools.brush, point: point, lifetimeMs: 2000))
         case .pen, .highlighter: commands.append(.begin(id: id, brush: tools.brush, point: point))
@@ -232,6 +250,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             }
         }
         onPencilActive(false)
+        synchronizeSelection()
         updateControls()
     }
     func perform(_ command: DeskInkCommand) {
@@ -285,7 +304,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             }
             if entry.count < stroke.points.count {
                 for point in stroke.points.dropFirst(entry.count) {
-                    if entry.count == 0 {
+                    if entry.count == 0 || stroke.breaks.contains(entry.count) {
                         entry.path.move(to: CGPoint(x:point.x,y:point.y)); entry.path.addLine(to: CGPoint(x:point.x+0.001,y:point.y))
                     } else { entry.path.addLine(to: CGPoint(x:point.x,y:point.y)) }
                     entry.count += 1
@@ -304,10 +323,11 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         CATransaction.commit()
         synchronizeSelection()
     }
-    private func synchronizeSelection() {
+    func synchronizeSelection() {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
         selectionLayer.path=nil; handlesLayer.path=nil
+        deleteSelectionButton.isHidden=true
         guard document.visible, tools?.tool == .lasso, tools?.editingEnabled==true, let selection else { return }
         let path=CGMutablePath(), handles=CGMutablePath(), radius=5/inputScale
         if let bounds=selection.bounds {
@@ -315,6 +335,20 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
             for handle in DeskInkSelection.Handle.allCases {
                 let p=handle.position(in:bounds)
                 handles.addEllipse(in:CGRect(x:p.x-radius,y:p.y-radius,width:radius*2,height:radius*2))
+            }
+            if enabled, tools?.erasingEnabled==true {
+                let rect=imageRect,scale=inputScale
+                let scroll=superview?.superview as? UIScrollView
+                let zoom=scroll?.zoomScale ?? 1
+                let visible=scroll.map { convert($0.bounds,from:$0).intersection(self.bounds) } ?? self.bounds
+                let width=min(144/zoom,visible.width),height=44/zoom,gap=16/zoom
+                let right=rect.minX+bounds.maxX*scale,top=rect.minY+bounds.minY*scale,bottom=rect.minY+bounds.maxY*scale
+                let x=max(visible.minX,min(visible.maxX-width,right-width))
+                let y=max(visible.minY,min(visible.maxY-height,top-visible.minY>=height+gap ? top-height-gap:bottom+gap))
+                deleteSelectionButton.transform=CGAffineTransform(scaleX:1/zoom,y:1/zoom)
+                deleteSelectionButton.bounds=CGRect(x:0,y:0,width:width*zoom,height:44)
+                deleteSelectionButton.center=CGPoint(x:x+width/2,y:y+height/2)
+                deleteSelectionButton.isHidden=false; deleteSelectionButton.isEnabled=activeID==nil
             }
         }
         for (index,p) in selection.lasso.enumerated() {

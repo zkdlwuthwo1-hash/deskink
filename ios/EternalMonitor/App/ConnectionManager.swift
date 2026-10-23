@@ -567,6 +567,7 @@ final class ConnectionManager: ObservableObject {
                 }
                 self.hostInfo = info
                 self.deskInkTools.editingEnabled = info.hostCaps & 0x0800 != 0
+                self.deskInkTools.erasingEnabled = info.hostCaps & 0x0400 != 0
                 if self.awaitingPairing {
                     self.awaitingPairing = false
                     self.pairingPrompt = nil
@@ -1075,6 +1076,7 @@ final class ConnectionManager: ObservableObject {
         prevCounters = FrameAssembler.Counters()
         hostInfo = nil
         deskInkTools.editingEnabled = false
+        deskInkTools.erasingEnabled = false
         hostStreamConfig = nil
         UIApplication.shared.isIdleTimerDisabled = false
     }

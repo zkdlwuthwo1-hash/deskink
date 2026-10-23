@@ -42,6 +42,13 @@ public final class InkSelection {
         return Arrays.stream(Handle.values()).map(handle -> handle.position(b)).toArray(float[][]::new);
     }
     public void clear() { end(); selected.clear(); lasso.clear(); }
+    public void deleteSelected(long id) {
+        end(); if(bounds()==null) return;
+        emit.accept(Ink.id("edit_begin",id));
+        List<Long> ids=new ArrayList<>(selected);
+        for(int i=0;i<ids.size();i+=32) emit.accept(Ink.object("type","edit_add","id",id,"ids",new JSONArray(ids.subList(i,Math.min(i+32,ids.size())))));
+        emit.accept(Ink.id("edit_delete",id)); emit.accept(Ink.id("edit_end",id)); selected.clear();
+    }
     public void begin(InkDocument.Point p,float scale,long id) {
         end(); this.start=this.last=p; this.scale=scale; this.id=id; original=bounds(); gesture=Gesture.NONE;
         if(original!=null) {
@@ -106,8 +113,10 @@ public final class InkSelection {
     private static boolean insideBounds(InkDocument.Point p,float[] b) { return p.x>=b[0]&&p.y>=b[1]&&p.x<=b[2]&&p.y<=b[3]; }
     private static boolean hit(InkDocument.Stroke s,InkDocument.Point p,float tolerance) {
         if(s.shape!=null&&!s.shape.kind.equals("line")&&inside(p,s.points)) return true;
-        if(s.points.size()==1) return Math.hypot(p.x-s.points.get(0).x,p.y-s.points.get(0).y)<=tolerance+s.width/2;
-        for(int i=1;i<s.points.size();i++) if(distance(p,s.points.get(i-1),s.points.get(i))<=tolerance+s.width/2) return true;
+        for(int i=0;i<s.points.size();i++) {
+            if(i==0||s.breaks.contains(i)) { if(distance(p,s.points.get(i),s.points.get(i))<=tolerance+s.width/2) return true; }
+            else if(distance(p,s.points.get(i-1),s.points.get(i))<=tolerance+s.width/2) return true;
+        }
         return false;
     }
     private static double distance(InkDocument.Point p,InkDocument.Point a,InkDocument.Point b) {

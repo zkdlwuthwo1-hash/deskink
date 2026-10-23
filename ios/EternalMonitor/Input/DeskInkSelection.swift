@@ -37,6 +37,13 @@ final class DeskInkSelection {
         return CGRect(x:l,y:t,width:r-l,height:b-t)
     }
     func clear(transmit: Bool=true) { end(transmit:transmit); selected.removeAll(); lasso.removeAll() }
+    func deleteSelected(id: UInt64) {
+        end(); guard bounds != nil else { return }
+        emit(.editBegin(id:id),true)
+        let ids=selected.sorted()
+        for offset in stride(from:0,to:ids.count,by:32) { emit(.editAdd(id:id,ids:Array(ids[offset..<min(offset+32,ids.count)])),true) }
+        emit(.editDelete(id:id),true); emit(.editEnd(id:id),true); selected.removeAll()
+    }
     func begin(_ point: DeskInkPoint,scale: CGFloat,id: UInt64) {
         end(); self.start=point; last=point; self.scale=scale; self.id=id; gesture = .none
         if let bounds {
@@ -112,8 +119,10 @@ final class DeskInkSelection {
     private static func contains(_ b: CGRect,_ p: DeskInkPoint) -> Bool { p.x>=b.minX && p.x<=b.maxX && p.y>=b.minY && p.y<=b.maxY }
     private static func hit(_ stroke: DeskInkStroke,_ p: DeskInkPoint,tolerance: CGFloat) -> Bool {
         if let shape=stroke.shape, shape.kind != .line, inside(p,polygon:stroke.points) { return true }
-        if stroke.points.count==1, let first=stroke.points.first { return hypot(p.x-first.x,p.y-first.y)<=tolerance+stroke.brush.width/2 }
-        return zip(stroke.points,stroke.points.dropFirst()).contains { distance(p,$0.0,$0.1)<=tolerance+stroke.brush.width/2 }
+        return stroke.points.enumerated().contains { i,point in
+            let previous=i==0 || stroke.breaks.contains(i) ? point:stroke.points[i-1]
+            return distance(p,previous,point)<=tolerance+stroke.brush.width/2
+        }
     }
     private static func distance(_ p: DeskInkPoint,_ a: DeskInkPoint,_ b: DeskInkPoint) -> CGFloat {
         let dx=b.x-a.x,dy=b.y-a.y,len=dx*dx+dy*dy

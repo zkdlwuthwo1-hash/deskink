@@ -15,6 +15,7 @@ pub const INPUT_MAGIC: &[u8; 4] = b"DI01";
 pub const LAN_INPUT_MAGIC: &[u8; 4] = b"DI02";
 pub const RELIABLE_INK_CAP: u16 = 0x8000;
 pub const EDITING_CAP: u16 = 0x0800;
+pub const ERASING_CAP: u16 = 0x0400;
 
 #[derive(serde::Deserialize)]
 struct InputBinding {

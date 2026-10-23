@@ -3,6 +3,89 @@ import UIKit
 @testable import EternalMonitor
 
 final class DeskInkEditingTests: XCTestCase {
+    func testSweptAndRepeatedErasingMatchesTheWindowsAndAndroidContract() throws {
+        struct Expected:Decodable { let id:UInt64; let points:[[CGFloat]]; let breaks:[Int] }
+        struct Fixture:Decodable { let name:String; let strokes:[[[CGFloat]]]; let erase:[[CGFloat]]; let secondErase:[[CGFloat]]?; let expected:[Expected] }
+        let url=try XCTUnwrap(Bundle(for:Self.self).url(forResource:"deskink-partial-cases",withExtension:"json",subdirectory:"testdata"))
+        let fixtures=try JSONDecoder().decode([Fixture].self,from:Data(contentsOf:url))
+        for fixture in fixtures {
+            let d=DeskInkDocument()
+            func point(_ xy:[CGFloat])->DeskInkPoint { .init(x:xy[0],y:xy[1],pressure:1) }
+            for (i,points) in fixture.strokes.enumerated() {
+                let id=UInt64(i+1)
+                d.apply(.begin(id:id,brush:DeskInkBrush(color:[255,210,35,80],width:4),point:point(points[0])))
+                for p in points.dropFirst() { d.apply(.append(id:id,point:point(p))) }; d.apply(.end(id:id))
+            }
+            for (i,path) in ([fixture.erase]+(fixture.secondErase.map { [$0] } ?? [])).enumerated() {
+                let id=UInt64(100+i)
+                d.apply(.erasePartialBegin(id:id,point:point(path[0]),radius:10))
+                for p in path.dropFirst() { d.apply(.eraseTo(id:id,point:point(p))) }; d.apply(.eraseEnd(id:id))
+            }
+            XCTAssertEqual(d.strokes.count,fixture.expected.count,fixture.name)
+            for (actual,expected) in zip(d.strokes,fixture.expected) {
+                XCTAssertEqual(actual.id,expected.id); XCTAssertEqual(actual.brush.color,[255,210,35,80]); XCTAssertEqual(actual.brush.width,4)
+                XCTAssertEqual(actual.points.count,expected.points.count)
+                for (p,xy) in zip(actual.points,expected.points) { XCTAssertEqual(p.x,xy[0],accuracy:0.002); XCTAssertEqual(p.y,xy[1],accuracy:0.002) }
+                XCTAssertEqual(actual.breaks,Set(expected.breaks))
+            }
+            d.apply(.undo); if fixture.secondErase != nil { d.apply(.undo) }
+            XCTAssertEqual(d.strokes.count,fixture.strokes.count); XCTAssertTrue(d.strokes.allSatisfy { $0.breaks.isEmpty })
+        }
+    }
+    @MainActor
+    func testSelectionShowsResizeHandlesAndDeleteButtonThenUndoRestoresIt() throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:1000,height:700))
+        let canvas=InkCanvasView(frame:window.bounds),tools=DeskInkTools()
+        host.view=canvas; window.rootViewController=host; window.makeKeyAndVisible()
+        defer { window.isHidden=true; window.rootViewController=nil }
+        canvas.backgroundColor = UIColor(red:0.06,green:0.07,blue:0.08,alpha:1)
+        canvas.tools=tools; tools.canvas=canvas; tools.editingEnabled=true; tools.erasingEnabled=true
+        canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"selection")
+        let d=DeskInkDocument()
+        d.apply(.begin(id:1,brush:DeskInkBrush(),point:.init(x:100,y:100,pressure:1)))
+        d.apply(.shape(id:1,kind:.rectangle,a:.init(x:100,y:100,pressure:1),b:.init(x:300,y:300,pressure:1))); d.apply(.end(id:1))
+        d.apply(.begin(id:2,brush:DeskInkBrush(),point:.init(x:600,y:500,pressure:1))); d.apply(.end(id:2))
+        canvas.useDocument(d); canvas.layoutIfNeeded(); tools.select(.lasso)
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:200,y:200),pressure:1)); canvas.finish()
+        let button=try XCTUnwrap(canvas.subviews.compactMap { $0 as? UIButton }.first { $0.accessibilityIdentifier=="deskink.selection.delete" })
+        XCTAssertFalse(button.isHidden); XCTAssertTrue(button.isEnabled)
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:300,y:300),pressure:1))
+        canvas.moveStroke(to:CGPoint(x:400,y:400),pressure:1); canvas.finish()
+        XCTAssertEqual(d.strokes[0].points[2].x,400,accuracy:0.01)
+        let image=UIGraphicsImageRenderer(size:canvas.bounds.size).image { context in canvas.layer.render(in:context.cgContext) }
+        let attachment=XCTAttachment(image:image); attachment.lifetime = .keepAlways; add(attachment)
+        try image.pngData()?.write(to:URL(fileURLWithPath:NSTemporaryDirectory()).appendingPathComponent("deskink-selection-064.png"))
+        button.sendActions(for:.touchUpInside)
+        XCTAssertEqual(d.strokes.map(\.id),[2]); XCTAssertTrue(button.isHidden)
+        canvas.perform(.undo); XCTAssertEqual(d.strokes.map(\.id),[1,2]); XCTAssertEqual(d.strokes[0].points[2].x,400,accuracy:0.01)
+        canvas.perform(.undo); XCTAssertEqual(d.strokes[0].points[2].x,300,accuracy:0.01)
+    }
+
+    @MainActor
+    func testPartialEraserModeIsRememberedAndOldHostsNeverReceiveIt() throws {
+        let suite="partial-eraser-\(UUID())", defaults=try XCTUnwrap(UserDefaults(suiteName:suite))
+        defer { defaults.removePersistentDomain(forName:suite) }
+        let saved=DeskInkTools(defaults:defaults); saved.eraserMode = .partial; saved.eraserSize = .medium
+        let tools=DeskInkTools(defaults:defaults),canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700))
+        tools.canvas=canvas; canvas.tools=tools; canvas.configure(videoSize:canvas.bounds.size,enabled:true,connectionKey:"eraser")
+        var sent:[DeskInkCommand]=[]; canvas.send={ sent += $0 }
+        tools.select(.eraser)
+        XCTAssertFalse(canvas.beginStroke(at:CGPoint(x:200,y:100),pressure:1)); XCTAssertTrue(sent.isEmpty)
+        tools.erasingEnabled=true
+        XCTAssertTrue(canvas.beginStroke(at:CGPoint(x:200,y:100),pressure:1))
+        guard case let .erasePartialBegin(_,_,radius)=sent.first else { return XCTFail("Expected partial eraser command") }
+        XCTAssertEqual(radius,24); canvas.finish(); XCTAssertEqual(tools.tool,.pen)
+    }
+    func testPartialErasingCutsTheMiddleAndUndoRestoresTheLine() throws {
+        let d=DeskInkDocument()
+        d.apply(.begin(id:1,brush:DeskInkBrush(),point:.init(x:100,y:100,pressure:1)))
+        d.apply(.append(id:1,point:.init(x:300,y:100,pressure:1))); d.apply(.end(id:1))
+        let raw=Data(#"{"type":"erase_partial_begin","id":2,"radius":10,"point":{"x":200,"y":100,"pressure":1}}"#.utf8)
+        d.apply(try JSONDecoder().decode(DeskInkCommand.self,from:raw)); d.apply(.eraseEnd(id:2))
+        XCTAssertEqual(d.strokes.first?.points.map(\.x),[100,188,212,300])
+        d.apply(.undo); XCTAssertEqual(d.strokes.first?.points.map(\.x),[100,300])
+        d.apply(.redo); XCTAssertEqual(d.strokes.first?.points.map(\.x),[100,188,212,300])
+    }
     func testTiltedAndRoundedBoxesStayDistinctFromCirclesOvalsAndHandwriting() throws {
         struct Fixture: Decodable {
             let name: String; let expected: String?; let points: [[CGFloat]]

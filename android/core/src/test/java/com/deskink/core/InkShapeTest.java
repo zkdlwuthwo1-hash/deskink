@@ -4,6 +4,17 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class InkShapeTest {
+    @Test public void aHandDrawnBoxWithASmallClosingGapIsStillARectangle() {
+        InkShape box=InkShape.recognize(points(100,100,300,100,300,300,100,300,100,160));
+        assertNotNull("Four almost straight sides should correct while holding",box);
+        assertEquals("rectangle",box.kind);
+    }
+    @Test public void aTiltedRectangleIsNotMistakenForAnOval() {
+        InkShape box=InkShape.recognize(points(200,100,400,300,300,400,100,200,200,100));
+        assertNotNull(box);
+        assertEquals("rectangle",box.kind);
+    }
+
     @Test public void tiltedAndRoundedBoxesStayDistinctFromCirclesOvalsAndHandwriting() throws Exception {
         org.json.JSONArray fixtures;
         try(java.io.InputStream input=getClass().getResourceAsStream("/deskink-shape-cases.json")) {

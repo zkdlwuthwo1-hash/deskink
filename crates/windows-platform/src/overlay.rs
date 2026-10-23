@@ -142,8 +142,12 @@ fn draw_stroke(pixels: &mut tiny_skia::Pixmap, stroke: &Stroke) {
         } else {
             let mut path = tiny_skia::PathBuilder::new();
             path.move_to(first.x, first.y);
-            for point in &stroke.points[1..] {
-                path.line_to(point.x, point.y);
+            for (i, point) in stroke.points.iter().enumerate().skip(1) {
+                if stroke.breaks.binary_search(&i).is_ok() {
+                    path.move_to(point.x, point.y);
+                } else {
+                    path.line_to(point.x, point.y);
+                }
             }
             if let Some(path) = path.finish() {
                 pixels.stroke_path(
@@ -265,5 +269,57 @@ impl Drop for Overlay {
         unsafe {
             let _ = DestroyWindow(self.hwnd);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use deskink_core::{Brush, Command, Point};
+    #[test]
+    fn erased_gap_stays_transparent_in_the_cached_windows_image() {
+        let p = |x| Point {
+            x,
+            y: 50.,
+            pressure: 1.,
+        };
+        let mut board = Board::new();
+        board
+            .apply(Command::Begin {
+                id: 1,
+                brush: Brush {
+                    color: [255, 0, 0, 255],
+                    width: 4.,
+                },
+                point: p(10.),
+            })
+            .unwrap();
+        board
+            .apply(Command::Append {
+                id: 1,
+                point: p(90.),
+            })
+            .unwrap();
+        board.apply(Command::End { id: 1 }).unwrap();
+        let mut raster = InkRaster::new(100, 100).unwrap();
+        assert!(raster.draw(&board)[(50 * 100 + 50) * 4 + 3] > 200);
+        board
+            .apply(Command::ErasePartialBegin {
+                id: 2,
+                point: p(50.),
+                radius: 10.,
+            })
+            .unwrap();
+        board.apply(Command::EraseEnd { id: 2 }).unwrap();
+        let image = raster.draw(&board);
+        assert_eq!(
+            image[(50 * 100 + 50) * 4 + 3],
+            0,
+            "A gap must not be reconnected by the renderer"
+        );
+        assert!(image[(50 * 100 + 20) * 4 + 3] > 200);
+        assert!(image[(50 * 100 + 80) * 4 + 3] > 200);
+        board.apply(Command::Undo).unwrap();
+        assert!(raster.draw(&board)[(50 * 100 + 50) * 4 + 3] > 200);
     }
 }

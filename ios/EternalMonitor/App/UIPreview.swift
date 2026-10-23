@@ -50,6 +50,7 @@ enum UIPreview {
             .onAppear {
                 // This fixture represents a current, editing-capable host.
                 tools.editingEnabled = true
+                tools.erasingEnabled = true
                 tools.shapeCorrection = true
             }
         }

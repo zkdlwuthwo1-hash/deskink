@@ -93,6 +93,7 @@ impl ConfigSource for SharedConfigSource<'_> {
                 | crate::annotation::MONITOR_CAP
                 | crate::annotation::RELIABLE_INK_CAP
                 | crate::annotation::EDITING_CAP
+                | crate::annotation::ERASING_CAP
                 | eternal_wire::v2::control::HOSTCAP_USB;
         }
         let usb = if PIPELINE_STATS.lock().usb_service_reachable {

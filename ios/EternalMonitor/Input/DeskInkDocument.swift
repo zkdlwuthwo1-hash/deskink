@@ -26,7 +26,9 @@ enum DeskInkCommand: Codable {
     case editAdd(id: UInt64, ids: [UInt64])
     case editTransform(id: UInt64, sx: CGFloat, sy: CGFloat, tx: CGFloat, ty: CGFloat)
     case editEnd(id: UInt64)
+    case editDelete(id: UInt64)
     case eraseBegin(id: UInt64, point: DeskInkPoint, radius: CGFloat)
+    case erasePartialBegin(id: UInt64, point: DeskInkPoint, radius: CGFloat)
     case eraseTo(id: UInt64, point: DeskInkPoint)
     case eraseEnd(id: UInt64)
     case undo, redo, clear
@@ -43,6 +45,7 @@ enum DeskInkCommand: Codable {
         switch self {
         case let .editBegin(id): try c.encode("edit_begin",forKey:.type); try c.encode(id,forKey:.id)
         case let .editEnd(id): try c.encode("edit_end",forKey:.type); try c.encode(id,forKey:.id)
+        case let .editDelete(id): try c.encode("edit_delete",forKey:.type); try c.encode(id,forKey:.id)
         case let .editAdd(id,ids):
             try c.encode("edit_add",forKey:.type); try c.encode(id,forKey:.id); try c.encode(ids,forKey:.ids)
         case let .editTransform(id,sx,sy,tx,ty):
@@ -60,6 +63,9 @@ enum DeskInkCommand: Codable {
             try c.encode("end", forKey: .type); try c.encode(id, forKey: .id)
         case let .eraseBegin(id, point, radius):
             try c.encode("erase_begin", forKey: .type); try c.encode(id, forKey: .id)
+            try c.encode(point, forKey: .point); try c.encode(radius, forKey: .radius)
+        case let .erasePartialBegin(id, point, radius):
+            try c.encode("erase_partial_begin", forKey: .type); try c.encode(id, forKey: .id)
             try c.encode(point, forKey: .point); try c.encode(radius, forKey: .radius)
         case let .eraseTo(id, point):
             try c.encode("erase_to", forKey: .type); try c.encode(id, forKey: .id); try c.encode(point, forKey: .point)
@@ -83,6 +89,7 @@ enum DeskInkCommand: Codable {
         switch try c.decode(String.self, forKey: .type) {
         case "edit_begin": self = .editBegin(id:try c.decode(UInt64.self,forKey:.id))
         case "edit_end": self = .editEnd(id:try c.decode(UInt64.self,forKey:.id))
+        case "edit_delete": self = .editDelete(id:try c.decode(UInt64.self,forKey:.id))
         case "edit_add": self = .editAdd(id:try c.decode(UInt64.self,forKey:.id),ids:try c.decode([UInt64].self,forKey:.ids))
         case "edit_transform": self = .editTransform(id:try c.decode(UInt64.self,forKey:.id),sx:try c.decode(CGFloat.self,forKey:.sx),sy:try c.decode(CGFloat.self,forKey:.sy),tx:try c.decode(CGFloat.self,forKey:.tx),ty:try c.decode(CGFloat.self,forKey:.ty))
         case "shape": self = .shape(id:try c.decode(UInt64.self,forKey:.id),kind:try c.decode(DeskInkShape.Kind.self,forKey:.kind),a:try c.decode(DeskInkPoint.self,forKey:.a),b:try c.decode(DeskInkPoint.self,forKey:.b))
@@ -90,6 +97,7 @@ enum DeskInkCommand: Codable {
         case "append": self = .append(id: try c.decode(UInt64.self, forKey: .id), point: try c.decode(DeskInkPoint.self, forKey: .point))
         case "end": self = .end(id: try c.decode(UInt64.self, forKey: .id))
         case "erase_begin": self = .eraseBegin(id: try c.decode(UInt64.self, forKey: .id), point: try c.decode(DeskInkPoint.self, forKey: .point), radius: try c.decode(CGFloat.self, forKey: .radius))
+        case "erase_partial_begin": self = .erasePartialBegin(id: try c.decode(UInt64.self, forKey: .id), point: try c.decode(DeskInkPoint.self, forKey: .point), radius: try c.decode(CGFloat.self, forKey: .radius))
         case "erase_to": self = .eraseTo(id: try c.decode(UInt64.self, forKey: .id), point: try c.decode(DeskInkPoint.self, forKey: .point))
         case "erase_end": self = .eraseEnd(id: try c.decode(UInt64.self, forKey: .id))
         case "undo": self = .undo
@@ -120,6 +128,7 @@ struct DeskInkStroke {
     var expiresAt: UInt64 = 0
     var shape: DeskInkShape?
     var geometryRevision = 0
+    var breaks=Set<Int>()
 }
 
 struct DeskInkPointer {
@@ -143,11 +152,14 @@ final class DeskInkDocument {
     private var redoStack: [Edit] = []
     private struct Erase { let id: UInt64; var last: DeskInkPoint; let radius: CGFloat; var removed: [(Int, DeskInkStroke)] }
     private var eraser: Erase?
+    private var partialBefore: [DeskInkStroke]?
+    private var partialChanged=false
     private struct SelectionEdit {
         let id: UInt64
         var original: [(Int,DeskInkStroke)] = []
         var transformed = false
         var changed = false
+        var deleted = false
     }
     private var selectionEdit: SelectionEdit?
     var canUndo: Bool { !undoStack.isEmpty }
@@ -167,7 +179,7 @@ final class DeskInkDocument {
     @discardableResult
     func apply(_ command: DeskInkCommand) -> Bool {
         if selectionEdit != nil {
-            switch command { case .editAdd, .editTransform, .editEnd, .pointer, .setVisible: break; default: return false }
+            switch command { case .editAdd, .editTransform, .editDelete, .editEnd, .pointer, .setVisible: break; default: return false }
         }
         switch command {
         case let .editBegin(id):
@@ -183,7 +195,7 @@ final class DeskInkDocument {
             }
             edit.original += additions; selectionEdit=edit
         case let .editTransform(id,sx,sy,tx,ty):
-            guard var edit=selectionEdit, edit.id==id, !edit.original.isEmpty,
+            guard var edit=selectionEdit, edit.id==id, !edit.original.isEmpty, !edit.deleted,
                   [sx,sy,tx,ty].allSatisfy(\.isFinite), (0.001...1000).contains(sx), (0.001...1000).contains(sy) else { return false }
             func transform(_ p: DeskInkPoint) -> DeskInkPoint { .init(x:p.x*sx+tx,y:p.y*sy+ty,pressure:p.pressure) }
             for (index,original) in edit.original {
@@ -192,6 +204,10 @@ final class DeskInkDocument {
                 replacement.geometryRevision=strokes[index].geometryRevision+1; strokes[index]=replacement
             }
             edit.transformed=true; edit.changed=sx != 1 || sy != 1 || tx != 0 || ty != 0; selectionEdit=edit
+        case let .editDelete(id):
+            guard var edit=selectionEdit, edit.id==id, !edit.original.isEmpty, !edit.deleted else { return false }
+            let ids=Set(edit.original.map { $0.1.id }); strokes.removeAll { ids.contains($0.id) }
+            edit.deleted=true; edit.transformed=true; edit.changed=true; selectionEdit=edit
         case let .editEnd(id):
             guard let edit=selectionEdit, edit.id==id else { return false }
             if edit.changed { remember(Edit(remove:edit.original.map { $0.1.id },insert:edit.original.sorted { $0.0<$1.0 })) }
@@ -216,14 +232,24 @@ final class DeskInkDocument {
             } else { return false }
         case let .eraseBegin(id, point, radius):
             guard eraser == nil else { return false }
+            partialBefore=nil
             eraser = Erase(id: id, last: point, radius: radius, removed: erase(from: point, to: point, radius: radius))
+        case let .erasePartialBegin(id, point, radius):
+            guard eraser == nil, !strokes.contains(where: { !$0.finished }) else { return false }
+            partialBefore=strokes; partialChanged=false
+            erasePartial(from:point,to:point,radius:radius)
+            eraser=Erase(id:id,last:point,radius:radius,removed:[])
         case let .eraseTo(id, point):
             guard var gesture = eraser, gesture.id == id else { return false }
-            gesture.removed += erase(from: gesture.last, to: point, radius: gesture.radius)
+            if partialBefore != nil { erasePartial(from:gesture.last,to:point,radius:gesture.radius) }
+            else { gesture.removed += erase(from: gesture.last, to: point, radius: gesture.radius) }
             gesture.last = point; eraser = gesture
         case let .eraseEnd(id):
             guard let gesture = eraser, gesture.id == id else { return false }
-            if !gesture.removed.isEmpty { remember(Edit(insert: gesture.removed.reversed())) }
+            if let before=partialBefore {
+                if partialChanged { remember(Edit(remove:strokes.map(\.id),insert:Array(before.enumerated()))) }
+            } else if !gesture.removed.isEmpty { remember(Edit(insert: gesture.removed.reversed())) }
+            partialBefore=nil
             eraser = nil
         case .undo:
             guard eraser == nil, !strokes.contains(where: { !$0.finished }) else { return false }
@@ -274,12 +300,22 @@ final class DeskInkDocument {
         var removed: [(Int, DeskInkStroke)] = []; var index = 0
         while index < strokes.count {
             let stroke = strokes[index], limit = pow(radius + strokes[index].brush.width / 2, 2)
-            let hit: Bool
-            if stroke.points.count == 1 { hit = Self.pointDistance(stroke.points[0], from, to) <= limit }
-            else { hit = zip(stroke.points, stroke.points.dropFirst()).contains { Self.segmentDistance(from, to, $0.0, $0.1) <= limit } }
+            let hit=stroke.points.enumerated().contains { i,p in
+                if i==0 || stroke.breaks.contains(i) { return Self.pointDistance(p,from,to)<=limit }
+                return Self.segmentDistance(from,to,stroke.points[i-1],p)<=limit
+            }
             if hit { removed.append((index, strokes.remove(at: index))) } else { index += 1 }
         }
         return removed
+    }
+    private func erasePartial(from:DeskInkPoint,to:DeskInkPoint,radius:CGFloat) {
+        for index in strokes.indices {
+            if let cut=DeskInkPartialEraser.cut(strokes[index],from:from,to:to,radius:radius) {
+                strokes[index].points=cut.points; strokes[index].breaks=cut.breaks; strokes[index].shape=nil
+                strokes[index].geometryRevision += 1; partialChanged=true
+            }
+        }
+        strokes.removeAll { $0.points.isEmpty }
     }
     private static func pointDistance(_ p: DeskInkPoint, _ a: DeskInkPoint, _ b: DeskInkPoint) -> CGFloat {
         let dx = b.x-a.x, dy = b.y-a.y, length = dx*dx+dy*dy

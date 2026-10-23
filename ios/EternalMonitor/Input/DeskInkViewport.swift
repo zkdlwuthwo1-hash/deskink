@@ -93,7 +93,9 @@ final class DeskInkViewportView: UIScrollView, UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { content }
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         accessibilityValue = "\(Int((zoomScale * 100).rounded()))%"
+        canvas.synchronizeSelection()
     }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { canvas.synchronizeSelection() }
     func resetZoom() {
         canvas.finish()
         setZoomScale(1, animated: false)
