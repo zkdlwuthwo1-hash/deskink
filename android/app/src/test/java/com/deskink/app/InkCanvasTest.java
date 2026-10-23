@@ -110,14 +110,14 @@ public class InkCanvasTest {
         canvas.command("undo"); assertEquals(500,document.strokes().get(1).points.get(1).x,.01);
         canvas.command("undo"); assertEquals(100,document.strokes().get(0).points.get(0).x,.01);
     }
-    @Test public void aClosedPenStrokeBecomesAShapeOnlyAfterOneSecondOfHolding() {
+    @Test public void aClosedPenStrokeBecomesAShapeOnlyAfterHalfASecondOfHolding() {
         try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
         InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
         InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
         canvas.bind(document,c -> { sent.add(c); return true; },1920,1080); canvas.editingEnabled(true);
         touch(canvas,MotionEvent.ACTION_DOWN,0,400,300);
         for(float[] point:new float[][]{{600,300},{600,500},{400,500},{400,300}}) touch(canvas,MotionEvent.ACTION_MOVE,0,point[0],point[1]);
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(999));
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(499));
         assertFalse(sent.stream().anyMatch(c -> c.optString("type").equals("shape")));
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1));
         JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElseThrow();
