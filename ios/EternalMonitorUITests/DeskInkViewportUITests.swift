@@ -23,6 +23,45 @@ final class DeskInkViewportUITests: XCTestCase {
         eraser.tap()
         XCTAssertTrue(large.waitForExistence(timeout: 3))
         XCTAssertTrue(large.isSelected, "The chosen size must remain selected when reopened")
+        large.tap()
+        app.buttons["펜 굵기"].tap()
+        XCTAssertTrue(app.buttons["가는 선"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["지우개 크기: 크게"].exists, "Pen width must not expose eraser settings")
+        app.buttons["가는 선"].tap()
+    }
+
+    func testColorSwatchesAndShapeToggleRemainAvailableInBothStates() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-didSeeOnboarding", "YES", "-allowUSB", "NO"]
+        app.launchEnvironment["EM_UI_PREVIEW"] = "deskink"
+        app.launch()
+        defer { app.terminate() }
+        let shape = app.buttons["deskink.shapeCorrection"]
+        XCTAssertTrue(shape.waitForExistence(timeout: 10))
+        XCTAssertTrue(shape.isSelected)
+        let bounds = shape.frame
+        capture("deskink-shape-on", app: app)
+        shape.tap()
+        XCTAssertFalse(shape.isSelected)
+        XCTAssertTrue(shape.isHittable)
+        XCTAssertEqual(shape.frame, bounds, "Turning correction off must not remove or move its icon")
+        XCTAssertEqual(shape.value as? String, "꺼짐")
+        capture("deskink-shape-off", app: app)
+        shape.tap()
+        XCTAssertTrue(shape.isSelected)
+        app.buttons["deskink.colors"].tap()
+        for color in ["주황", "빨강", "노랑", "초록", "파랑", "흰색", "검정", "청록", "보라", "분홍", "회색", "갈색"] {
+            XCTAssertTrue(app.buttons[color].waitForExistence(timeout: 3))
+            XCTAssertTrue(app.buttons[color].isHittable)
+        }
+        capture("deskink-color-swatches", app: app)
+        app.buttons["보라"].tap()
+        XCTAssertEqual(app.buttons["deskink.colors"].label, "색상: 보라")
+        app.buttons["deskink.colors"].tap()
+        XCTAssertTrue(app.buttons["보라"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["보라"].isSelected)
     }
 
     func testControlsStayOutsideTheDrawingViewportInLandscape() {
@@ -97,6 +136,7 @@ final class DeskInkViewportUITests: XCTestCase {
         XCTAssertEqual(eraser.frame, toolbarButtonFrame)
         eraser.tap()
         XCTAssertTrue(eraser.isSelected, "The toolbar must still receive taps while zoomed")
+        app.buttons["지우개 크기: 작게"].tap()
         capture("deskink-panned", app: app)
 
         app.buttons["deskink.fit"].tap()

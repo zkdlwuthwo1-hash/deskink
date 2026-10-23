@@ -47,6 +47,11 @@ enum UIPreview {
                     Button("화면 맞춤") { tools.resetZoom() }.accessibilityIdentifier("deskink.fit")
                 }.padding(12).background(.regularMaterial, in: Capsule())
             }
+            .onAppear {
+                // This fixture represents a current, editing-capable host.
+                tools.editingEnabled = true
+                tools.shapeCorrection = true
+            }
         }
     }
 

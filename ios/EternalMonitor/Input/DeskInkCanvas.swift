@@ -21,6 +21,8 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
     private var selection: DeskInkSelection?
     private var holdTimer: Timer?
     private var holdAnchor: DeskInkPoint?
+    private var strokePointCount = 0
+    private var holdPointCount = 0
     private var shapeFrozen = false
     private var expiryTimer: Timer?
     private final class RenderedStroke {
@@ -138,7 +140,7 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         if !document.visible { submit([.setVisible(true)]); updateControls() }
         let id = UInt64.random(in: 1...UInt64.max)
         activeID = id; activeTool = tools.tool
-        shapeFrozen=false
+        shapeFrozen=false; strokePointCount=1
         var commands: [DeskInkCommand] = []
         switch tools.tool {
         case .lasso:
@@ -180,17 +182,22 @@ final class InkCanvasView: UIView, UIPencilInteractionDelegate {
         case .laser,.none: break
         default:
             guard !shapeFrozen else { return }
+            strokePointCount += 1
             commands.append(.append(id:id,point:point))
             if let anchor=holdAnchor, hypot(point.x-anchor.x,point.y-anchor.y)<=3/inputScale { return }
             scheduleCorrection(at:point)
         }
     }
     private func scheduleCorrection(at point: DeskInkPoint) {
-        holdTimer?.invalidate(); holdTimer=nil; holdAnchor=point
+        holdTimer?.invalidate(); holdTimer=nil; holdAnchor=point; holdPointCount=strokePointCount
         guard tools?.editingEnabled==true, tools?.shapeCorrection==true, activeTool == .pen || activeTool == .highlighter else { return }
         let timer=Timer(timeInterval:1,repeats:false) { [weak self] _ in
             guard let self, let id=self.activeID, self.tools?.editingEnabled==true, self.tools?.shapeCorrection==true,
-                  let stroke=self.document.strokes.first(where:{ $0.id==id }), let shape=DeskInkShape.recognize(stroke.points) else { return }
+                  let stroke=self.document.strokes.first(where:{ $0.id==id }) else { return }
+            // Preserve and transmit every raw sample. Recognition alone ignores
+            // the dense jitter after the pen stopped moving. Track the count at
+            // input time because a coalesced UIKit batch is submitted afterward.
+            guard let shape=DeskInkShape.recognize(Array(stroke.points.prefix(self.holdPointCount))) else { return }
             self.shapeFrozen=true
             self.submit([.shape(id:id,kind:shape.kind,a:shape.a,b:shape.b)])
         }

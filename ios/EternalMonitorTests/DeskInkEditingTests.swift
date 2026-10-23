@@ -13,9 +13,8 @@ final class DeskInkEditingTests: XCTestCase {
         for x in stride(from:120,through:300,by:20) { canvas.moveStroke(to:CGPoint(x:x,y:200),pressure:1) }
         for sample in 0..<120 {
             canvas.moveStroke(to:CGPoint(x:300+(sample%2 == 0 ? 0.4 : -0.4),y:200),pressure:1)
-            RunLoop.main.run(until:Date().addingTimeInterval(0.008))
         }
-        RunLoop.main.run(until:Date().addingTimeInterval(0.1))
+        RunLoop.main.run(until:Date().addingTimeInterval(1.1))
         XCTAssertEqual(canvas.document.strokes.first?.shape?.kind,.line,
                        "A stationary hold must tolerate the Pencil's sub-pixel samples")
         canvas.finish()

@@ -95,6 +95,10 @@ struct SettingsView: View {
                     .onChange(of: settings.drawingMode) { _, enabled in
                         if enabled { settings.allowUSB = true }
                     }
+                    Toggle(isOn: Binding(get: { connectionManager.deskInkTools.fingerDrawing },
+                                         set: { connectionManager.deskInkTools.fingerDrawing = $0 })) {
+                        rowLabel("손가락으로 필기", "hand.draw")
+                    }
                     if connectionManager.state == .connected {
                         infoRow("Pencil", connectionManager.sessionHasPen ? "Windows Ink ready" : "Unavailable on this host", "pencil")
                         infoRow("Drawing mode", connectionManager.sessionDrawingMode ? "Active" : "Off", "hand.draw")
