@@ -1,6 +1,12 @@
 name: Build and test Android app
 on:
   workflow_dispatch:
+    inputs:
+      native_test_class:
+        description: Optional native test class for a focused diagnostic run
+        required: false
+        default: ''
+        type: string
   push:
     branches: [feat/android-usb]
 permissions:
@@ -12,6 +18,8 @@ jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      DESKINK_NATIVE_TEST_CLASS: ${{ inputs.native_test_class }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -21,6 +29,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Unit and native-input tests
+        if: inputs.native_test_class == ''
         working-directory: android
         run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug --console=plain
       - name: Enable emulator acceleration

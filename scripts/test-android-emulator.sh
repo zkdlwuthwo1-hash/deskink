@@ -12,6 +12,11 @@ if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
   adb shell settings put secure immersive_mode_confirmations confirmed
   adb shell settings put secure show_ime_with_hard_keyboard 1
 fi
+if [[ -n "${DESKINK_NATIVE_TEST_CLASS:-}" ]]; then
+  ./gradlew :app:connectedDebugAndroidTest --console=plain \
+    "-Pandroid.testInstrumentationRunnerArguments.class=$DESKINK_NATIVE_TEST_CLASS"
+  exit
+fi
 ./gradlew :app:connectedDebugAndroidTest :app:assembleRelease --console=plain
 # The Actions runner owns this disposable emulator. Also exercise a small
 # landscape window, a large system font and the software keyboard.
