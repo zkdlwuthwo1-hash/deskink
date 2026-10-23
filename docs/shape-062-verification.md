@@ -42,6 +42,8 @@ iloader reported installation complete, and a subsequent device metadata query c
 
 [Release v0.6.2](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.6.2) contains the APK, IPA, standalone HTML, signing note and SHA-256 manifest. All five assets were downloaded without authentication and matched the local sizes and SHA-256 hashes. The Android feed was advanced to version code 8 only after that public APK verification; the Windows feed remains 0.6.0. The generated guide passed local anchor and embedded-image checks.
 
+The production `AppUpdate` class subsequently fetched the public feed, offered code 8 to installed code 7, downloaded and hash-verified the public APK, and offered no update to code 8. Both the normal GitHub Pages `README.html` URL and the previously shared `?guide=f335f2d` URL returned HTTP 200 and matched the local guide SHA-256 `139b9631264bd822aaa25d428fc4d1b399f60633752e0625fdb03b4d66e74a6e`.
+
 A subsequent optional developer-tool launch request failed with `deviceprocesscontrolservice` code 2. Installation is verified by device metadata, but opening the app and performing a real Pencil stroke after this update were not verified by that request. No additional device settings were changed.
 
 No physical Pencil/S Pen latency measurement or exact recorded user stroke was available. Automated results do not establish that every hand-drawn shape will be recognized. The earlier persistent pen-input interruption and separate long-session latency reports remain unproven and are not claimed fixed by 0.6.2.
