@@ -129,6 +129,7 @@ public class WirelessStreamingTest {
                 send(host,peer,Wire.control(0x18,43,4+attempt,secondConfig.array()));
                 secondShown=greenMonitorVisible(videoBounds);
             }
+            if(!secondShown) WorkspaceUiTest.capture("monitor-switch-failed");
             assertTrue("The new monitor must appear without a pen gesture or another changed desktop frame",secondShown);
             activity.onActivity(a -> a.getWindow().getDecorView().findViewWithTag("clear").performClick());
             DatagramPacket command;
