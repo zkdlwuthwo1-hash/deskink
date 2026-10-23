@@ -27,3 +27,5 @@ Review confirmed that the production diff changes only the two hold deadlines an
 iloader reported installation complete on the connected iPad. A subsequent device metadata query confirmed **0.6.3 build 20** under the existing app identifier. Physical Pencil feel after the update was not measured.
 
 [Release v0.6.3](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.6.3) includes the signed APK, unsigned IPA, standalone HTML, Android signing note and SHA-256 manifest. All five public downloads matched local sizes and SHA-256 hashes. The Android update feed advances to code 9 only after that verification; Windows remains 0.6.0. The HTML's local anchors and embedded images passed validation.
+
+The production `AppUpdate` class fetched the public feed, offered code 9 to code 8, downloaded and hash-verified the APK, and offered nothing to code 9. Both the normal Pages URL and the previously shared `README.html?guide=f335f2d` returned HTTP 200 and matched guide SHA-256 `11e87625a17b8195590fedc6a9f496613d209f3ee2dfb848ce73c14a25577efd`.
