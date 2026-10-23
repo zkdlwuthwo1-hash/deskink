@@ -3,6 +3,32 @@ import UIKit
 @testable import EternalMonitor
 
 final class DeskInkEditingTests: XCTestCase {
+    func testFractionalShapeResizingAtEveryEdgeRemainsValidAtWindowsFloatPrecision() {
+        let initial=[DeskInkPoint(x:100.1,y:120.1,pressure:1),DeskInkPoint(x:300.2,y:320.2,pressure:1)]
+        for (handle,target) in [(CGPoint(x:100.1,y:220.15),CGPoint(x:0,y:220.15)),
+                                (CGPoint(x:300.2,y:220.15),CGPoint(x:1920,y:220.15)),
+                                (CGPoint(x:200.15,y:120.1),CGPoint(x:200.15,y:0)),
+                                (CGPoint(x:200.15,y:320.2),CGPoint(x:200.15,y:1080))] {
+            let document=DeskInkDocument()
+            document.apply(.begin(id:1,brush:.init(),point:initial[0])); document.apply(.shape(id:1,kind:.rectangle,a:initial[0],b:initial[1])); document.apply(.end(id:1))
+            var transforms: [(CGFloat,CGFloat,CGFloat,CGFloat)]=[]
+            let selection=DeskInkSelection(document:document,size:CGSize(width:1920,height:1080)) { command,_ in
+                if case let .editTransform(_,sx,sy,tx,ty)=command { transforms.append((sx,sy,tx,ty)) }
+                document.apply(command)
+            }
+            selection.begin(.init(x:200,y:200,pressure:1),scale:1,id:8); selection.end()
+            selection.begin(.init(x:handle.x,y:handle.y,pressure:1),scale:1,id:9)
+            selection.move(.init(x:target.x,y:target.y,pressure:1),now:100); selection.end()
+            XCTAssertFalse(transforms.isEmpty)
+            for (sx,sy,tx,ty) in transforms {
+                for p in initial {
+                    let x=Float(p.x)*Float(sx)+Float(tx), y=Float(p.y)*Float(sy)+Float(ty)
+                    XCTAssertTrue((0...1920).contains(x),"Windows rejected x=\(x)")
+                    XCTAssertTrue((0...1080).contains(y),"Windows rejected y=\(y)")
+                }
+            }
+        }
+    }
     @MainActor
     func testHoldingThenSelectingMovingAndResizingUsesTheActualCanvasInput() {
         let canvas=InkCanvasView(frame:CGRect(x:0,y:0,width:1000,height:700)), tools=DeskInkTools()
