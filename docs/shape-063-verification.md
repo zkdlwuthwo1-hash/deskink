@@ -14,7 +14,9 @@ The already approved input/document/transmission boundary was used. The Android 
 
 All **11 local Android canvas tests passed**, including small and subpixel tremor, a tilted rectangle, an early lift at 400 ms, disabled correction/older hosts, undo, next tool, palm handling and two-finger zoom. Lint and release assembly passed. Signing and alignment retained the existing Android certificate.
 
-The initial shortened subpixel fixture failed because first window layout was still pending when timed samples began. The fixture now settles initial layout before setting its drawing bounds, matching the existing hand-tremor fixture. `d2ec3e2` changes the fixture and documentation only; no additional production change or relaxed deadline was needed. The first Linux run [39936966462](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39936966462) captured that same fixture failure; follow-up validation is recorded below when finished.
+The initial shortened subpixel fixture failed because first window layout was still pending when timed samples began. The fixture now settles initial layout before setting its drawing bounds, matching the existing hand-tremor fixture. `d2ec3e2` changes the fixture and documentation only; no additional production change or relaxed deadline was needed. The first Linux run [39936966462](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39936966462) captured that same fixture failure.
+
+Final Android CI [39937534762](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39937534762) passed **77 unit tests**, with one opt-in Windows interop test skipped, followed by lint/release assembly, **five native tablet tests** and **two compact-window tests**. Downloaded result files confirmed zero failures. This includes actual video decoding and USB/wireless input integration.
 
 iPad CI [39936962075](https://github.com/zkdlwuthwo1-hash/deskink/actions/runs/39936962075) passed **21 tests** and built the device IPA. The actual UIKit Pencil-callback test checks ordinary ink at a short pause, a rectangle within the new deadline allowance before lift, restored finger gestures after lift, and the next Pencil stroke. Timer tests use an absolute wait target to avoid accumulating separate sleep delays. IPA metadata was checked as 0.6.3 (20).
 
@@ -22,4 +24,6 @@ Review confirmed that the production diff changes only the two hold deadlines an
 
 ## Delivery
 
-iloader reported installation complete on the connected iPad. A subsequent device metadata query confirmed **0.6.3 build 20** under the existing app identifier. Physical Pencil feel after the update was not measured. Public assets, Android feed and guide verification are recorded here as they complete.
+iloader reported installation complete on the connected iPad. A subsequent device metadata query confirmed **0.6.3 build 20** under the existing app identifier. Physical Pencil feel after the update was not measured.
+
+[Release v0.6.3](https://github.com/zkdlwuthwo1-hash/deskink/releases/tag/v0.6.3) includes the signed APK, unsigned IPA, standalone HTML, Android signing note and SHA-256 manifest. All five public downloads matched local sizes and SHA-256 hashes. The Android update feed advances to code 9 only after that verification; Windows remains 0.6.0. The HTML's local anchors and embedded images passed validation.
