@@ -25,7 +25,7 @@ final class WorkspaceView extends LinearLayout {
     private final ImageView connectionIcon;
     private final Map<PenInput.Tool,ToolButton> tools=new EnumMap<>(PenInput.Tool.class);
     private final List<ToolButton> controls=new ArrayList<>();
-    private final ToolButton undo,redo,visibility,color,width,fit;
+    private final ToolButton undo,redo,visibility,color,width,fit,shape;
     private int selectedColor;
     private float selectedWidth=4;
     private float selectedEraserRadius=12;
@@ -56,6 +56,7 @@ final class WorkspaceView extends LinearLayout {
         lan.compact(); header.addView(lan,new LayoutParams(ui.dp(56),ui.dp(48)));
         ink=new InkCanvas(activity); ink.setTag("ink");
         ink.eraserRadius(selectedEraserRadius);
+        ink.shapeCorrection(drawingPreferences.getBoolean("shape-correction",true));
         fit=new ToolButton(activity,R.string.fit_short,R.string.fit,R.drawable.ic_fit,"fit",ink::resetZoom);
         fit.compact();
         header.addView(fit,new LayoutParams(ui.dp(56),ui.dp(48)));
@@ -71,13 +72,16 @@ final class WorkspaceView extends LinearLayout {
         addView(workspace,new LayoutParams(-1,0,1));
 
         LinearLayout dock=ui.row(); dock.setTag("toolbar"); dock.setGravity(Gravity.CENTER); dock.setPadding(ui.dp(6),ui.dp(6),ui.dp(6),ui.dp(6));
-        int[] names={R.string.pen,R.string.highlighter,R.string.eraser,R.string.laser,R.string.fade_short};
-        int[] descriptions={R.string.pen,R.string.highlighter,R.string.eraser,R.string.laser,R.string.vanishing};
-        int[] icons={R.drawable.ic_pen,R.drawable.ic_highlighter,R.drawable.ic_eraser,R.drawable.ic_laser,R.drawable.ic_fade};
+        int[] names={R.string.pen,R.string.highlighter,R.string.eraser,R.string.laser,R.string.fade_short,R.string.lasso};
+        int[] descriptions={R.string.pen,R.string.highlighter,R.string.eraser,R.string.laser,R.string.vanishing,R.string.lasso_hint};
+        int[] icons={R.drawable.ic_pen,R.drawable.ic_highlighter,R.drawable.ic_eraser,R.drawable.ic_laser,R.drawable.ic_fade,R.drawable.ic_lasso};
         PenInput.Tool[] values=PenInput.Tool.values();
         for(int i=0;i<values.length;i++) {
             PenInput.Tool tool=values[i]; ToolButton button=tool(dock,names[i],descriptions[i],icons[i],"tool."+tool,() -> ink.select(tool)); tools.put(tool,button);
         }
+        shape=tool(dock,R.string.shape_short,R.string.shape_hint,R.drawable.ic_shapes,"shape",() -> {
+            ink.shapeCorrection(!ink.shapeCorrection()); drawingPreferences.edit().putBoolean("shape-correction",ink.shapeCorrection()).apply(); refreshControls();
+        });
         divider(dock);
         color=tool(dock,R.string.color,R.string.color,R.drawable.ic_pen,"color",this::colors); color.swatch(colorValue(0));
         width=tool(dock,R.string.width,R.string.width,R.drawable.ic_pen,"width",this::widths); width.thickness(selectedWidth);
@@ -161,6 +165,8 @@ final class WorkspaceView extends LinearLayout {
     private void refreshControls() {
         boolean connected=ink.connected();
         for(ToolButton button:controls) button.setEnabled(connected);
+        tools.get(PenInput.Tool.LASSO).setEnabled(connected&&ink.editingEnabled()); shape.setEnabled(connected&&ink.editingEnabled()); shape.setSelected(ink.shapeCorrection());
+        shape.setContentDescription(activity.getString(ink.editingEnabled()?R.string.shape_hint:R.string.editing_update_required));
         fit.setEnabled(connected); undo.setEnabled(connected&&ink.canUndo()); redo.setEnabled(connected&&ink.canRedo());
         for(Map.Entry<PenInput.Tool,ToolButton> entry:tools.entrySet()) entry.getValue().setSelected(entry.getKey()==ink.tool());
         if(visible!=ink.inkVisible()) {

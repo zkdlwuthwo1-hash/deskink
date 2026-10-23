@@ -12,6 +12,44 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=35)
 public class InkCanvasTest {
+    @Test public void lassoMovesAndCornerResizesMultipleObjectsWithOneUndoPerGesture() {
+        InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);
+        InkDocument document=new InkDocument();
+        for(int id=1;id<=2;id++) {
+            document.apply(Ink.begin(id,Ink.point(id==1?100:300,100,1),new int[]{255,80,40,255},4,false));
+            if(id==1) document.apply(Ink.object("type","shape","id",1,"kind","rectangle","a",Ink.point(100,100,1),"b",Ink.point(200,200,1)));
+            else document.apply(Ink.at("append",id,Ink.point(400,200,1)));
+            document.apply(Ink.id("end",id));
+        }
+        canvas.bind(document,c -> true,1000,700); canvas.editingEnabled(true); canvas.select(PenInput.Tool.LASSO);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,80,80);
+        for(float[] p:new float[][]{{420,80},{420,220},{80,220},{80,80}}) touch(canvas,MotionEvent.ACTION_MOVE,0,p[0],p[1]);
+        touch(canvas,MotionEvent.ACTION_UP,0,80,80);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,150,150); touch(canvas,MotionEvent.ACTION_MOVE,0,250,200); touch(canvas,MotionEvent.ACTION_UP,0,250,200);
+        assertEquals(200,document.strokes().get(0).points.get(0).x,.01); assertEquals(150,document.strokes().get(0).points.get(0).y,.01);
+        assertEquals(400,document.strokes().get(1).points.get(0).x,.01);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,500,250); touch(canvas,MotionEvent.ACTION_MOVE,0,650,300); touch(canvas,MotionEvent.ACTION_UP,0,650,300);
+        assertEquals(650,document.strokes().get(1).points.get(1).x,.01); assertEquals(300,document.strokes().get(1).points.get(1).y,.01);
+        canvas.command("undo"); assertEquals(500,document.strokes().get(1).points.get(1).x,.01);
+        canvas.command("undo"); assertEquals(100,document.strokes().get(0).points.get(0).x,.01);
+    }
+    @Test public void aClosedPenStrokeBecomesAShapeOnlyAfterOneSecondOfHolding() {
+        try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
+        InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+        InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
+        canvas.bind(document,c -> { sent.add(c); return true; },1920,1080); canvas.editingEnabled(true);
+        touch(canvas,MotionEvent.ACTION_DOWN,0,400,300);
+        for(float[] point:new float[][]{{600,300},{600,500},{400,500},{400,300}}) touch(canvas,MotionEvent.ACTION_MOVE,0,point[0],point[1]);
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(999));
+        assertFalse(sent.stream().anyMatch(c -> c.optString("type").equals("shape")));
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(1));
+        JSONObject shape=sent.stream().filter(c -> c.optString("type").equals("shape")).findFirst().orElseThrow();
+        assertEquals("rectangle",shape.optString("kind"));
+        touch(canvas,MotionEvent.ACTION_UP,0,410,310);
+        assertEquals(5,document.strokes().get(0).points.size());
+        canvas.command("undo"); assertTrue(document.strokes().isEmpty());
+        }
+    }
     @Test public void selectedEraserSizeControlsBarrelErasingAndItsVisiblePointer() {
         for(float radius:new float[]{12,24,48}) {
             InkCanvas canvas=new InkCanvas(RuntimeEnvironment.getApplication()); canvas.layout(0,0,1000,700);

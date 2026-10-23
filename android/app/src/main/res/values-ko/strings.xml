@@ -1,4 +1,7 @@
 <resources>
+    <string name="lasso">올가미</string><string name="lasso_hint">필기를 선택한 뒤 끌어서 이동하거나 손잡이로 크기를 조절하세요</string>
+    <string name="shape_short">도형 보정</string><string name="shape_hint">도형 보정: 직선·타원·사각형을 그린 뒤 펜을 떼지 않고 1초 멈추세요</string>
+    <string name="editing_update_required">도형 보정과 올가미를 사용하려면 Windows DeskInk를 업데이트하세요</string>
     <string name="network_short">Wi-Fi</string>
     <string name="network">Wi-Fi / IP로 연결</string>
     <string name="network_address">PC IP 주소</string><string name="network_port">포트</string>

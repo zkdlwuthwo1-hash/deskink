@@ -2,6 +2,29 @@ package com.deskink.core;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class InkDocumentTest {
+    @Test public void selectionPreviewsUseTheOriginalGeometryAndCommitOneUndoStep() {
+        InkDocument d=new InkDocument();
+        for(int id=1;id<=2;id++) { d.apply(Ink.begin(id,Ink.point(id*100,100,1),new int[]{255,0,0,255},4,false)); d.apply(Ink.id("end",id)); }
+        d.apply(Ink.id("edit_begin",9)); d.apply(Ink.object("type","edit_add","id",9,"ids",new org.json.JSONArray(new long[]{1,2})));
+        d.apply(Ink.object("type","edit_transform","id",9,"sx",1,"sy",1,"tx",10,"ty",20));
+        d.apply(Ink.object("type","edit_transform","id",9,"sx",2,"sy",1.5,"tx",20,"ty",30));
+        d.apply(Ink.id("edit_end",9));
+        assertEquals(220,d.strokes().get(0).points.get(0).x,.01); assertEquals(420,d.strokes().get(1).points.get(0).x,.01);
+        assertEquals(180,d.strokes().get(0).points.get(0).y,.01);
+        d.apply(Ink.command("undo")); assertEquals(100,d.strokes().get(0).points.get(0).x,.01);
+        d.apply(Ink.command("redo")); assertEquals(220,d.strokes().get(0).points.get(0).x,.01);
+        d.apply(Ink.command("undo")); d.apply(Ink.command("undo")); assertEquals(1,d.strokes().size());
+    }
+    @Test public void shapeCorrectionKeepsTheBrushAndRemainsOneUndoableStroke() {
+        InkDocument d=new InkDocument();
+        d.apply(Ink.begin(7,Ink.point(98,102,.5f),new int[]{255,210,35,80},20,false));
+        d.apply(Ink.object("type","shape","id",7,"kind","rectangle","a",Ink.point(100,100,.5f),"b",Ink.point(300,300,.5f)));
+        assertEquals(5,d.strokes().get(0).points.size());
+        assertEquals(0x50ffd223,d.strokes().get(0).color);
+        assertEquals(20,d.strokes().get(0).width,.01);
+        d.apply(Ink.id("end",7)); d.apply(Ink.command("undo")); assertTrue(d.strokes().isEmpty());
+        d.apply(Ink.command("redo")); assertEquals(5,d.strokes().get(0).points.size());
+    }
     @Test public void twoConnectedPcSessionsKeepSeparateMonitorInkWhenSwitchingBack() {
         MonitorDocuments boards=new MonitorDocuments();
         InkDocument first=boards.select("pc-one","Screen 1");

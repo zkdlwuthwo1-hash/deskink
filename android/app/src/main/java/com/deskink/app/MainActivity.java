@@ -143,6 +143,7 @@ public final class MainActivity extends Activity {
                     binding=next; String token=hex(next.token);
                     InkDocument document=documents.select(token,next.host);
                     ink.bind(document,c -> owner.ink(next,c),next.config.width,next.config.height);
+                    ink.editingEnabled((next.hostCaps&0x0800)!=0);
                     workspace.showConnection(next.host,getString(lan?R.string.network_details:R.string.usb_details,next.config.width,next.config.height),true);
                     if(pairingDialog!=null) pairingDialog.dismiss(); transformVideo();
                 });

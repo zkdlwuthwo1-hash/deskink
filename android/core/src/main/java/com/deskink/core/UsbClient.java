@@ -34,11 +34,15 @@ public final class UsbClient implements AutoCloseable {
         public final String host;
         public final byte[] token;
         public final byte[] pcId;
+        public final int hostCaps;
         Binding(long session,Wire.Config config,String host,byte[] token) {
             this(session,config,host,token,new byte[16]);
         }
         Binding(long session,Wire.Config config,String host,byte[] token,byte[] pcId) {
-            this.session=session; this.config=config; this.host=host; this.token=token.clone(); this.pcId=pcId.clone();
+            this(session,config,host,token,pcId,0);
+        }
+        Binding(long session,Wire.Config config,String host,byte[] token,byte[] pcId,int hostCaps) {
+            this.session=session; this.config=config; this.host=host; this.token=token.clone(); this.pcId=pcId.clone(); this.hostCaps=hostCaps;
         }
     }
     private final Object lock=new Object();
@@ -196,7 +200,7 @@ public final class UsbClient implements AutoCloseable {
                 source.close(); return () -> listener.state(State.INCOMPATIBLE);
             }
             if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return null;
-            Binding next=new Binding(ack.session,ack.config,ack.host,ack.token,ack.pcId);
+            Binding next=new Binding(ack.session,ack.config,ack.host,ack.token,ack.pcId,ack.caps);
             configure(source,next);
             List<PcRegistration> saved=new ArrayList<>(registrations);
             if(PcRegistration.valid(ack.token)) {
@@ -219,7 +223,7 @@ public final class UsbClient implements AutoCloseable {
         if(packet.type==0x12||packet.type==0x18) {
             Wire.Config config=packet.config();
             if(config.epoch!=binding.config.epoch&&(int)(config.epoch-binding.config.epoch)>0) {
-                Binding next=new Binding(binding.session,config,binding.host,binding.token,binding.pcId);
+                Binding next=new Binding(binding.session,config,binding.host,binding.token,binding.pcId,binding.hostCaps);
                 configure(source,next); return () -> listener.stream(next);
             }
         } else if(packet.type==0x13) { source.close(); }

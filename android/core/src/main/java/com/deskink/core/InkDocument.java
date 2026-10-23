@@ -6,6 +6,7 @@ import java.util.*;
 public final class InkDocument {
     public static final class Point {
         public final float x,y,pressure;
+        public Point(float x,float y,float pressure) { this.x=x; this.y=y; this.pressure=pressure; }
         Point(JSONObject p) { x=(float)p.optDouble("x"); y=(float)p.optDouble("y"); pressure=(float)p.optDouble("pressure",1); }
     }
     public static final class Stroke {
@@ -15,11 +16,16 @@ public final class InkDocument {
         public final List<Point> points=new ArrayList<>();
         public boolean finished;
         public long expires;
+        public InkShape shape;
         Stroke(JSONObject c) {
             id=c.optLong("id"); JSONObject brush=c.optJSONObject("brush");
             JSONArray rgba=brush.optJSONArray("color");
             color=(rgba.optInt(3)<<24)|(rgba.optInt(0)<<16)|(rgba.optInt(1)<<8)|rgba.optInt(2);
             width=(float)brush.optDouble("width"); points.add(new Point(c.optJSONObject("point")));
+        }
+        private Stroke(Stroke source,List<Point> points) {
+            id=source.id; color=source.color; width=source.width; this.points.addAll(points);
+            finished=source.finished; expires=source.expires; shape=source.shape;
         }
     }
     private final List<Stroke> strokes=new ArrayList<>();
@@ -31,6 +37,10 @@ public final class InkDocument {
     private long eraseId;
     private Point eraseLast;
     private float eraseRadius;
+    private List<Stroke> editBefore;
+    private final Set<Long> editIds=new LinkedHashSet<>();
+    private long editId;
+    private boolean editTransformed,editChanged;
     public boolean visible=true;
     public long revision,staticRevision;
     public List<Stroke> strokes() { return Collections.unmodifiableList(strokes); }
@@ -43,6 +53,7 @@ public final class InkDocument {
         if(pointer!=null&&pointerExpires<=now) { pointer=null; revision++; }
     }
     public void suspend() {
+        if(editBefore!=null) apply(Ink.id("edit_end",editId));
         for(Stroke s:new ArrayList<>(strokes)) if(!s.finished) apply(Ink.id("end",s.id));
         if(eraseBefore!=null) apply(Ink.id("erase_end",eraseId));
         temporary.clear(); pointer=null; revision++;
@@ -52,7 +63,45 @@ public final class InkDocument {
     }
     public void apply(JSONObject c) {
         String type=c.optString("type"); long id=c.optLong("id");
+        if(editBefore!=null&&!type.startsWith("edit_")&&!type.equals("pointer")&&!type.equals("set_visible")) return;
         switch(type) {
+            case "edit_begin":
+                if(editBefore!=null||eraseBefore!=null||strokes.stream().anyMatch(s -> !s.finished)) return;
+                editBefore=new ArrayList<>(strokes); editId=id; editIds.clear(); editTransformed=editChanged=false; break;
+            case "edit_add":
+                if(editBefore==null||editId!=id||editTransformed) return;
+                JSONArray ids=c.optJSONArray("ids");
+                if(ids==null||ids.length()==0||ids.length()>32||editIds.size()+ids.length()>4096) return;
+                Set<Long> added=new LinkedHashSet<>();
+                for(int i=0;i<ids.length();i++) {
+                    long selected=ids.optLong(i);
+                    if(editIds.contains(selected)||!added.add(selected)||strokes.stream().noneMatch(s -> s.id==selected)) return;
+                }
+                editIds.addAll(added); break;
+            case "edit_transform":
+                if(editBefore==null||editId!=id||editIds.isEmpty()) return;
+                float sx=(float)c.optDouble("sx"),sy=(float)c.optDouble("sy"),tx=(float)c.optDouble("tx"),ty=(float)c.optDouble("ty");
+                if(!Float.isFinite(sx)||!Float.isFinite(sy)||!Float.isFinite(tx)||!Float.isFinite(ty)||sx<=0||sy<=0) return;
+                for(int i=0;i<editBefore.size();i++) {
+                    Stroke original=editBefore.get(i); if(!editIds.contains(original.id)) continue;
+                    List<Point> transformed=new ArrayList<>(); for(Point p:original.points) transformed.add(transform(p,sx,sy,tx,ty));
+                    Stroke replacement=new Stroke(original,transformed);
+                    if(original.shape!=null) replacement.shape=new InkShape(original.shape.kind,transform(original.shape.a,sx,sy,tx,ty),transform(original.shape.b,sx,sy,tx,ty));
+                    strokes.set(i,replacement);
+                }
+                editTransformed=true; editChanged=sx!=1||sy!=1||tx!=0||ty!=0; break;
+            case "edit_end":
+                if(editBefore==null||editId!=id) return;
+                if(editChanged) remember(editBefore);
+                editBefore=null; editIds.clear(); break;
+            case "shape":
+                for(int i=0;i<strokes.size();i++) {
+                    Stroke old=strokes.get(i); if(old.id!=id||old.finished) continue;
+                    InkShape shape=new InkShape(c.optString("kind"),new Point(c.optJSONObject("a")),new Point(c.optJSONObject("b")));
+                    List<Point> points=shape.points(); if(points.isEmpty()) return;
+                    Stroke corrected=new Stroke(old,points); corrected.shape=shape; strokes.set(i,corrected); break;
+                }
+                break;
             case "pointer": pointer=c.isNull("point")?null:c; pointerExpires=now+750; break;
             case "transient_begin": temporary.add(new Stroke(c)); break;
             case "erase_begin":
@@ -87,6 +136,7 @@ public final class InkDocument {
         revision++;
         if(!type.equals("append")&&!type.equals("begin")&&!type.equals("pointer")&&!type.equals("transient_begin")&&!type.equals("set_visible")) staticRevision++;
     }
+    private static Point transform(Point p,float sx,float sy,float tx,float ty) { return new Point(p.x*sx+tx,p.y*sy+ty,p.pressure); }
     private void erase(Point a,Point b) {
         strokes.removeIf(s -> {
             float limit=(eraseRadius+s.width/2)*(eraseRadius+s.width/2);

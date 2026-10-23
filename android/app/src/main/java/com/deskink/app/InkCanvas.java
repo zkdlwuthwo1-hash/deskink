@@ -15,6 +15,7 @@ public final class InkCanvas extends View {
     private final PenInput pen=new PenInput();
     public final Viewport viewport=new Viewport();
     private InkDocument document=new InkDocument();
+    private InkSelection selection;
     private Predicate<JSONObject> sender;
     private int desktopWidth=1920,desktopHeight=1080;
     private long nextId=System.currentTimeMillis(),gestureId;
@@ -23,6 +24,16 @@ public final class InkCanvas extends View {
     private int[] color={255,80,40,255};
     private float width=4;
     private float eraserRadius=12;
+    private boolean editingEnabled,shapeCorrection=true,shapeFrozen;
+    private float holdX,holdY;
+    private final Runnable hold=() -> {
+        if(!editingEnabled||!shapeCorrection||shapeFrozen||pointerId<0||(activeTool!=PenInput.Tool.PEN&&activeTool!=PenInput.Tool.HIGHLIGHTER)) return;
+        for(InkDocument.Stroke stroke:document.strokes()) if(stroke.id==gestureId&&!stroke.finished) {
+            InkShape shape=InkShape.recognize(stroke.points);
+            if(shape!=null) { shapeFrozen=true; emit(shape.command(gestureId)); }
+            break;
+        }
+    };
     private float fingerX,fingerY,fingerSpan;
     private int fingerA=-1,fingerB=-1;
     public Runnable stateChanged=() -> {};
@@ -38,6 +49,7 @@ public final class InkCanvas extends View {
         disconnect(); this.document=document; this.sender=sender; desktopWidth=w; desktopHeight=h;
         paths.clear(); cachedRevision=-1;
         viewport.resize(getWidth(),getHeight(),w,h); transformChanged.run(); stateChanged.run(); invalidate();
+        selection=new InkSelection(document,w,h,this::emit);
     }
     public void disconnect() { finish(true); pen.cancel(); pointerId=-1; sender=null; document.suspend(); stateChanged.run(); invalidate(); }
     public PenInput.Tool tool() { return pen.tool(); }
@@ -45,11 +57,15 @@ public final class InkCanvas extends View {
     public boolean connected() { return sender!=null; }
     public boolean canUndo() { return document.canUndo(); }
     public boolean canRedo() { return document.canRedo(); }
-    public void select(PenInput.Tool tool) { finish(true); pen.select(tool); stateChanged.run(); }
+    public void select(PenInput.Tool tool) { finish(true); if(tool==PenInput.Tool.LASSO&&!editingEnabled) return; if(selection!=null) selection.clear(); pen.select(tool); stateChanged.run(); invalidate(); }
     public void color(int[] rgba) { color=rgba.clone(); }
     public void width(float value) { width=value; }
     public void eraserRadius(float value) { eraserRadius=value==24||value==48?value:12; }
-    public void command(String type) { finish(true); emit(Ink.command(type)); }
+    public void editingEnabled(boolean value) { editingEnabled=value; if(!value) removeCallbacks(hold); }
+    public boolean editingEnabled() { return editingEnabled; }
+    public void shapeCorrection(boolean value) { shapeCorrection=value; if(!value) removeCallbacks(hold); }
+    public boolean shapeCorrection() { return shapeCorrection; }
+    public void command(String type) { finish(true); if(selection!=null) selection.clear(); emit(Ink.command(type)); }
     public void visible(boolean visible) { finish(true); emit(Ink.object("type","set_visible","visible",visible)); }
     private void emit(JSONObject command) {
         if(sender==null) return;
@@ -84,26 +100,41 @@ public final class InkCanvas extends View {
         return Ink.point(Math.max(0,Math.min(desktopWidth,p[0])),Math.max(0,Math.min(desktopHeight,p[1])),pressure);
     }
     private void begin(PenInput.Tool tool,JSONObject p) {
-        activeTool=tool; gestureId=++nextId;
+        activeTool=tool; gestureId=++nextId; shapeFrozen=false;
+        if(tool==PenInput.Tool.LASSO) { selection.begin(selectionPoint(p),viewport.scale(),gestureId); invalidate(); return; }
         if(!document.visible) emit(Ink.object("type","set_visible","visible",true));
         if(tool==PenInput.Tool.ERASER) emit(Ink.object("type","erase_begin","id",gestureId,"point",p,"radius",eraserRadius));
         else if(tool!=PenInput.Tool.LASER) {
             int[] rgba=color.clone(); if(tool==PenInput.Tool.HIGHLIGHTER) rgba[3]=80;
             emit(Ink.begin(gestureId,p,rgba,tool==PenInput.Tool.HIGHLIGHTER?width*5:width,tool==PenInput.Tool.VANISHING));
         }
+        armHold(p,true);
+    }
+    private void armHold(JSONObject p,boolean force) {
+        if(!editingEnabled||!shapeCorrection||shapeFrozen||(activeTool!=PenInput.Tool.PEN&&activeTool!=PenInput.Tool.HIGHLIGHTER)) return;
+        float x=(float)p.optDouble("x"),y=(float)p.optDouble("y");
+        if(force||Math.hypot(x-holdX,y-holdY)>3/viewport.scale()) {
+            holdX=x; holdY=y; removeCallbacks(hold); postDelayed(hold,1000);
+        }
     }
     private void move(JSONObject p) {
+        if(activeTool==PenInput.Tool.LASSO) { selection.move(selectionPoint(p),SystemClock.uptimeMillis()); invalidate(); return; }
+        if(shapeFrozen) return;
         if(activeTool==PenInput.Tool.ERASER) emit(Ink.at("erase_to",gestureId,p));
         else if(activeTool!=PenInput.Tool.LASER) emit(Ink.at("append",gestureId,p));
+        armHold(p,false);
     }
     private void finish(boolean lift) {
+        removeCallbacks(hold);
         if(activeTool!=null) {
-            if(activeTool==PenInput.Tool.ERASER) emit(Ink.id("erase_end",gestureId));
+            if(activeTool==PenInput.Tool.LASSO) { selection.end(); invalidate(); }
+            else if(activeTool==PenInput.Tool.ERASER) emit(Ink.id("erase_end",gestureId));
             else if(activeTool!=PenInput.Tool.LASER) emit(Ink.id("end",gestureId));
             activeTool=null;
         }
         if(lift) { pen.contactEnded(); stateChanged.run(); }
     }
+    private static InkDocument.Point selectionPoint(JSONObject p) { return new InkDocument.Point((float)p.optDouble("x"),(float)p.optDouble("y"),(float)p.optDouble("pressure")); }
     private void cursor(JSONObject p,boolean laser) {
         boolean erasing=(activeTool==null?pen.tool():activeTool)==PenInput.Tool.ERASER;
         emit(Ink.object("type","pointer","point",p==null?JSONObject.NULL:p,"color",Ink.color(erasing?new int[]{235,240,250,255}:color),
@@ -180,6 +211,7 @@ public final class InkCanvas extends View {
             for(InkDocument.Stroke s:document.temporary()) stroke(canvas,s);
         }
         JSONObject cursor=document.pointer;
+        if(selection!=null&&pen.tool()==PenInput.Tool.LASSO&&document.visible) drawSelection(canvas);
         if(cursor!=null) {
             JSONObject p=cursor.optJSONObject("point");
             if(p!=null) {
@@ -195,6 +227,24 @@ public final class InkCanvas extends View {
         }
         canvas.restore();
         if(document.pointer!=null||!document.temporary().isEmpty()) postInvalidateDelayed(32);
+    }
+    private void drawSelection(Canvas canvas) {
+        paint.setStyle(Paint.Style.STROKE); paint.setColor(0xff8ab4ff); paint.setStrokeWidth(1.5f/viewport.scale());
+        paint.setPathEffect(new DashPathEffect(new float[]{6/viewport.scale(),4/viewport.scale()},0));
+        if(!selection.lasso().isEmpty()) {
+            Path path=new Path(); boolean first=true;
+            for(InkDocument.Point p:selection.lasso()) { if(first) { path.moveTo(p.x,p.y); first=false; } else path.lineTo(p.x,p.y); }
+            canvas.drawPath(path,paint);
+        }
+        float[] b=selection.bounds();
+        if(b!=null) {
+            canvas.drawRect(b[0],b[1],b[2],b[3],paint); paint.setPathEffect(null);
+            for(float[] p:InkSelection.handles(b)) {
+                paint.setStyle(Paint.Style.FILL); paint.setColor(Color.WHITE); canvas.drawCircle(p[0],p[1],5/viewport.scale(),paint);
+                paint.setStyle(Paint.Style.STROKE); paint.setColor(0xff8ab4ff); canvas.drawCircle(p[0],p[1],5/viewport.scale(),paint);
+            }
+        }
+        paint.setPathEffect(null);
     }
     private void transform(Canvas canvas) {
         canvas.translate(viewport.x(),viewport.y()); canvas.scale(viewport.scale(),viewport.scale());

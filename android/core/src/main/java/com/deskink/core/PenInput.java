@@ -2,7 +2,7 @@ package com.deskink.core;
 
 /** Device-independent, momentary barrel-button state. */
 public final class PenInput {
-    public enum Tool { PEN, HIGHLIGHTER, ERASER, LASER, VANISHING }
+    public enum Tool { PEN, HIGHLIGHTER, ERASER, LASER, VANISHING, LASSO }
     private Tool selected = Tool.PEN;
     private Tool previous = Tool.PEN;
     private boolean held;

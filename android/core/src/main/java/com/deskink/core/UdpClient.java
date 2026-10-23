@@ -146,7 +146,7 @@ public final class UdpClient implements AutoCloseable {
                 return () -> { listener.state(UsbClient.State.INCOMPATIBLE); close(); };
             }
             if(binding!=null&&binding.session==ack.session&&binding.config.epoch==ack.config.epoch) return null;
-            UsbClient.Binding next=new UsbClient.Binding(ack.session,ack.config,ack.host,ack.token,ack.pcId);
+            UsbClient.Binding next=new UsbClient.Binding(ack.session,ack.config,ack.host,ack.token,ack.pcId,ack.caps);
             configure(next);
             List<PcRegistration> saved=new ArrayList<>(registrations);
             if(PcRegistration.valid(ack.token)) {
