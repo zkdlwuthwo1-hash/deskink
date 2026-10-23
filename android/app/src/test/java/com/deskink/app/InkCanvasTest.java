@@ -60,7 +60,10 @@ public class InkCanvasTest {
 
     @Test public void aStationaryPenCanCorrectALineDespiteSubPixelHoldSamples() {
         try(org.robolectric.android.controller.ActivityController<android.app.Activity> controller=Robolectric.buildActivity(android.app.Activity.class).setup().visible()) {
-            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas); canvas.layout(0,0,1000,700);
+            InkCanvas canvas=new InkCanvas(controller.get()); controller.get().setContentView(canvas);
+            // Settle initial window layout before replaying subpixel samples.
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            canvas.layout(0,0,1000,700);
             InkDocument document=new InkDocument(); List<JSONObject> sent=new ArrayList<>();
             canvas.bind(document,c -> { sent.add(c); return true; },1000,700); canvas.editingEnabled(true);
             touch(canvas,MotionEvent.ACTION_DOWN,0,100,200);
